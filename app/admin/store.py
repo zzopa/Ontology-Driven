@@ -27,9 +27,6 @@ def model_url(value):
     parsed = urlsplit(value)
     if parsed.scheme not in ('https', 'http') or not parsed.hostname or parsed.username or parsed.password or parsed.fragment or parsed.query:
         raise ValueError('模型地址必须是完整 HTTP(S) 接口，不接受凭据、查询参数或片段')
-    # Secrets should not travel over plain HTTP on the LAN or internet.
-    if parsed.scheme == 'http' and parsed.hostname not in ('localhost', '127.0.0.1', '::1'):
-        raise ValueError('非本机模型接口必须使用 HTTPS')
     return value
 
 

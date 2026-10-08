@@ -134,11 +134,12 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.store.model()['model'], 'second')
         self.store.delete_model('default', 'admin')
 
-    def test_model_url_rejects_secret_and_insecure_remote_transport(self):
-        for url in ('file:///private', 'http://example.com/v1', 'https://u:p@example.com/v1', 'https://example.com/v1?key=secret'):
+    def test_model_url_rejects_secret_or_invalid_transport(self):
+        for url in ('file:///private', 'https://u:p@example.com/v1', 'https://example.com/v1?key=secret'):
             with self.assertRaises(ValueError):
                 model_url(url)
         self.assertEqual(model_url('http://127.0.0.1:11434/v1/chat/completions'), 'http://127.0.0.1:11434/v1/chat/completions')
+        self.assertEqual(model_url('http://192.168.1.10:11434/v1/chat/completions'), 'http://192.168.1.10:11434/v1/chat/completions')
 
     def test_model_context_is_stable_and_changes_plan_cache_version(self):
         catalog = fixture_catalog()

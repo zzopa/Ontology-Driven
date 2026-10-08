@@ -28,7 +28,14 @@ def model_fingerprint():
 
 def model_available():
     value = current_model()
-    return bool(value.get('key') or value['url'].startswith(('http://localhost', 'http://127.0.0.1', 'http://[::1]')))
+    if value.get('key'):
+        return True
+    try:
+        parsed = urlparse(value['url'])
+    except Exception:
+        return False
+    # 无密钥的 HTTP(S) 接口（本地/内网自托管模型）视为可用；HTTPS 无密钥按不可用处理。
+    return parsed.scheme == 'http' and bool(parsed.hostname)
 
 
 @contextmanager
