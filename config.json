@@ -2,7 +2,7 @@
   "server": {
     "host": "0.0.0.0",
     "port": 8088,
-    "lan_cidr": "192.168.31.0/24",
+    "lan_cidr": "192.168.3.0/24",
     "embed_parent_origins": []
   },
   "admin": {
