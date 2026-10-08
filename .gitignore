@@ -10,6 +10,7 @@ frontend/out/
 frontend/*.tsbuildinfo
 artifacts/
 .idea/
+.pytest_cache/
 *.db
 *.sqlite3
 *.log

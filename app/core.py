@@ -368,6 +368,17 @@ def answer(catalog,plan,evidence,main_total,use_model,question='',trace=None,del
         published.add(claim['text'])
         return True
 
+    def warn(message):
+        claim={'text':message,'fact_ids':deepcopy(claims[0]['fact_ids']),'kind':'limitations'}
+        if publish(claim):
+            claims.append(claim)
+        else:
+            # System coverage warnings keep their authoritative category even
+            # if a model previously returned the same text as a finding.
+            for previous in claims:
+                if previous['text']==message:
+                    previous['kind']='limitations'
+
     # The verified query summary is available before model packing or requests.
     for claim in claims:
         publish(claim)
@@ -393,9 +404,7 @@ def answer(catalog,plan,evidence,main_total,use_model,question='',trace=None,del
         except Exception:
             report['error'] = '完整证据打包失败，未发送不完整证据；请核对证据预算配置'
             logger.exception('完整证据打包失败')
-            warning={'text':report['error'],'fact_ids':claims[0]['fact_ids'],'kind':'limitations'}
-            if publish(warning):
-                claims.append(warning)
+            warn(report['error'])
             return claims,'\n'.join(c['text'] for c in claims),'evidence_fallback'
         report['batch_count'] = len(batches)
         report['batch_characters'] = [len(evidence_json(b.payload)) for b in batches]
@@ -496,14 +505,10 @@ def answer(catalog,plan,evidence,main_total,use_model,question='',trace=None,del
                     'source_and_numeric_checked' if checked else 'deterministic')
         if not report['complete_queried_data']:
             warning='部分证据的模型传递未确认完成，以上保留数据库实际命中结果，不能视为全部关联数据的模型解读。'
-            claim={'text':warning,'fact_ids':claims[0]['fact_ids'],'kind':'limitations'}
-            if publish(claim):
-                claims.append(claim)
+            warn(warning)
         if report['fragmented_fact_count']:
             warning='超长记录已完整分片打包；只有请求完成才计为已传递，不凭单个分片推断整条记录。原始完整内容可在明细查看。'
-            claim={'text':warning,'fact_ids':claims[0]['fact_ids'],'kind':'limitations'}
-            if publish(claim):
-                claims.append(claim)
+            warn(warning)
         text='\n'.join(c['text'] for c in claims)
     return claims,text,validation
 

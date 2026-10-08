@@ -1,0 +1,209 @@
+{
+  "version": 1,
+  "description": "指标语义层声明式配置：固化业务指标口径、分析维度与时间聚合粒度，由 SemanticEngine 编译确定性 SQL",
+  "cubes": {
+    "contracts": {
+      "sql_table": "contract_main",
+      "schema": "public",
+      "label": "合同",
+      "measures": {
+        "total_amount": {
+          "sql": "lump_sum_amount_wan",
+          "type": "sum",
+          "label": "合同总金额",
+          "unit": "万元",
+          "description": "合同主表 lump_sum_amount_wan 算术合计，不代表付款或履约金额"
+        },
+        "record_count": {
+          "sql": "1",
+          "type": "count",
+          "label": "合同记录数",
+          "description": "合同主表记录总数"
+        },
+        "avg_amount": {
+          "sql": "lump_sum_amount_wan",
+          "type": "avg",
+          "label": "合同平均金额",
+          "unit": "万元"
+        },
+        "max_amount": {
+          "sql": "lump_sum_amount_wan",
+          "type": "max",
+          "label": "单笔最大合同金额",
+          "unit": "万元"
+        },
+        "min_amount": {
+          "sql": "lump_sum_amount_wan",
+          "type": "min",
+          "label": "单笔最小合同金额",
+          "unit": "万元"
+        },
+        "distinct_enterprise_count": {
+          "sql": "enterprise_scc",
+          "type": "count_distinct",
+          "label": "签约企业数",
+          "description": "按统一社会信用代码去重的签约企业数量"
+        }
+      },
+      "dimensions": {
+        "enterprise": {
+          "sql": "enterprise_name",
+          "label": "企业名称",
+          "type": "text"
+        },
+        "enterprise_scc": {
+          "sql": "enterprise_scc",
+          "label": "企业信用代码",
+          "type": "text"
+        },
+        "category": {
+          "sql": "contract_category_level1",
+          "label": "合同一级分类",
+          "type": "text"
+        },
+        "sub_category": {
+          "sql": "contract_category_level2",
+          "label": "合同二级分类",
+          "type": "text"
+        },
+        "phase": {
+          "sql": "contract_phase",
+          "label": "合同阶段",
+          "type": "text"
+        },
+        "procurement_method": {
+          "sql": "procurement_method",
+          "label": "采购方式",
+          "type": "text"
+        },
+        "currency": {
+          "sql": "currency_code",
+          "label": "币种",
+          "type": "text"
+        },
+        "collateral_type": {
+          "sql": "collateral_type",
+          "label": "担保类型",
+          "type": "text"
+        }
+      },
+      "time_dimensions": {
+        "signing_at": {
+          "sql": "signing_at",
+          "label": "签订时间",
+          "granularities": ["day", "month", "quarter", "year"]
+        },
+        "performance_start_at": {
+          "sql": "performance_start_at",
+          "label": "履约开始时间",
+          "granularities": ["day", "month", "quarter", "year"]
+        }
+      }
+    },
+    "fund_flow": {
+      "sql_table": "fund_flow_record",
+      "schema": "public",
+      "label": "资金流水",
+      "measures": {
+        "transaction_amount_sum": {
+          "sql": "transaction_amount",
+          "type": "sum",
+          "label": "交易金额合计",
+          "unit": "元",
+          "description": "按币种、交易类型分组的原始交易金额合计，不代表净现金流或账户余额"
+        },
+        "record_count": {
+          "sql": "1",
+          "type": "count",
+          "label": "资金流水记录数"
+        },
+        "avg_amount": {
+          "sql": "transaction_amount",
+          "type": "avg",
+          "label": "平均交易金额",
+          "unit": "元"
+        },
+        "max_amount": {
+          "sql": "transaction_amount",
+          "type": "max",
+          "label": "单笔最大交易金额",
+          "unit": "元"
+        }
+      },
+      "dimensions": {
+        "currency": {
+          "sql": "currency",
+          "label": "币种",
+          "type": "text"
+        },
+        "transaction_type": {
+          "sql": "transaction_type",
+          "label": "交易类型",
+          "type": "text"
+        },
+        "enterprise": {
+          "sql": "our_unit_name",
+          "label": "企业名称",
+          "type": "text"
+        },
+        "enterprise_scc": {
+          "sql": "our_unit_scc",
+          "label": "企业信用代码",
+          "type": "text"
+        }
+      },
+      "time_dimensions": {
+        "transaction_at": {
+          "sql": "transaction_at",
+          "label": "交易日期",
+          "granularities": ["day", "month", "quarter", "year"]
+        }
+      }
+    },
+    "payroll": {
+      "sql_table": "comp_payroll_monthly",
+      "schema": "public",
+      "label": "月度薪酬",
+      "measures": {
+        "gross_pay_sum": {
+          "sql": "sal_wage_total",
+          "type": "sum",
+          "label": "应发工资合计",
+          "unit": "元",
+          "numeric_text": true
+        },
+        "net_pay_sum": {
+          "sql": "sal_staff_net_paid",
+          "type": "sum",
+          "label": "实发工资合计",
+          "unit": "元",
+          "numeric_text": true
+        },
+        "record_count": {
+          "sql": "1",
+          "type": "count",
+          "label": "薪酬记录数"
+        }
+      },
+      "dimensions": {
+        "enterprise": {
+          "sql": "enterprise_name",
+          "label": "企业名称",
+          "type": "text"
+        },
+        "enterprise_scc": {
+          "sql": "enterprise_scc",
+          "label": "企业信用代码",
+          "type": "text"
+        }
+      },
+      "time_dimensions": {
+        "payroll_month": {
+          "sql": "payroll_month",
+          "label": "薪酬月份",
+          "granularities": ["month", "quarter", "year"]
+        }
+      }
+    }
+  }
+}

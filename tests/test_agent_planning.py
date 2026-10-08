@@ -50,6 +50,12 @@ class AgentPlanningTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'字段映射'):
             Compiler(cat).validate(result)
 
+    def test_multiple_requested_statistics_cannot_be_silently_reduced_to_one(self):
+        with self.assertRaisesRegex(ValueError,'拆分查询'):
+            reconcile_anchor(fixture_catalog(),
+                {'subject':'contract_main','focus_tables':['fund_flow_record','triple_major_meeting_record']},
+                {'subject':'fund_flow_record','intent':'count','conditions':[]})
+
     def test_same_algorithm_works_after_all_physical_tables_are_renamed(self):
         original=fixture_catalog()
         names={name:'domain_object_%d'%i for i,name in enumerate(original.entities)}

@@ -1,5 +1,6 @@
 """Evidence/analysis composition, without external models or business writes."""
 from copy import deepcopy
+from types import SimpleNamespace
 import json
 import unittest
 from unittest.mock import Mock, patch
@@ -136,6 +137,28 @@ class ResponseAgentTests(unittest.TestCase):
         self.assertEqual(result['answer_document']['mode'],'model_composed')
         self.assertIn(result['query_summary'],result['answer'])
         self.assertIn('composition',result['timings'])
+
+    def test_permissions_revoked_during_composition_block_the_final_snapshot(self):
+        cat=fixture_catalog()
+        access=SimpleNamespace(user_id='test-only',revision='initial',unrestricted=True,
+                               catalog=lambda original:original)
+        changed=[False]
+        def model(system,user,**kwargs):
+            if system==COMPOSITION_PROMPT:
+                changed[0]=True
+                raise TimeoutError('composition failed while permissions changed')
+            return '{"claims":[{"text":"档案信息来自查询。","fact_ids":["F1"]}]}'
+        def latest(*args):
+            return SimpleNamespace(revision='revoked' if changed[0] else 'initial')
+        rows=[{'bucket':'__main','row_data':{'id':1,'full_name':'测试员工'},'total_count':1}]
+        with patch.object(core,'CATALOG',cat),patch.object(core,'MEM',{'entries':[]}), \
+                patch.object(core,'load_lookups',return_value=({'comp_employee':{'测试员工'}},{})), \
+                patch.object(core,'Compiler',return_value=core.Compiler(cat)), \
+                patch.object(core,'execute',return_value=rows),patch.object(core,'model_available',return_value=True), \
+                patch.object(core,'chat',side_effect=model),patch('app.business_access.load_access',side_effect=latest), \
+                self.assertRaisesRegex(ValueError,'业务权限已变化'):
+            core.do_ask(None,'查找测试员工的情况',lambda event:None,use_cache=False,access=access)
+        self.assertTrue(changed[0])
 
 
 if __name__=='__main__':

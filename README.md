@@ -2,7 +2,9 @@
 
 基于 FastAPI 的本体驱动问数服务，前端使用 Next.js App Router + Tailwind CSS + Lucide + Framer Motion，默认读取本地 PostgreSQL `hbairport01`。查询主体来自当前库结构，不写死为员工或合同；资金、会议、资产、采购等对象使用同一个查询引擎。
 
-完整链路：启动采集元数据 → 编译本地业务本体 → 问题生成结构化计划 → 校验并编译参数化 SQL → 实时查询 → 构造来源事实及关系 → 校验答案 → 进度与分段输出。
+完整链路：启动采集元数据 → 编译本地业务本体 → 问题生成结构化计划 → 协调筛选锚点与统计粒度 → 校验并编译参数化 SQL → 实时查询 → 来源事实 → 证据分析与结论校验 → 内容编排 → 流式正文与分组回答。
+
+2026-10-08 新增通用规划/证据回答层，保留原有准确摘要、明细和权限校验，不为特定企业或问题定制答案。全模块职责、当前完成范围与后续步骤见 [通用问数智能体方案](docs/general-query-agent.md)。
 
 实施状态与业务边界见 [实施说明](docs/ontology-optimization-plan.md)，实测结果见 [验收报告](docs/verification-2026-10-03.md)。
 
@@ -21,6 +23,7 @@ app/
   validation.py     有时间预算的只读关系抽样
   management.py     本体配置校验、历史版本、并发冲突及回滚
   llm.py            模型调用适配
+  agent/            通用锚点/粒度协调、证据分析策略、完整结论内容编排
   core.py           服务编排
   main.py           FastAPI 生命周期与 HTTP 接口
   admin/            身份认证、模型/账号配置、会话、词条和审计
@@ -42,6 +45,7 @@ scripts/
   paths.py                 离线脚本共用路径
   db/{schema,graph,probes,renderers}/   数据库离线脚本，根目录不放 db_*.py
   demo/                    问答演示与验收脚本
+  service/                 Windows 服务重启与启动检查
 artifacts/
   graphs/                  图谱展示产物
   renderers/               演示页面产物
@@ -51,6 +55,7 @@ tests/                     单元与可选 TEMP 表集成测试
 docs/                      实施方案、报告
 ask_web.py                 启动入口
 start.ps1                  Windows 快捷启动
+restart.cmd                双击重启（检查、后台启动、日志与自动打开页面）
 config.json                非密钥配置
 config.local.json          本机密钥，不提交
 config.local.example.json  本机配置模板
@@ -76,6 +81,16 @@ cd ..
 ```
 
 已存在 `config.local.json` 时不要执行复制命令覆盖密钥。也可运行 `start.ps1`。
+
+日常重启直接双击根目录的 **`restart.cmd`**。脚本读取实际配置与当前环境变量（默认端口 8088），先检查数据库端口、前端产物和监听进程归属，再停止本项目旧服务、后台启动并等待 `/api/status` 与页面就绪，成功后自动打开浏览器。正在执行的问答会中断；不会删除会话、配置或数据库数据，不会重建前端。修改前端后请先执行 `npm run build`。
+
+日志保存在 `artifacts/logs/restart-*.stdout.log`、`restart-*.stderr.log`，双击窗口不会自动关闭，失败会提示原因。端口属于其他项目或无法核实归属时不会强杀；支持现有项目虚拟环境执行 `ask_web.py` 的启动方式，不接受任意 Python/Uvicorn 启动命令。遇到进程访问权限不足可右键“以管理员身份运行”。
+
+仅检查、不重启（PowerShell 终端执行）：
+
+```powershell
+& ([scriptblock]::Create([IO.File]::ReadAllText("$PWD\scripts\service\restart.ps1", [Text.Encoding]::UTF8))) -ProjectRoot "$PWD" -CheckOnly
+```
 
 问答：[http://127.0.0.1:8088/](http://127.0.0.1:8088/)；本体管理：[http://127.0.0.1:8088/ontology](http://127.0.0.1:8088/ontology)；弹窗嵌入：[http://127.0.0.1:8088/embed](http://127.0.0.1:8088/embed)。前端构建需要 Node.js 20.9+，生产不需要额外 Node 服务。前端开发、表单规则及安全嵌入见 [前端与嵌入说明](docs/frontend-and-embedding.md)。
 
@@ -122,6 +137,8 @@ COUNT/SUM 覆盖所有满足条件的记录；主表预览 5 条、内部取数�
 已读取且脱敏后的证据不再因模型预算静默丢失：字段解释、来源和关系说明共享定义，保留每个原始值（含 NULL、空字符串、0、false）；超过 `query.evidence_budget`（单批 JSON 字符数，默认 45000）时完整分批，默认 `query.evidence_workers=3` 并发（1–4）。发送前把各批还原，与查询原始事实和关系逐项比较。超长记录用完整编号分片传递，不把截断内容当作完整值；单个分片不能支撑整条记录结论。分批会增加模型调用次数与耗时；单次模型请求默认 `query.evidence_timeout_seconds=120` 秒，临时网络/限流错误最多按 `query.evidence_retries=1` 重试一次，鉴权错误和无依据结论不重试。等待期间每 10 秒更新实际执行状态。
 
 每批 `coverage.provided` 按本批真实完整记录重算，`query_provided` 表示数据库已读取数，跨批端点身份引用不计为完整记录。执行过程显示批次、字符数、请求/核验状态和最终传递数量；接口的 `model_evidence_delivery` 同时记录传递完整性。请求失败不会阻断其余批次，也不会伪称全部已传递。命中数量和已读取的主记录身份名单由系统确定性生成，模型仅补充核验通过的结论。
+
+明细及数据库 COUNT/SUM 结果均可进入通用证据分析；发现、分析解释、证据不足和核对建议分别展示，解释和建议不等于数据库已证实事实。原摘要另存为 `query_summary`，最终分组在 `answer_document`，兼容旧 `answer` 与会话。编排模型只重排已核验结论，不能新增正文/金额或遗漏引用；没有附加分析不调用。配置 `query.answer_composition_enabled=true`、`answer_composition_budget=18000` 字符、`answer_composition_timeout_seconds=20` 秒；预算超出或请求/校验失败直接保留完整确定性分组，不截断、不重试。首段不等编排，但编排可能增加总耗时。
 
 证据摘要阶段 `query.evidence_enable_thinking=false` 默认使用非思考模式，仅在硅基流动 DeepSeek-V4 / Qwen3 可切换系列上添加对应参数（排除 Thinking-only 名称）；不切换管理员选中的模型，不改变 SQL 计划调用，也不对其他提供商发送未知参数。接口参数依据 [硅基流动说明](https://docs.siliconflow.cn/docs/api/chat-completions-post)。
 
