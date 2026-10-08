@@ -1,0 +1,731 @@
+{
+  "domains": {
+    "权限管理": {
+      "count": 7,
+      "tables": [
+        "app_role",
+        "app_role_menu",
+        "app_role_permission",
+        "app_sys_menu",
+        "app_sys_permission",
+        "app_user",
+        "app_user_role"
+      ]
+    },
+    "审批流程": {
+      "count": 3,
+      "tables": [
+        "approval_form_binding",
+        "approval_step_def",
+        "approval_workflow_def"
+      ]
+    },
+    "资产管理": {
+      "count": 8,
+      "tables": [
+        "asset_appraisal_record",
+        "asset_card_gzw_serial_bucket",
+        "asset_card_qty_gzw_serial_bucket",
+        "asset_card_qty_line",
+        "asset_card_record",
+        "asset_disposal_record",
+        "asset_lease_record",
+        "asset_usage_record"
+      ]
+    },
+    "资金账户": {
+      "count": 3,
+      "tables": [
+        "bank_account_record",
+        "fund_flow_gzw_serial_bucket",
+        "fund_flow_record"
+      ]
+    },
+    "人力薪酬": {
+      "count": 29,
+      "tables": [
+        "comp_employee",
+        "comp_employee_employment_history",
+        "comp_employee_employment_history_gzw_serial_bucket",
+        "comp_employee_gzw_serial_bucket",
+        "comp_employee_qualification",
+        "comp_employee_research_project",
+        "comp_employee_submission",
+        "comp_enterprise_attribute",
+        "comp_enterprise_ledger",
+        "comp_enterprise_ledger_gzw_serial_bucket",
+        "comp_enterprise_ledger_submission",
+        "comp_migrant_worker_comp",
+        "comp_migrant_worker_comp_submission",
+        "comp_payroll_allowance_line",
+        "comp_payroll_allowance_submission",
+        "comp_payroll_incentive_line",
+        "comp_payroll_monthly",
+        "comp_payroll_monthly_gzw_serial_bucket",
+        "comp_payroll_submission",
+        "comp_salary_assessment_attachment",
+        "comp_salary_assessment_file",
+        "comp_salary_assessment_file_gzw_serial_bucket",
+        "comp_salary_assessment_file_submission",
+        "comp_supp_medical",
+        "comp_supp_medical_gzw_serial_bucket",
+        "comp_supp_medical_submission",
+        "comp_target_budget",
+        "comp_target_budget_gzw_serial_bucket",
+        "comp_target_budget_submission"
+      ]
+    },
+    "综合接待": {
+      "count": 8,
+      "tables": [
+        "comprehensive_gzw_serial_bucket",
+        "comprehensive_phone_reception_record",
+        "comprehensive_phone_reception_submission",
+        "comprehensive_pre_approval_record",
+        "comprehensive_pre_approval_record_backup_20260824",
+        "comprehensive_pre_approval_submission",
+        "comprehensive_reception_list_record",
+        "comprehensive_reception_list_submission"
+      ]
+    },
+    "合同管理": {
+      "count": 18,
+      "tables": [
+        "contract_counterparty",
+        "contract_counterparty_gzw_serial_bucket",
+        "contract_main",
+        "contract_main_gzw_serial_bucket",
+        "contract_openapi_sync_checkpoint",
+        "contract_payment_node",
+        "contract_perf_delivery",
+        "contract_perf_gzw_serial_bucket",
+        "contract_perf_invoice",
+        "contract_perf_receipt",
+        "contract_perf_sales_purchase_link",
+        "contract_perf_settlement",
+        "contract_perf_settlement_gzw_serial_bucket",
+        "contract_perf_settlement_no_bucket",
+        "contract_perf_shipping_attachment",
+        "contract_performance_submission",
+        "contract_sales_purchase_link",
+        "contract_submission"
+      ]
+    },
+    "组织架构": {
+      "count": 5,
+      "tables": [
+        "department",
+        "org_structure_gzw_serial_bucket",
+        "org_structure_investor",
+        "org_structure_record",
+        "org_structure_submission"
+      ]
+    },
+    "数据字典": {
+      "count": 3,
+      "tables": [
+        "dict_item",
+        "dict_module_tag",
+        "dict_type"
+      ]
+    },
+    "数据填报": {
+      "count": 1,
+      "tables": [
+        "filling_submission"
+      ]
+    },
+    "财务预算": {
+      "count": 4,
+      "tables": [
+        "fin_monthly_report",
+        "fin_monthly_report_submission",
+        "fin_target_budget",
+        "fin_target_budget_submission"
+      ]
+    },
+    "系统元数据": {
+      "count": 1,
+      "tables": [
+        "flyway_schema_history"
+      ]
+    },
+    "地理信息": {
+      "count": 5,
+      "tables": [
+        "geo_city",
+        "geo_continent",
+        "geo_country",
+        "geo_province",
+        "geo_region"
+      ]
+    },
+    "担保管理": {
+      "count": 3,
+      "tables": [
+        "guarantee_mgmt_record",
+        "guarantee_submission",
+        "loan_guarantee_record"
+      ]
+    },
+    "国资上报": {
+      "count": 14,
+      "tables": [
+        "gzw_business_data",
+        "gzw_business_type",
+        "gzw_field_mapping",
+        "gzw_index_definition",
+        "gzw_indx_mapping",
+        "gzw_info_resource",
+        "gzw_key_record",
+        "gzw_log_record",
+        "gzw_notice_download_record",
+        "gzw_notice_record",
+        "gzw_report_task",
+        "gzw_report_task_log",
+        "gzw_template_record",
+        "gzw_upload_record"
+      ]
+    },
+    "投资计划": {
+      "count": 14,
+      "tables": [
+        "inv_plan_acquired_economy",
+        "inv_plan_develop_plan",
+        "inv_plan_equity_info",
+        "inv_plan_essential_attachment",
+        "inv_plan_government_approval",
+        "inv_plan_investment_plan",
+        "inv_plan_issue_list",
+        "inv_plan_major_decision",
+        "inv_plan_monthly_progress",
+        "inv_plan_negative_list",
+        "inv_plan_plan_project",
+        "inv_plan_project_info",
+        "inv_plan_system_execution",
+        "inv_plan_system_info"
+      ]
+    },
+    "其他": {
+      "count": 1,
+      "tables": [
+        "investment_plan_submission"
+      ]
+    },
+    "借贷管理": {
+      "count": 3,
+      "tables": [
+        "lending_gzw_serial_bucket",
+        "lending_mgmt_record",
+        "lending_submission"
+      ]
+    },
+    "系统同步": {
+      "count": 2,
+      "tables": [
+        "oa_reception_sync_checkpoint",
+        "sync_task_record"
+      ]
+    },
+    "系统审计": {
+      "count": 1,
+      "tables": [
+        "operation_audit_log"
+      ]
+    },
+    "合作方管理": {
+      "count": 3,
+      "tables": [
+        "partner_gzw_serial_bucket",
+        "partner_record",
+        "partner_submission"
+      ]
+    },
+    "流程管理": {
+      "count": 3,
+      "tables": [
+        "process_mgmt_contract_approval_gzw_serial_bucket",
+        "process_mgmt_record",
+        "process_mgmt_submission"
+      ]
+    },
+    "采购管理": {
+      "count": 10,
+      "tables": [
+        "procurement_award",
+        "procurement_award_candidate",
+        "procurement_bid_opening",
+        "procurement_bid_submission",
+        "procurement_breach",
+        "procurement_evaluation_expert",
+        "procurement_gzw_serial_bucket",
+        "procurement_objection",
+        "procurement_project",
+        "procurement_registration"
+      ]
+    },
+    "应收管理": {
+      "count": 3,
+      "tables": [
+        "receivables_gzw_serial_bucket",
+        "receivables_record",
+        "receivables_submission"
+      ]
+    },
+    "数据验证": {
+      "count": 6,
+      "tables": [
+        "va_data_draft",
+        "va_dataset_spec",
+        "va_field_spec",
+        "va_table_spec",
+        "va_validation_error",
+        "va_validation_rule"
+      ]
+    }
+  },
+  "cross_fks": [
+    {
+      "table": "public.app_user",
+      "column": "department_id",
+      "ref_table": "public.department",
+      "ref_column": "id",
+      "constraint": "fkn54amhv3169lj7g6mr9x8u8es",
+      "from": "app_user",
+      "to": "department",
+      "from_domain": "权限管理",
+      "to_domain": "组织架构"
+    }
+  ],
+  "all_fks": [
+    {
+      "table": "public.app_role_menu",
+      "column": "role_id",
+      "ref_table": "public.app_role",
+      "ref_column": "id",
+      "constraint": "fkakrwoey9djdodkn4v17237q0p",
+      "from": "app_role_menu",
+      "to": "app_role",
+      "from_domain": "权限管理",
+      "to_domain": "权限管理"
+    },
+    {
+      "table": "public.app_role_menu",
+      "column": "menu_id",
+      "ref_table": "public.app_sys_menu",
+      "ref_column": "id",
+      "constraint": "fksw58btwfxmu145gobkq1beqwe",
+      "from": "app_role_menu",
+      "to": "app_sys_menu",
+      "from_domain": "权限管理",
+      "to_domain": "权限管理"
+    },
+    {
+      "table": "public.app_role_permission",
+      "column": "permission_id",
+      "ref_table": "public.app_sys_permission",
+      "ref_column": "id",
+      "constraint": "fk8rbq9qf7p7wu7hecv92vxn9hb",
+      "from": "app_role_permission",
+      "to": "app_sys_permission",
+      "from_domain": "权限管理",
+      "to_domain": "权限管理"
+    },
+    {
+      "table": "public.app_role_permission",
+      "column": "role_id",
+      "ref_table": "public.app_role",
+      "ref_column": "id",
+      "constraint": "fk7mxlaa4assrcd5k3vfxgl3i5j",
+      "from": "app_role_permission",
+      "to": "app_role",
+      "from_domain": "权限管理",
+      "to_domain": "权限管理"
+    },
+    {
+      "table": "public.app_sys_menu",
+      "column": "parent_id",
+      "ref_table": "public.app_sys_menu",
+      "ref_column": "id",
+      "constraint": "fkglkyoxghynexa2ad6mshfb8hm",
+      "from": "app_sys_menu",
+      "to": "app_sys_menu",
+      "from_domain": "权限管理",
+      "to_domain": "权限管理"
+    },
+    {
+      "table": "public.app_sys_permission",
+      "column": "parent_menu_id",
+      "ref_table": "public.app_sys_menu",
+      "ref_column": "id",
+      "constraint": "fkrhensonfa7chiq4qbbyloe8h4",
+      "from": "app_sys_permission",
+      "to": "app_sys_menu",
+      "from_domain": "权限管理",
+      "to_domain": "权限管理"
+    },
+    {
+      "table": "public.app_user",
+      "column": "department_id",
+      "ref_table": "public.department",
+      "ref_column": "id",
+      "constraint": "fkn54amhv3169lj7g6mr9x8u8es",
+      "from": "app_user",
+      "to": "department",
+      "from_domain": "权限管理",
+      "to_domain": "组织架构"
+    },
+    {
+      "table": "public.app_user_role",
+      "column": "user_id",
+      "ref_table": "public.app_user",
+      "ref_column": "id",
+      "constraint": "fkfnlxi1bmv5ao8u3nf30ymq7xa",
+      "from": "app_user_role",
+      "to": "app_user",
+      "from_domain": "权限管理",
+      "to_domain": "权限管理"
+    },
+    {
+      "table": "public.app_user_role",
+      "column": "role_id",
+      "ref_table": "public.app_role",
+      "ref_column": "id",
+      "constraint": "fk6hkq1uibwvjsusnnxrsm1gh83",
+      "from": "app_user_role",
+      "to": "app_role",
+      "from_domain": "权限管理",
+      "to_domain": "权限管理"
+    },
+    {
+      "table": "public.approval_form_binding",
+      "column": "workflow_id",
+      "ref_table": "public.approval_workflow_def",
+      "ref_column": "id",
+      "constraint": "fk8aob5gw8pl8v2da7k1qfo1igb",
+      "from": "approval_form_binding",
+      "to": "approval_workflow_def",
+      "from_domain": "审批流程",
+      "to_domain": "审批流程"
+    },
+    {
+      "table": "public.approval_step_def",
+      "column": "workflow_id",
+      "ref_table": "public.approval_workflow_def",
+      "ref_column": "id",
+      "constraint": "fkd4b7hfdyqystin5d2v3yoj48i",
+      "from": "approval_step_def",
+      "to": "approval_workflow_def",
+      "from_domain": "审批流程",
+      "to_domain": "审批流程"
+    },
+    {
+      "table": "public.asset_card_qty_line",
+      "column": "asset_card_id",
+      "ref_table": "public.asset_card_record",
+      "ref_column": "id",
+      "constraint": "fktk5yxi7sijr351uf7agyf2689",
+      "from": "asset_card_qty_line",
+      "to": "asset_card_record",
+      "from_domain": "资产管理",
+      "to_domain": "资产管理"
+    },
+    {
+      "table": "public.comp_employee_employment_history",
+      "column": "employee_id",
+      "ref_table": "public.comp_employee",
+      "ref_column": "id",
+      "constraint": "comp_employee_employment_history_employee_id_fkey",
+      "from": "comp_employee_employment_history",
+      "to": "comp_employee",
+      "from_domain": "人力薪酬",
+      "to_domain": "人力薪酬"
+    },
+    {
+      "table": "public.comp_employee_qualification",
+      "column": "employee_id",
+      "ref_table": "public.comp_employee",
+      "ref_column": "id",
+      "constraint": "comp_employee_qualification_employee_id_fkey",
+      "from": "comp_employee_qualification",
+      "to": "comp_employee",
+      "from_domain": "人力薪酬",
+      "to_domain": "人力薪酬"
+    },
+    {
+      "table": "public.comp_employee_research_project",
+      "column": "employee_id",
+      "ref_table": "public.comp_employee",
+      "ref_column": "id",
+      "constraint": "comp_employee_research_project_employee_id_fkey",
+      "from": "comp_employee_research_project",
+      "to": "comp_employee",
+      "from_domain": "人力薪酬",
+      "to_domain": "人力薪酬"
+    },
+    {
+      "table": "public.comp_enterprise_ledger",
+      "column": "submission_id",
+      "ref_table": "public.comp_enterprise_ledger_submission",
+      "ref_column": "id",
+      "constraint": "fk_comp_enterprise_ledger_submission",
+      "from": "comp_enterprise_ledger",
+      "to": "comp_enterprise_ledger_submission",
+      "from_domain": "人力薪酬",
+      "to_domain": "人力薪酬"
+    },
+    {
+      "table": "public.comp_payroll_allowance_line",
+      "column": "allowance_submission_id",
+      "ref_table": "public.comp_payroll_allowance_submission",
+      "ref_column": "id",
+      "constraint": "fkn9qkxkvxogkaovu5w22plr4pq",
+      "from": "comp_payroll_allowance_line",
+      "to": "comp_payroll_allowance_submission",
+      "from_domain": "人力薪酬",
+      "to_domain": "人力薪酬"
+    },
+    {
+      "table": "public.comp_payroll_allowance_line",
+      "column": "payroll_id",
+      "ref_table": "public.comp_payroll_monthly",
+      "ref_column": "id",
+      "constraint": "comp_payroll_allowance_line_payroll_id_fkey",
+      "from": "comp_payroll_allowance_line",
+      "to": "comp_payroll_monthly",
+      "from_domain": "人力薪酬",
+      "to_domain": "人力薪酬"
+    },
+    {
+      "table": "public.comp_payroll_incentive_line",
+      "column": "payroll_id",
+      "ref_table": "public.comp_payroll_monthly",
+      "ref_column": "id",
+      "constraint": "comp_payroll_incentive_line_payroll_id_fkey",
+      "from": "comp_payroll_incentive_line",
+      "to": "comp_payroll_monthly",
+      "from_domain": "人力薪酬",
+      "to_domain": "人力薪酬"
+    },
+    {
+      "table": "public.comp_payroll_monthly",
+      "column": "employee_id",
+      "ref_table": "public.comp_employee",
+      "ref_column": "id",
+      "constraint": "comp_payroll_monthly_employee_id_fkey",
+      "from": "comp_payroll_monthly",
+      "to": "comp_employee",
+      "from_domain": "人力薪酬",
+      "to_domain": "人力薪酬"
+    },
+    {
+      "table": "public.comp_salary_assessment_attachment",
+      "column": "file_id",
+      "ref_table": "public.comp_salary_assessment_file",
+      "ref_column": "id",
+      "constraint": "fko9o4fqlp3cmcrys3g4ya5rnc",
+      "from": "comp_salary_assessment_attachment",
+      "to": "comp_salary_assessment_file",
+      "from_domain": "人力薪酬",
+      "to_domain": "人力薪酬"
+    },
+    {
+      "table": "public.contract_counterparty",
+      "column": "main_id",
+      "ref_table": "public.contract_main",
+      "ref_column": "id",
+      "constraint": "fkat9fn79wvr4f6x9m09clxxy77",
+      "from": "contract_counterparty",
+      "to": "contract_main",
+      "from_domain": "合同管理",
+      "to_domain": "合同管理"
+    },
+    {
+      "table": "public.contract_payment_node",
+      "column": "main_id",
+      "ref_table": "public.contract_main",
+      "ref_column": "id",
+      "constraint": "fkrtt37nhw9ybkh1jr3tjui5s27",
+      "from": "contract_payment_node",
+      "to": "contract_main",
+      "from_domain": "合同管理",
+      "to_domain": "合同管理"
+    },
+    {
+      "table": "public.contract_sales_purchase_link",
+      "column": "main_id",
+      "ref_table": "public.contract_main",
+      "ref_column": "id",
+      "constraint": "fk52w7i59biyjquo5neyp575vwv",
+      "from": "contract_sales_purchase_link",
+      "to": "contract_main",
+      "from_domain": "合同管理",
+      "to_domain": "合同管理"
+    },
+    {
+      "table": "public.department",
+      "column": "parent_id",
+      "ref_table": "public.department",
+      "ref_column": "id",
+      "constraint": "fkmgsnnmudxrwqidn4f64q8rp4o",
+      "from": "department",
+      "to": "department",
+      "from_domain": "组织架构",
+      "to_domain": "组织架构"
+    },
+    {
+      "table": "public.gzw_report_task_log",
+      "column": "task_id",
+      "ref_table": "public.gzw_report_task",
+      "ref_column": "id",
+      "constraint": "gzw_report_task_log_task_id_fkey",
+      "from": "gzw_report_task_log",
+      "to": "gzw_report_task",
+      "from_domain": "国资上报",
+      "to_domain": "国资上报"
+    },
+    {
+      "table": "public.org_structure_investor",
+      "column": "record_id",
+      "ref_table": "public.org_structure_record",
+      "ref_column": "id",
+      "constraint": "fkjd8dqpvj5hnuhgu1cqv4uxfwv",
+      "from": "org_structure_investor",
+      "to": "org_structure_record",
+      "from_domain": "组织架构",
+      "to_domain": "组织架构"
+    },
+    {
+      "table": "public.procurement_award",
+      "column": "project_id",
+      "ref_table": "public.procurement_project",
+      "ref_column": "id",
+      "constraint": "fk802tw5u0ru4cucwhy9vl8rbcy",
+      "from": "procurement_award",
+      "to": "procurement_project",
+      "from_domain": "采购管理",
+      "to_domain": "采购管理"
+    },
+    {
+      "table": "public.procurement_award_candidate",
+      "column": "project_id",
+      "ref_table": "public.procurement_project",
+      "ref_column": "id",
+      "constraint": "fk2dtl4rg0wfmqy42ng7gv7wsa1",
+      "from": "procurement_award_candidate",
+      "to": "procurement_project",
+      "from_domain": "采购管理",
+      "to_domain": "采购管理"
+    },
+    {
+      "table": "public.procurement_bid_opening",
+      "column": "project_id",
+      "ref_table": "public.procurement_project",
+      "ref_column": "id",
+      "constraint": "fkr14ep6tbc4gcxbwowauph44po",
+      "from": "procurement_bid_opening",
+      "to": "procurement_project",
+      "from_domain": "采购管理",
+      "to_domain": "采购管理"
+    },
+    {
+      "table": "public.procurement_bid_submission",
+      "column": "project_id",
+      "ref_table": "public.procurement_project",
+      "ref_column": "id",
+      "constraint": "fk8iv1qb00955f3ndvm02qcf47j",
+      "from": "procurement_bid_submission",
+      "to": "procurement_project",
+      "from_domain": "采购管理",
+      "to_domain": "采购管理"
+    },
+    {
+      "table": "public.procurement_breach",
+      "column": "project_id",
+      "ref_table": "public.procurement_project",
+      "ref_column": "id",
+      "constraint": "fknunbf6l6pwk1l7rify0s51yn9",
+      "from": "procurement_breach",
+      "to": "procurement_project",
+      "from_domain": "采购管理",
+      "to_domain": "采购管理"
+    },
+    {
+      "table": "public.procurement_evaluation_expert",
+      "column": "project_id",
+      "ref_table": "public.procurement_project",
+      "ref_column": "id",
+      "constraint": "fkbxkl12f3rlmh2g9146uhpd50h",
+      "from": "procurement_evaluation_expert",
+      "to": "procurement_project",
+      "from_domain": "采购管理",
+      "to_domain": "采购管理"
+    },
+    {
+      "table": "public.procurement_objection",
+      "column": "project_id",
+      "ref_table": "public.procurement_project",
+      "ref_column": "id",
+      "constraint": "fkpkvrx576ee1620rp8pii6wfi",
+      "from": "procurement_objection",
+      "to": "procurement_project",
+      "from_domain": "采购管理",
+      "to_domain": "采购管理"
+    },
+    {
+      "table": "public.procurement_registration",
+      "column": "project_id",
+      "ref_table": "public.procurement_project",
+      "ref_column": "id",
+      "constraint": "fkc4p74tkot923yd06dlkfovkbg",
+      "from": "procurement_registration",
+      "to": "procurement_project",
+      "from_domain": "采购管理",
+      "to_domain": "采购管理"
+    }
+  ],
+  "involved_tables": [
+    "app_role",
+    "app_role_menu",
+    "app_role_permission",
+    "app_sys_menu",
+    "app_sys_permission",
+    "app_user",
+    "app_user_role",
+    "approval_form_binding",
+    "approval_step_def",
+    "approval_workflow_def",
+    "asset_card_qty_line",
+    "asset_card_record",
+    "comp_employee",
+    "comp_employee_employment_history",
+    "comp_employee_qualification",
+    "comp_employee_research_project",
+    "comp_enterprise_ledger",
+    "comp_enterprise_ledger_submission",
+    "comp_payroll_allowance_line",
+    "comp_payroll_allowance_submission",
+    "comp_payroll_incentive_line",
+    "comp_payroll_monthly",
+    "comp_salary_assessment_attachment",
+    "comp_salary_assessment_file",
+    "contract_counterparty",
+    "contract_main",
+    "contract_payment_node",
+    "contract_sales_purchase_link",
+    "department",
+    "gzw_report_task",
+    "gzw_report_task_log",
+    "org_structure_investor",
+    "org_structure_record",
+    "procurement_award",
+    "procurement_award_candidate",
+    "procurement_bid_opening",
+    "procurement_bid_submission",
+    "procurement_breach",
+    "procurement_evaluation_expert",
+    "procurement_objection",
+    "procurement_project",
+    "procurement_registration"
+  ]
+}

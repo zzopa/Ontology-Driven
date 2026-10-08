@@ -1,0 +1,9244 @@
+{
+ "field_nodes": [
+  {
+   "key": "org_structure_investor.id",
+   "table": "org_structure_investor",
+   "col": "id",
+   "domain": "组织架构",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "procurement_bid_opening.id",
+   "table": "procurement_bid_opening",
+   "col": "id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "comp_employee_employment_history.id",
+   "table": "comp_employee_employment_history",
+   "col": "id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "approval_workflow_def.id",
+   "table": "approval_workflow_def",
+   "col": "id",
+   "domain": "审批流程",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "app_sys_permission.id",
+   "table": "app_sys_permission",
+   "col": "id",
+   "domain": "权限管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "app_role.id",
+   "table": "app_role",
+   "col": "id",
+   "domain": "权限管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "department.id",
+   "table": "department",
+   "col": "id",
+   "domain": "组织架构",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "comp_employee_research_project.id",
+   "table": "comp_employee_research_project",
+   "col": "id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "approval_step_def.id",
+   "table": "approval_step_def",
+   "col": "id",
+   "domain": "审批流程",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "comp_employee_qualification.id",
+   "table": "comp_employee_qualification",
+   "col": "id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "comp_payroll_monthly.id",
+   "table": "comp_payroll_monthly",
+   "col": "id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "app_user.id",
+   "table": "app_user",
+   "col": "id",
+   "domain": "权限管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "gzw_report_task_log.id",
+   "table": "gzw_report_task_log",
+   "col": "id",
+   "domain": "国资上报",
+   "type": "bigint",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "contract_main.id",
+   "table": "contract_main",
+   "col": "id",
+   "domain": "合同管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "contract_sales_purchase_link.id",
+   "table": "contract_sales_purchase_link",
+   "col": "id",
+   "domain": "合同管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "procurement_evaluation_expert.id",
+   "table": "procurement_evaluation_expert",
+   "col": "id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "app_user_role.role_id",
+   "table": "app_user_role",
+   "col": "role_id",
+   "domain": "权限管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": true,
+   "fk_target": "app_role.id"
+  },
+  {
+   "key": "app_user_role.user_id",
+   "table": "app_user_role",
+   "col": "user_id",
+   "domain": "权限管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": true,
+   "fk_target": "app_user.id"
+  },
+  {
+   "key": "app_sys_menu.id",
+   "table": "app_sys_menu",
+   "col": "id",
+   "domain": "权限管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "asset_card_record.id",
+   "table": "asset_card_record",
+   "col": "id",
+   "domain": "资产管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "app_role_menu.role_id",
+   "table": "app_role_menu",
+   "col": "role_id",
+   "domain": "权限管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": true,
+   "fk_target": "app_role.id"
+  },
+  {
+   "key": "app_role_menu.menu_id",
+   "table": "app_role_menu",
+   "col": "menu_id",
+   "domain": "权限管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": true,
+   "fk_target": "app_sys_menu.id"
+  },
+  {
+   "key": "procurement_objection.id",
+   "table": "procurement_objection",
+   "col": "id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "org_structure_record.id",
+   "table": "org_structure_record",
+   "col": "id",
+   "domain": "组织架构",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "comp_salary_assessment_attachment.id",
+   "table": "comp_salary_assessment_attachment",
+   "col": "id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "app_role_permission.role_id",
+   "table": "app_role_permission",
+   "col": "role_id",
+   "domain": "权限管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": true,
+   "fk_target": "app_role.id"
+  },
+  {
+   "key": "app_role_permission.permission_id",
+   "table": "app_role_permission",
+   "col": "permission_id",
+   "domain": "权限管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": true,
+   "fk_target": "app_sys_permission.id"
+  },
+  {
+   "key": "comp_employee.id",
+   "table": "comp_employee",
+   "col": "id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "contract_counterparty.id",
+   "table": "contract_counterparty",
+   "col": "id",
+   "domain": "合同管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "comp_enterprise_ledger.id",
+   "table": "comp_enterprise_ledger",
+   "col": "id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "procurement_award_candidate.id",
+   "table": "procurement_award_candidate",
+   "col": "id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "comp_enterprise_ledger_submission.id",
+   "table": "comp_enterprise_ledger_submission",
+   "col": "id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "procurement_registration.id",
+   "table": "procurement_registration",
+   "col": "id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "comp_payroll_incentive_line.id",
+   "table": "comp_payroll_incentive_line",
+   "col": "id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "comp_salary_assessment_file.id",
+   "table": "comp_salary_assessment_file",
+   "col": "id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "procurement_bid_submission.id",
+   "table": "procurement_bid_submission",
+   "col": "id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "comp_payroll_allowance_submission.id",
+   "table": "comp_payroll_allowance_submission",
+   "col": "id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "contract_payment_node.id",
+   "table": "contract_payment_node",
+   "col": "id",
+   "domain": "合同管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "comp_payroll_allowance_line.id",
+   "table": "comp_payroll_allowance_line",
+   "col": "id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "approval_form_binding.id",
+   "table": "approval_form_binding",
+   "col": "id",
+   "domain": "审批流程",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "gzw_report_task.id",
+   "table": "gzw_report_task",
+   "col": "id",
+   "domain": "国资上报",
+   "type": "bigint",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "procurement_award.id",
+   "table": "procurement_award",
+   "col": "id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "procurement_project.id",
+   "table": "procurement_project",
+   "col": "id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "asset_card_qty_line.id",
+   "table": "asset_card_qty_line",
+   "col": "id",
+   "domain": "资产管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "procurement_breach.id",
+   "table": "procurement_breach",
+   "col": "id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": true,
+   "fk": false,
+   "fk_target": ""
+  },
+  {
+   "key": "app_sys_menu.parent_id",
+   "table": "app_sys_menu",
+   "col": "parent_id",
+   "domain": "权限管理",
+   "type": "uuid",
+   "nullable": true,
+   "pk": false,
+   "fk": true,
+   "fk_target": "app_sys_menu.id"
+  },
+  {
+   "key": "app_sys_permission.parent_menu_id",
+   "table": "app_sys_permission",
+   "col": "parent_menu_id",
+   "domain": "权限管理",
+   "type": "uuid",
+   "nullable": true,
+   "pk": false,
+   "fk": true,
+   "fk_target": "app_sys_menu.id"
+  },
+  {
+   "key": "app_user.department_id",
+   "table": "app_user",
+   "col": "department_id",
+   "domain": "权限管理",
+   "type": "uuid",
+   "nullable": true,
+   "pk": false,
+   "fk": true,
+   "fk_target": "department.id"
+  },
+  {
+   "key": "approval_form_binding.workflow_id",
+   "table": "approval_form_binding",
+   "col": "workflow_id",
+   "domain": "审批流程",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "approval_workflow_def.id"
+  },
+  {
+   "key": "approval_step_def.workflow_id",
+   "table": "approval_step_def",
+   "col": "workflow_id",
+   "domain": "审批流程",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "approval_workflow_def.id"
+  },
+  {
+   "key": "asset_card_qty_line.asset_card_id",
+   "table": "asset_card_qty_line",
+   "col": "asset_card_id",
+   "domain": "资产管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "asset_card_record.id"
+  },
+  {
+   "key": "comp_employee_employment_history.employee_id",
+   "table": "comp_employee_employment_history",
+   "col": "employee_id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "comp_employee.id"
+  },
+  {
+   "key": "comp_employee_qualification.employee_id",
+   "table": "comp_employee_qualification",
+   "col": "employee_id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "comp_employee.id"
+  },
+  {
+   "key": "comp_employee_research_project.employee_id",
+   "table": "comp_employee_research_project",
+   "col": "employee_id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "comp_employee.id"
+  },
+  {
+   "key": "comp_enterprise_ledger.submission_id",
+   "table": "comp_enterprise_ledger",
+   "col": "submission_id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": true,
+   "pk": false,
+   "fk": true,
+   "fk_target": "comp_enterprise_ledger_submission.id"
+  },
+  {
+   "key": "comp_payroll_allowance_line.allowance_submission_id",
+   "table": "comp_payroll_allowance_line",
+   "col": "allowance_submission_id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": true,
+   "pk": false,
+   "fk": true,
+   "fk_target": "comp_payroll_allowance_submission.id"
+  },
+  {
+   "key": "comp_payroll_allowance_line.payroll_id",
+   "table": "comp_payroll_allowance_line",
+   "col": "payroll_id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "comp_payroll_monthly.id"
+  },
+  {
+   "key": "comp_payroll_incentive_line.payroll_id",
+   "table": "comp_payroll_incentive_line",
+   "col": "payroll_id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "comp_payroll_monthly.id"
+  },
+  {
+   "key": "comp_payroll_monthly.employee_id",
+   "table": "comp_payroll_monthly",
+   "col": "employee_id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "comp_employee.id"
+  },
+  {
+   "key": "comp_salary_assessment_attachment.file_id",
+   "table": "comp_salary_assessment_attachment",
+   "col": "file_id",
+   "domain": "人力薪酬",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "comp_salary_assessment_file.id"
+  },
+  {
+   "key": "contract_counterparty.main_id",
+   "table": "contract_counterparty",
+   "col": "main_id",
+   "domain": "合同管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "contract_main.id"
+  },
+  {
+   "key": "contract_payment_node.main_id",
+   "table": "contract_payment_node",
+   "col": "main_id",
+   "domain": "合同管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "contract_main.id"
+  },
+  {
+   "key": "contract_sales_purchase_link.main_id",
+   "table": "contract_sales_purchase_link",
+   "col": "main_id",
+   "domain": "合同管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "contract_main.id"
+  },
+  {
+   "key": "department.parent_id",
+   "table": "department",
+   "col": "parent_id",
+   "domain": "组织架构",
+   "type": "uuid",
+   "nullable": true,
+   "pk": false,
+   "fk": true,
+   "fk_target": "department.id"
+  },
+  {
+   "key": "gzw_report_task_log.task_id",
+   "table": "gzw_report_task_log",
+   "col": "task_id",
+   "domain": "国资上报",
+   "type": "bigint",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "gzw_report_task.id"
+  },
+  {
+   "key": "org_structure_investor.record_id",
+   "table": "org_structure_investor",
+   "col": "record_id",
+   "domain": "组织架构",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "org_structure_record.id"
+  },
+  {
+   "key": "procurement_award.project_id",
+   "table": "procurement_award",
+   "col": "project_id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "procurement_project.id"
+  },
+  {
+   "key": "procurement_award_candidate.project_id",
+   "table": "procurement_award_candidate",
+   "col": "project_id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "procurement_project.id"
+  },
+  {
+   "key": "procurement_bid_opening.project_id",
+   "table": "procurement_bid_opening",
+   "col": "project_id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "procurement_project.id"
+  },
+  {
+   "key": "procurement_bid_submission.project_id",
+   "table": "procurement_bid_submission",
+   "col": "project_id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "procurement_project.id"
+  },
+  {
+   "key": "procurement_breach.project_id",
+   "table": "procurement_breach",
+   "col": "project_id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": true,
+   "pk": false,
+   "fk": true,
+   "fk_target": "procurement_project.id"
+  },
+  {
+   "key": "procurement_evaluation_expert.project_id",
+   "table": "procurement_evaluation_expert",
+   "col": "project_id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "procurement_project.id"
+  },
+  {
+   "key": "procurement_objection.project_id",
+   "table": "procurement_objection",
+   "col": "project_id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "procurement_project.id"
+  },
+  {
+   "key": "procurement_registration.project_id",
+   "table": "procurement_registration",
+   "col": "project_id",
+   "domain": "采购管理",
+   "type": "uuid",
+   "nullable": false,
+   "pk": false,
+   "fk": true,
+   "fk_target": "procurement_project.id"
+  }
+ ],
+ "links": [
+  {
+   "source": "app_role_menu.role_id",
+   "target": "app_role.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_role_menu.menu_id",
+   "target": "app_sys_menu.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_role_permission.permission_id",
+   "target": "app_sys_permission.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_role_permission.role_id",
+   "target": "app_role.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_sys_menu.parent_id",
+   "target": "app_sys_menu.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_sys_permission.parent_menu_id",
+   "target": "app_sys_menu.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_user.department_id",
+   "target": "department.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_user_role.user_id",
+   "target": "app_user.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_user_role.role_id",
+   "target": "app_role.id",
+   "type": "fk"
+  },
+  {
+   "source": "approval_form_binding.workflow_id",
+   "target": "approval_workflow_def.id",
+   "type": "fk"
+  },
+  {
+   "source": "approval_step_def.workflow_id",
+   "target": "approval_workflow_def.id",
+   "type": "fk"
+  },
+  {
+   "source": "asset_card_qty_line.asset_card_id",
+   "target": "asset_card_record.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_employee_employment_history.employee_id",
+   "target": "comp_employee.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_employee_qualification.employee_id",
+   "target": "comp_employee.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_employee_research_project.employee_id",
+   "target": "comp_employee.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_enterprise_ledger.submission_id",
+   "target": "comp_enterprise_ledger_submission.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_payroll_allowance_line.allowance_submission_id",
+   "target": "comp_payroll_allowance_submission.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_payroll_allowance_line.payroll_id",
+   "target": "comp_payroll_monthly.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_payroll_incentive_line.payroll_id",
+   "target": "comp_payroll_monthly.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_payroll_monthly.employee_id",
+   "target": "comp_employee.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_salary_assessment_attachment.file_id",
+   "target": "comp_salary_assessment_file.id",
+   "type": "fk"
+  },
+  {
+   "source": "contract_counterparty.main_id",
+   "target": "contract_main.id",
+   "type": "fk"
+  },
+  {
+   "source": "contract_payment_node.main_id",
+   "target": "contract_main.id",
+   "type": "fk"
+  },
+  {
+   "source": "contract_sales_purchase_link.main_id",
+   "target": "contract_main.id",
+   "type": "fk"
+  },
+  {
+   "source": "department.parent_id",
+   "target": "department.id",
+   "type": "fk"
+  },
+  {
+   "source": "gzw_report_task_log.task_id",
+   "target": "gzw_report_task.id",
+   "type": "fk"
+  },
+  {
+   "source": "org_structure_investor.record_id",
+   "target": "org_structure_record.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_award.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_award_candidate.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_bid_opening.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_bid_submission.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_breach.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_evaluation_expert.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_objection.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_registration.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  }
+ ],
+ "cards": [
+  {
+   "table": "app_role",
+   "domain": "权限管理",
+   "rows": 21,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "code",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enabled",
+     "type": "boolean",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "indicator_codes_csv",
+     "type": "varchar(4000)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "indicator_visibility",
+     "type": "varchar(20)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "name",
+     "type": "varchar(120)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "app_role_menu",
+   "domain": "权限管理",
+   "rows": 420,
+   "fields": [
+    {
+     "col": "role_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": true,
+     "fk_target": "app_role.id"
+    },
+    {
+     "col": "menu_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": true,
+     "fk_target": "app_sys_menu.id"
+    }
+   ],
+   "n_pk": 2
+  },
+  {
+   "table": "app_role_permission",
+   "domain": "权限管理",
+   "rows": 2850,
+   "fields": [
+    {
+     "col": "role_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": true,
+     "fk_target": "app_role.id"
+    },
+    {
+     "col": "permission_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": true,
+     "fk_target": "app_sys_permission.id"
+    }
+   ],
+   "n_pk": 2
+  },
+  {
+   "table": "app_sys_menu",
+   "domain": "权限管理",
+   "rows": 81,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "code",
+     "type": "varchar(96)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enabled",
+     "type": "boolean",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "menu_kind",
+     "type": "varchar(16)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "name",
+     "type": "varchar(120)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "route_name",
+     "type": "varchar(96)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "route_path",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "router_component",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sort_order",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "parent_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": true,
+     "fk_target": "app_sys_menu.id"
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "app_sys_permission",
+   "domain": "权限管理",
+   "rows": 439,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "code",
+     "type": "varchar(96)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enabled",
+     "type": "boolean",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "module_tag",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "name",
+     "type": "varchar(160)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sort_order",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "parent_menu_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": true,
+     "fk_target": "app_sys_menu.id"
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "app_user",
+   "domain": "权限管理",
+   "rows": 161,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "auth_source",
+     "type": "varchar(20)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_scope",
+     "type": "varchar(20)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "display_name",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enabled",
+     "type": "boolean",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "external_subject",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "password_hash",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "username",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "department_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": true,
+     "fk_target": "department.id"
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "app_user_role",
+   "domain": "权限管理",
+   "rows": 162,
+   "fields": [
+    {
+     "col": "user_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": true,
+     "fk_target": "app_user.id"
+    },
+    {
+     "col": "role_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": true,
+     "fk_target": "app_role.id"
+    }
+   ],
+   "n_pk": 2
+  },
+  {
+   "table": "approval_form_binding",
+   "domain": "审批流程",
+   "rows": 27,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enabled",
+     "type": "boolean",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "indicator_code",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "priority",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "workflow_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "approval_workflow_def.id"
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "approval_step_def",
+   "domain": "审批流程",
+   "rows": 3,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "assignee_kind",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "fixed_dept_code",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "joint_dept_codes_csv",
+     "type": "varchar(500)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "role_code",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "step_name",
+     "type": "varchar(120)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "step_order",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "workflow_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "approval_workflow_def.id"
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "approval_workflow_def",
+   "domain": "审批流程",
+   "rows": 2,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "active",
+     "type": "boolean",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "category",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "code",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "description",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "asset_card_qty_line",
+   "domain": "资产管理",
+   "rows": 20111,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "asset_status",
+     "type": "varchar(8)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "idle_start_date",
+     "type": "date",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "qty",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sort_order",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "unit",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "asset_card_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "asset_card_record.id"
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "asset_card_record",
+   "domain": "资产管理",
+   "rows": 20189,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_step_index",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "biz_key",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "status",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submission_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_department_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_user_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "title",
+     "type": "varchar(300)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "accounting_subject",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "accumulated_depreciation",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "acquired_at",
+     "type": "date",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "asset_category_code",
+     "type": "varchar(9)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "asset_category_name",
+     "type": "varchar(128)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "asset_name",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "asset_no",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "asset_source",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "book_net_value",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "book_original_value",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "building_actual_usage",
+     "type": "varchar(128)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "building_cert_type",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "building_cert_usage",
+     "type": "varchar(128)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "building_idle_detail",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "building_idle_reason",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "building_right_nature",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "building_right_type",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "building_use_period",
+     "type": "varchar(128)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "confirmed_qty",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "confirmed_unit",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "expected_realization_value",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "has_ownership_proof",
+     "type": "varchar(2)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "land_actual_usage",
+     "type": "varchar(128)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "land_cert_usage",
+     "type": "varchar(128)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "land_idle_area",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "land_idle_detail",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "land_idle_reason",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "land_right_nature",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "land_right_type",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "land_use_period",
+     "type": "varchar(128)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "leasable_qty",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "leasable_unit",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "location_country",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "location_region",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "manage_dept",
+     "type": "varchar(128)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "off_book_asset",
+     "type": "varchar(2)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "owner_unit_name",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "owner_unit_scc",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "ownership_cert_no",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "ownership_holder",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "ownership_unregister_reason",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "pending_revitalization",
+     "type": "varchar(2)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "pledge_amount",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "pledge_period",
+     "type": "varchar(128)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "pledged",
+     "type": "varchar(2)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "project_name",
+     "type": "varchar(128)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "realizable_asset",
+     "type": "varchar(2)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "revitalization_path",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "unrecorded_reason",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "unregister_detail_reason",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "use_dept",
+     "type": "varchar(128)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "comp_employee",
+   "domain": "人力薪酬",
+   "rows": 8095,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_step_index",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "birth_date",
+     "type": "date",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "biz_key",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "education",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enterprise_name",
+     "type": "varchar(300)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enterprise_scc",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "full_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gender",
+     "type": "varchar(16)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "hire_date",
+     "type": "date",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "id_card",
+     "type": "varchar(24)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "key_post_flag",
+     "type": "varchar(16)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "leave_date",
+     "type": "date",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "membership_group_name",
+     "type": "varchar(300)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "membership_group_scc",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "nationality",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "overseas_worker_flag",
+     "type": "varchar(16)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "person_nature",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "person_ref_uuid",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "person_type",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "position_sequence",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "post_level",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "post_type",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "postdoctoral_flag",
+     "type": "varchar(16)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "professional_manager_type",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "root_person_uuid",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "skilled_worker_level",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "status",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sub_row_uuid",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submission_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_department_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_user_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "talent_level",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "tech_staff_category",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "tech_title",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "title",
+     "type": "varchar(300)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "work_start_date",
+     "type": "date",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "mobile",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "id_type",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source_id",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_encrypted_payload",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "comp_employee_employment_history",
+   "domain": "人力薪酬",
+   "rows": 8113,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enterprise_name",
+     "type": "varchar(300)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enterprise_scc",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "external_source_id",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "hire_date",
+     "type": "date",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "key_post_flag",
+     "type": "varchar(16)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "leave_date",
+     "type": "date",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "membership_group_name",
+     "type": "varchar(300)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "membership_group_scc",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "overseas_worker_flag",
+     "type": "varchar(16)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "person_nature",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "person_ref_uuid",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "person_type",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "position_sequence",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "post_level",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "post_type",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "professional_manager_type",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_row_id",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "skilled_worker_level",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sort_order",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "tech_staff_category",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "employee_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "comp_employee.id"
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "dispatch_stationed_flag",
+     "type": "varchar(16)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "dispatch_stationed_enterprise_name",
+     "type": "varchar(300)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "professional_technician",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "case_by_case_salary_flag",
+     "type": "varchar(16)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "mid_long_term_incentive_flag",
+     "type": "varchar(16)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "mid_long_term_incentive_file",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source_id",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_encrypted_payload",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "comp_employee_qualification",
+   "domain": "人力薪酬",
+   "rows": 1072,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "certificate_level",
+     "type": "varchar(50)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "certificate_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "certificate_no",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_row_id",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "remark",
+     "type": "varchar(500)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sort_order",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "employee_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "comp_employee.id"
+    },
+    {
+     "col": "source_id",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "attachment_name",
+     "type": "varchar(500)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_encrypted_payload",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "comp_employee_research_project",
+   "domain": "人力薪酬",
+   "rows": 101,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "participate_end",
+     "type": "date",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "participate_start",
+     "type": "date",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "project_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_row_id",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sort_order",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "employee_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "comp_employee.id"
+    },
+    {
+     "col": "source_id",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_encrypted_payload",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "comp_enterprise_ledger",
+   "domain": "人力薪酬",
+   "rows": 297,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_step_index",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "asset_liability_ratio",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "biz_key",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "calc_process_note",
+     "type": "varchar(500)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "ebitda_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enterprise_category",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enterprise_name",
+     "type": "varchar(300)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enterprise_scc",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "full_competition_flag",
+     "type": "varchar(16)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "headcount_dispatch",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "headcount_exec",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "headcount_staff",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "headcount_total",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "labor_cost_profit_ratio",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "labor_cost_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "labor_productivity",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "membership_group_name",
+     "type": "varchar(300)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "membership_group_scc",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "net_profit_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "personnel_expense_ratio",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "profit_total_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_ledger_uuid",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "revenue_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "stat_month",
+     "type": "varchar(7)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "status",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submission_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": true,
+     "fk_target": "comp_enterprise_ledger_submission.id"
+    },
+    {
+     "col": "submitter_department_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_user_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "title",
+     "type": "varchar(300)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "wage_accrual_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "wage_mgmt_mode",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "wage_paid_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "welfare_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "stat_caliber",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "research_cost_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "work_value_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "union_fee_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "education_training_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "severance_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "non_cash_welfare_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "headcount_dept",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "comp_enterprise_ledger_submission",
+   "domain": "人力薪酬",
+   "rows": 54,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_step_index",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "line_count",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "status",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_department_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_user_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "title",
+     "type": "varchar(300)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "comp_payroll_allowance_line",
+   "domain": "人力薪酬",
+   "rows": 273965,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "amount",
+     "type": "varchar(256)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "method_name",
+     "type": "varchar(128)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "note",
+     "type": "varchar(500)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_row_id",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sort_order",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "payroll_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "comp_payroll_monthly.id"
+    },
+    {
+     "col": "source_id",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_encrypted_payload",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "allowance_submission_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": true,
+     "fk_target": "comp_payroll_allowance_submission.id"
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "comp_payroll_allowance_submission",
+   "domain": "人力薪酬",
+   "rows": 6,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "title",
+     "type": "varchar(300)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "status",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "line_count",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_user_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_department_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_step_index",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "comp_payroll_incentive_line",
+   "domain": "人力薪酬",
+   "rows": 4,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "amount",
+     "type": "varchar(256)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "attachment_note",
+     "type": "varchar(500)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "category",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "note",
+     "type": "varchar(500)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_row_id",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sort_order",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "tool_name",
+     "type": "varchar(128)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "payroll_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "comp_payroll_monthly.id"
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "comp_payroll_monthly",
+   "domain": "人力薪酬",
+   "rows": 34960,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_step_index",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "biz_key",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "employee_root_uuid",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "payroll_month",
+     "type": "varchar(10)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_payroll_id",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_allowance_total",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_annuity_enterprise",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_annuity_personal",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_annuity_personal_ratio",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_base_wage",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_housing_fund_enterprise",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_housing_fund_personal",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_housing_fund_personal_ratio",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_injury_enterprise",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_maternity_enterprise",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_medical_enterprise",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_medical_personal",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_medical_personal_ratio",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_mid_long_incentive_total",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_pension_enterprise",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_pension_personal",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_pension_personal_ratio",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_performance_bonus",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_social_insurance",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_staff_net_paid",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_unemployment_enterprise",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_unemployment_personal",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_unemployment_personal_ratio",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sal_wage_total",
+     "type": "varchar(256)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "status",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_department_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_user_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "title",
+     "type": "varchar(300)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "employee_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "comp_employee.id"
+    },
+    {
+     "col": "submission_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "cash_incentive_rows_json",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "equity_incentive_rows_json",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sell_equity_incentive_rows_json",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "equity_incentive_grant_year_rows_json",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "equity_incentive_total_year_rows_json",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "equity_incentive_status",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "equity_incentive_source",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "equity_incentive_approval_remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "equity_incentive_submitter_user_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "equity_incentive_submitter_department_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "equity_incentive_approval_step_index",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sell_equity_incentive_status",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sell_equity_incentive_source",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sell_equity_incentive_approval_remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sell_equity_incentive_submitter_user_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sell_equity_incentive_submitter_department_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sell_equity_incentive_approval_step_index",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source_id",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enterprise_name",
+     "type": "varchar(300)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enterprise_scc",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "membership_group_name",
+     "type": "varchar(300)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "membership_group_scc",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_encrypted_payload",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "cash_incentive_approval_remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "cash_incentive_approval_step_index",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "cash_incentive_duty_year_rows_json",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "cash_incentive_submitter_department_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "cash_incentive_submitter_user_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "cash_incentive_term_year_rows_json",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "cash_incentive_source",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "cash_incentive_status",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "comp_salary_assessment_attachment",
+   "domain": "人力薪酬",
+   "rows": 0,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "attachment_name",
+     "type": "text",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_row_uuid",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sort_order",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "system_category",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "file_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "comp_salary_assessment_file.id"
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "comp_salary_assessment_file",
+   "domain": "人力薪酬",
+   "rows": 0,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_step_index",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "biz_key",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contact_person",
+     "type": "varchar(100)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contact_phone",
+     "type": "varchar(100)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "document_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "document_no",
+     "type": "varchar(100)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enterprise_name",
+     "type": "varchar(300)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enterprise_scc",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "issue_date",
+     "type": "date",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "membership_group_name",
+     "type": "varchar(300)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "membership_group_scc",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_file_uuid",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "status",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_department_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_user_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "title",
+     "type": "varchar(300)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submission_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "contract_counterparty",
+   "domain": "合同管理",
+   "rows": 5301,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bank_account",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bank_name",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contact_address",
+     "type": "varchar(500)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contact_email",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contact_person",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contact_phone",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "counterparty_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "counterparty_nature",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "counterparty_scc",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "legal_rep_id_no",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "legal_rep_name",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "natural_person_id_no",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "reg_id",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "related_contract_id",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "main_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "contract_main.id"
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source_id",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "contract_main",
+   "domain": "合同管理",
+   "rows": 4490,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "agreed_exchange_rate_pct",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_step_index",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "biz_key",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "collateral_type",
+     "type": "varchar(50)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "collateral_value_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contract_attachment_ref",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contract_category_level1",
+     "type": "varchar(50)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contract_category_level2",
+     "type": "varchar(50)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contract_name",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contract_no",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contract_phase",
+     "type": "varchar(50)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contract_text_content",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "currency_code",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enterprise_name",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enterprise_scc",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "estimated_total_price_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "final_decision_at",
+     "type": "timestamptz",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "foreign_total_amount_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "guarantee_fee_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "guarantee_form",
+     "type": "varchar(50)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "has_legal_review",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "has_valuation_clause",
+     "type": "varchar(2)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "indicator_code",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "legal_review_date",
+     "type": "timestamptz",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "loan_annual_rate_pct",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "loan_interest_method",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "loan_principal_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "loan_repayment_term_display",
+     "type": "varchar(100)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "lump_sum_amount_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "other_settlement_method",
+     "type": "varchar(500)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "performance_start_at",
+     "type": "timestamptz",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "pricing_type",
+     "type": "varchar(50)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "procurement_method",
+     "type": "varchar(50)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "receipt_payment_direction",
+     "type": "varchar(50)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "record_type",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "reg_id",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "related_contract_id",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "related_contract_no",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "related_tender_id",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "signing_at",
+     "type": "timestamptz",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "small_batch_dispute_count",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "small_batch_quarter",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "small_batch_total_amount_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "small_batch_total_qty",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "small_batch_year",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "status",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "subject_matter",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submission_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_department_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_user_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "tender_code",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "title",
+     "type": "varchar(300)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "use_foreign_currency",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "valuation_clause_content",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "via_bidding_procurement",
+     "type": "varchar(50)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "winning_amount_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "winning_bidder_name",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "performance_term_days",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source_id",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source_modified_at",
+     "type": "timestamptz",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "contract_payment_node",
+   "domain": "合同管理",
+   "rows": 5449,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "expected_payment_at",
+     "type": "timestamptz",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "node_type",
+     "type": "varchar(50)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "performance_term_days",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "progress_node_amount_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "progress_payment_condition",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "receipt_payment_direction",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "reg_id",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "related_cash_flow_id",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "related_contract_id",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "time_node_amount_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "main_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "contract_main.id"
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source_id",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "contract_sales_purchase_link",
+   "domain": "合同管理",
+   "rows": 0,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "purchase_contract_id",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "purchase_contract_no",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "reg_id",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sales_contract_id",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sales_contract_no",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "main_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "contract_main.id"
+    },
+    {
+     "col": "payload_json",
+     "type": "text",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "department",
+   "domain": "组织架构",
+   "rows": 111,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "code",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enabled",
+     "type": "boolean",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "owner_org_scc",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sort_order",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "tree_path",
+     "type": "varchar(2000)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "parent_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": true,
+     "fk_target": "department.id"
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "gzw_report_task",
+   "domain": "国资上报",
+   "rows": 2,
+   "fields": [
+    {
+     "col": "id",
+     "type": "bigint",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "task_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "template_id",
+     "type": "bigint",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "template_name",
+     "type": "varchar(500)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "report_name",
+     "type": "varchar(500)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "cron_expression",
+     "type": "varchar(100)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "enabled",
+     "type": "boolean",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "upload_enabled",
+     "type": "boolean",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "run_status",
+     "type": "varchar(20)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "last_run_time",
+     "type": "timestamp without time …",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "next_run_time",
+     "type": "timestamp without time …",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "last_success_time",
+     "type": "timestamp without time …",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "last_message",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "last_upload_record_id",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamp without time …",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamp without time …",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "lock_version",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "gzw_report_task_log",
+   "domain": "国资上报",
+   "rows": 7141,
+   "fields": [
+    {
+     "col": "id",
+     "type": "bigint",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "task_id",
+     "type": "bigint",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "gzw_report_task.id"
+    },
+    {
+     "col": "task_name",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "upload_record_id",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "status",
+     "type": "varchar(20)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "message",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "started_at",
+     "type": "timestamp without time …",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "finished_at",
+     "type": "timestamp without time …",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "org_structure_investor",
+   "domain": "组织架构",
+   "rows": 100,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "ext_gdrjzbbwb_lv9",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "ext_gdsjzbbwb_lv9",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "name_chs",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "orgform",
+     "type": "varchar(80)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "ownership_scc",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "ownershipratio",
+     "type": "varchar(60)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "paidcapital",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "scc",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "seq",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "stockholder",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "subscribedcapital",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "record_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "org_structure_record.id"
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "org_structure_record",
+   "domain": "组织架构",
+   "rows": 44,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "addtype",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_step_index",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "busscale",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "busscope",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "canceltype",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "city",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "comnature",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "companytype",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "currency",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "district",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "email",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "founddate",
+     "type": "varchar(10)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "indicator_code",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "isinandoutboundary",
+     "type": "varchar(100)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "isinawardofbid",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "ismasterbus",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "isonmarket",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "isplatformcom",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "isshellcompany",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "linkman",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "linktelephone",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "majorinvestor",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "managelevel",
+     "type": "varchar(80)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "managementform",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "membershipgroup",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "membershipgroupid",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "name_chs",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "name_en",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "ofcontinent",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "ofcountry",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "officialwebsite",
+     "type": "varchar(512)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "ofindustry",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "ofregion",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "operatebegin",
+     "type": "varchar(10)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "operateend",
+     "type": "varchar(10)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "org_sort_order",
+     "type": "integer",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "orgform",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "parentcompany",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "personnum",
+     "type": "varchar(80)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "postaddress",
+     "type": "varchar(300)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "propertyrightlevel",
+     "type": "varchar(80)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "province",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "registeredcapital",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "representative",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "scc",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sdcapital",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "sdpnodeorg",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "shellcomtype",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "shortname_chs",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "shortname_en",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "status",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_department_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_user_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "telephone",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "unittype",
+     "type": "varchar(120)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submission_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "import_change_type",
+     "type": "varchar(16)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "procurement_award",
+   "domain": "采购管理",
+   "rows": 239,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "award_amount_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "award_notice_time",
+     "type": "timestamptz",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contact_address",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contact_email",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contact_phone",
+     "type": "varchar(25)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_row_id",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "winner_agent_name",
+     "type": "varchar(25)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "winner_bank_account",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "winner_id_card_no",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "winner_org_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "winner_org_scc",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "project_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "procurement_project.id"
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "procurement_award_candidate",
+   "domain": "采购管理",
+   "rows": 571,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "award_method",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "candidate_org_name",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "candidate_org_scc",
+     "type": "varchar(50)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "candidate_sequence_no",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "candidate_waived",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_row_id",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "project_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "procurement_project.id"
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "procurement_bid_opening",
+   "domain": "采购管理",
+   "rows": 1007,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_code",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "opening_amount_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "opening_org_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "opening_org_scc",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_row_id",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "project_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "procurement_project.id"
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "procurement_bid_submission",
+   "domain": "采购管理",
+   "rows": 1008,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "authorized_representative",
+     "type": "varchar(120)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bid_ip",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bid_time",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidder_org_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidder_org_scc",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_code",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contact_email",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contact_phone",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "legal_representative",
+     "type": "varchar(120)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_row_id",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "project_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "procurement_project.id"
+    },
+    {
+     "col": "bid_deposit_source_account",
+     "type": "varchar(50)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "procurement_breach",
+   "domain": "采购管理",
+   "rows": 3,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_step_index",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "biz_key",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "breach_reason",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "breach_time",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "breacher_name",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "breacher_scc",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "indicator_code",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "provider_group_name",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "provider_group_scc",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_row_id",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "status",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_department_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_user_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "title",
+     "type": "varchar(300)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "project_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": true,
+     "fk_target": "procurement_project.id"
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "procurement_evaluation_expert",
+   "domain": "采购管理",
+   "rows": 3538,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_code",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contact_phone",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "employer_org",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "evaluator_name",
+     "type": "varchar(120)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "evaluator_no",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "expert_identifier",
+     "type": "varchar(100)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "professional_title",
+     "type": "varchar(120)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_row_id",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "review_time",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "score_target",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "total_score",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "project_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "procurement_project.id"
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "procurement_objection",
+   "domain": "采购管理",
+   "rows": 23,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_code",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "objection_content",
+     "type": "varchar(4000)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "objection_time",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "objector_org_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "objector_org_scc",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_row_id",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "reply_time",
+     "type": "timestamptz",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "project_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "procurement_project.id"
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "procurement_project",
+   "domain": "采购管理",
+   "rows": 213,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "agency_name",
+     "type": "varchar(200)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "agency_scc",
+     "type": "varchar(50)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "announcement_publish_time",
+     "type": "timestamptz",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "approval_step_index",
+     "type": "integer",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "attachment_ref",
+     "type": "varchar(4000)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bid_deadline",
+     "type": "timestamptz",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bid_deposit_required_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bid_opening_time",
+     "type": "timestamptz",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_code",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_content",
+     "type": "varchar(2000)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_method",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_org_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_org_scc",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_org_scc_normalized",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "biz_key",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "budget_amount_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "indicator_code",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "is_failed_bid",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "purchase_code",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "purchase_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "purchase_type",
+     "type": "varchar(25)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "quotation_mode",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "registration_deadline",
+     "type": "timestamptz",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_row_id",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "remark",
+     "type": "text",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "source",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "status",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_department_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "submitter_user_id",
+     "type": "uuid",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "title",
+     "type": "varchar(300)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "final_transaction_price_wan",
+     "type": "numeric",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(32)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  },
+  {
+   "table": "procurement_registration",
+   "domain": "采购管理",
+   "rows": 1807,
+   "fields": [
+    {
+     "col": "id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": true,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "created_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_at",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "updated_by",
+     "type": "varchar(64)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "applicant_org_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "applicant_org_scc",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "authorized_representative",
+     "type": "varchar(120)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_code",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "bidding_name",
+     "type": "varchar(200)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "contact_phone",
+     "type": "varchar(50)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "is_shortlisted",
+     "type": "varchar(32)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "legal_representative",
+     "type": "varchar(120)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "registration_ip",
+     "type": "varchar(64)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "registration_time",
+     "type": "timestamptz",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "regulatory_row_id",
+     "type": "varchar(36)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "project_id",
+     "type": "uuid",
+     "nullable": false,
+     "pk": false,
+     "fk": true,
+     "fk_target": "procurement_project.id"
+    },
+    {
+     "col": "gzw_biz_id",
+     "type": "varchar(36)",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "gzw_report_serial",
+     "type": "bigint",
+     "nullable": true,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    },
+    {
+     "col": "data_flag",
+     "type": "varchar(1)",
+     "nullable": false,
+     "pk": false,
+     "fk": false,
+     "fk_target": ""
+    }
+   ],
+   "n_pk": 1
+  }
+ ],
+ "stats": {
+  "tables": 158,
+  "fields": 3056,
+  "pk_fields": 183,
+  "fks": 35,
+  "link_tables": 42,
+  "link_fields": 74
+ },
+ "logical_links": [
+  {
+   "source": "contract_main.submission_id",
+   "target": "contract_submission.id",
+   "note": "填报记录",
+   "type": "logical"
+  },
+  {
+   "source": "contract_main.submitter_user_id",
+   "target": "app_user.id",
+   "note": "提交人",
+   "type": "logical"
+  },
+  {
+   "source": "contract_main.enterprise_scc",
+   "target": "comp_enterprise_ledger.enterprise_scc",
+   "note": "企业台账",
+   "type": "logical"
+  },
+  {
+   "source": "contract_main.gzw_biz_id",
+   "target": "gzw_business_data.biz_id",
+   "note": "国资业务数据",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_settlement.related_contract_id",
+   "target": "contract_main.id",
+   "note": "履约结算",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_invoice.related_contract_id",
+   "target": "contract_main.id",
+   "note": "履约发票",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_delivery.related_contract_id",
+   "target": "contract_main.id",
+   "note": "履约交货",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_receipt.related_contract_id",
+   "target": "contract_main.id",
+   "note": "履约收据",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_settlement.submission_id",
+   "target": "contract_performance_submission.id",
+   "note": "履约填报",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_invoice.submission_id",
+   "target": "contract_performance_submission.id",
+   "note": "履约填报",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_delivery.submission_id",
+   "target": "contract_performance_submission.id",
+   "note": "履约填报",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_receipt.submission_id",
+   "target": "contract_performance_submission.id",
+   "note": "履约填报",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_shipping_attachment.sales_purchase_link_id",
+   "target": "contract_perf_sales_purchase_link.id",
+   "note": "履约购销关联",
+   "type": "logical"
+  }
+ ],
+ "links_all": [
+  {
+   "source": "app_role_menu.role_id",
+   "target": "app_role.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_role_menu.menu_id",
+   "target": "app_sys_menu.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_role_permission.permission_id",
+   "target": "app_sys_permission.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_role_permission.role_id",
+   "target": "app_role.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_sys_menu.parent_id",
+   "target": "app_sys_menu.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_sys_permission.parent_menu_id",
+   "target": "app_sys_menu.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_user.department_id",
+   "target": "department.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_user_role.user_id",
+   "target": "app_user.id",
+   "type": "fk"
+  },
+  {
+   "source": "app_user_role.role_id",
+   "target": "app_role.id",
+   "type": "fk"
+  },
+  {
+   "source": "approval_form_binding.workflow_id",
+   "target": "approval_workflow_def.id",
+   "type": "fk"
+  },
+  {
+   "source": "approval_step_def.workflow_id",
+   "target": "approval_workflow_def.id",
+   "type": "fk"
+  },
+  {
+   "source": "asset_card_qty_line.asset_card_id",
+   "target": "asset_card_record.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_employee_employment_history.employee_id",
+   "target": "comp_employee.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_employee_qualification.employee_id",
+   "target": "comp_employee.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_employee_research_project.employee_id",
+   "target": "comp_employee.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_enterprise_ledger.submission_id",
+   "target": "comp_enterprise_ledger_submission.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_payroll_allowance_line.allowance_submission_id",
+   "target": "comp_payroll_allowance_submission.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_payroll_allowance_line.payroll_id",
+   "target": "comp_payroll_monthly.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_payroll_incentive_line.payroll_id",
+   "target": "comp_payroll_monthly.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_payroll_monthly.employee_id",
+   "target": "comp_employee.id",
+   "type": "fk"
+  },
+  {
+   "source": "comp_salary_assessment_attachment.file_id",
+   "target": "comp_salary_assessment_file.id",
+   "type": "fk"
+  },
+  {
+   "source": "contract_counterparty.main_id",
+   "target": "contract_main.id",
+   "type": "fk"
+  },
+  {
+   "source": "contract_payment_node.main_id",
+   "target": "contract_main.id",
+   "type": "fk"
+  },
+  {
+   "source": "contract_sales_purchase_link.main_id",
+   "target": "contract_main.id",
+   "type": "fk"
+  },
+  {
+   "source": "department.parent_id",
+   "target": "department.id",
+   "type": "fk"
+  },
+  {
+   "source": "gzw_report_task_log.task_id",
+   "target": "gzw_report_task.id",
+   "type": "fk"
+  },
+  {
+   "source": "org_structure_investor.record_id",
+   "target": "org_structure_record.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_award.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_award_candidate.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_bid_opening.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_bid_submission.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_breach.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_evaluation_expert.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_objection.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  },
+  {
+   "source": "procurement_registration.project_id",
+   "target": "procurement_project.id",
+   "type": "fk"
+  },
+  {
+   "source": "contract_main.submission_id",
+   "target": "contract_submission.id",
+   "note": "填报记录",
+   "type": "logical"
+  },
+  {
+   "source": "contract_main.submitter_user_id",
+   "target": "app_user.id",
+   "note": "提交人",
+   "type": "logical"
+  },
+  {
+   "source": "contract_main.enterprise_scc",
+   "target": "comp_enterprise_ledger.enterprise_scc",
+   "note": "企业台账",
+   "type": "logical"
+  },
+  {
+   "source": "contract_main.gzw_biz_id",
+   "target": "gzw_business_data.biz_id",
+   "note": "国资业务数据",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_settlement.related_contract_id",
+   "target": "contract_main.id",
+   "note": "履约结算",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_invoice.related_contract_id",
+   "target": "contract_main.id",
+   "note": "履约发票",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_delivery.related_contract_id",
+   "target": "contract_main.id",
+   "note": "履约交货",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_receipt.related_contract_id",
+   "target": "contract_main.id",
+   "note": "履约收据",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_settlement.submission_id",
+   "target": "contract_performance_submission.id",
+   "note": "履约填报",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_invoice.submission_id",
+   "target": "contract_performance_submission.id",
+   "note": "履约填报",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_delivery.submission_id",
+   "target": "contract_performance_submission.id",
+   "note": "履约填报",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_receipt.submission_id",
+   "target": "contract_performance_submission.id",
+   "note": "履约填报",
+   "type": "logical"
+  },
+  {
+   "source": "contract_perf_shipping_attachment.sales_purchase_link_id",
+   "target": "contract_perf_sales_purchase_link.id",
+   "note": "履约购销关联",
+   "type": "logical"
+  }
+ ]
+}

@@ -1,0 +1,1431 @@
+{
+ "entries": [
+  {
+   "q": "查一下 GL-XZ-2026001 这个单子",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "cond_col": "contract_no",
+    "cond_val": "GL-XZ-2026001",
+    "op": "="
+   },
+   "hits": 29
+  },
+  {
+   "q": "天运达的付款节点",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "cond_col": "enterprise_scc",
+    "cond_val": "91420712MAG0C45Q72",
+    "op": "="
+   },
+   "hits": 5
+  },
+  {
+   "q": "上个月的合同",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "cond_col": "signing_at",
+    "cond_val": "2026-08",
+    "op": "prefix"
+   },
+   "hits": 5
+  },
+  {
+   "q": "今年签了多少合同",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "count",
+    "cond_col": "signing_at",
+    "cond_val": "2026",
+    "op": "prefix"
+   },
+   "hits": 15
+  },
+  {
+   "q": "合同总金额是多少",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "sum",
+    "cond_col": null,
+    "cond_val": null,
+    "op": null
+   },
+   "hits": 4
+  },
+  {
+   "q": "查询金额大于1000万的合同",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "cond_col": "lump_sum_amount_wan",
+    "cond_val": 1000,
+    "op": ">"
+   },
+   "hits": 2
+  },
+  {
+   "q": "查一下 WLC(2025)0154 这份合同",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "cond_col": "contract_no",
+    "cond_val": "WLC(2025)0154",
+    "op": "="
+   },
+   "hits": 1
+  },
+  {
+   "q": "襄阳机场的采购项目有哪些",
+   "parsed": {
+    "subject": "procurement_project",
+    "disp": "采购项目",
+    "intent": "detail",
+    "cond_col": null,
+    "cond_val": null,
+    "op": null
+   },
+   "hits": 1
+  },
+  {
+   "q": "给员工发工资最多的那个月是几月",
+   "parsed": {
+    "subject": "comp_payroll_monthly",
+    "disp": "月度薪酬",
+    "intent": "detail",
+    "cond_col": null,
+    "cond_val": null,
+    "op": null
+   },
+   "hits": 1
+  },
+  {
+   "q": "HBA（2026）080010 查询一下这个合同的数据",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "cond_col": "contract_no",
+    "cond_val": "HBA（2026）080010",
+    "op": "="
+   },
+   "hits": 2
+  },
+  {
+   "q": "202609042009000491814这个合同的所有信息",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "cond_col": "contract_no",
+    "cond_val": "202609042009000491814",
+    "op": "="
+   },
+   "hits": 5
+  },
+  {
+   "q": "WLC（2026）090063查看这个合同的信息",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "cond_col": "contract_no",
+    "cond_val": "WLC（2026）090063",
+    "op": "="
+   },
+   "hits": 2
+  },
+  {
+   "q": "TRSY（2026）090004 可以查到吧",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "cond_col": "contract_no",
+    "cond_val": "TRSY（2026）090004",
+    "op": "="
+   },
+   "hits": 2
+  },
+  {
+   "q": "湖北机场天睿商业发展有限责任公司 统计一下合同的数据",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "count",
+    "cond_col": "enterprise_scc",
+    "cond_val": "91420116MACY3P2824",
+    "op": "="
+   },
+   "hits": 1
+  },
+  {
+   "q": "查看一下中天智航的人员信息",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工主表",
+    "intent": "detail",
+    "cond_col": "enterprise_name",
+    "cond_val": "中天智航",
+    "op": "prefix"
+   },
+   "hits": 1
+  },
+  {
+   "q": "查看一下信科公司李康平的情况",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工主表",
+    "intent": "detail",
+    "cond_col": null,
+    "cond_val": null,
+    "op": null
+   },
+   "hits": 1
+  },
+  {
+   "q": "GL-XZ-2026001 的付款节点有多少",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "contract_no",
+      "op": "=",
+      "value": "GL-XZ-2026001"
+     }
+    ]
+   },
+   "hits": 8
+  },
+  {
+   "q": "查找信科公司李康平的情况",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工主表",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "full_name",
+      "op": "=",
+      "value": "李康平"
+     },
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91420116MACTDG7E9W"
+     }
+    ]
+   },
+   "hits": 15
+  },
+  {
+   "q": "GL-XZ-2026001 的支付安排有哪些",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "contract_no",
+      "op": "=",
+      "value": "GL-XZ-2026001"
+     }
+    ],
+    "focus_tables": [
+     "contract_payment_node"
+    ]
+   },
+   "hits": 4
+  },
+  {
+   "q": "信科公司李康平的津贴有多少条",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工主表",
+    "intent": "count",
+    "conditions": [
+     {
+      "col": "full_name",
+      "op": "=",
+      "value": "李康平"
+     },
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91420116MACTDG7E9W"
+     }
+    ],
+    "focus_tables": [
+     "comp_payroll_allowance_line"
+    ]
+   },
+   "hits": 3
+  },
+  {
+   "q": "信科公司的情况",
+   "parsed": {
+    "subject": "comp_enterprise_ledger",
+    "disp": "企业台账",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91420116MACTDG7E9W"
+     }
+    ],
+    "focus_tables": []
+   },
+   "hits": 3
+  },
+  {
+   "q": "查询合同 GL-XZ-2026001 的所有信息",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "contract_no",
+      "op": "=",
+      "value": "GL-XZ-2026001"
+     }
+    ],
+    "focus_tables": []
+   },
+   "hits": 4
+  },
+  {
+   "q": "查看李康平的情况",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工主表",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "full_name",
+      "op": "=",
+      "value": "李康平"
+     }
+    ],
+    "focus_tables": []
+   },
+   "hits": 1
+  },
+  {
+   "q": "查看陈飞情况",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工主表",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "full_name",
+      "op": "=",
+      "value": "陈飞"
+     }
+    ],
+    "focus_tables": []
+   },
+   "hits": 1
+  },
+  {
+   "q": "统计一下中天智航的所有合同支付情况",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "enterprise_name",
+      "op": "prefix",
+      "value": "中天智航"
+     }
+    ],
+    "focus_tables": [
+     "contract_payment_node"
+    ]
+   },
+   "hits": 3
+  },
+  {
+   "q": "查一下陈飞的资料",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工主表",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "full_name",
+      "op": "=",
+      "value": "陈飞"
+     }
+    ],
+    "focus_tables": []
+   },
+   "hits": 1
+  },
+  {
+   "q": "看一下中天智航有多少员工",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工主表",
+    "intent": "count",
+    "conditions": [
+     {
+      "col": "enterprise_name",
+      "op": "prefix",
+      "value": "中天智航"
+     }
+    ],
+    "focus_tables": []
+   },
+   "hits": 1
+  },
+  {
+   "q": "看看 WLC(2025)0154 这份合同",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "contract_no",
+      "op": "=",
+      "value": "WLC(2025)0154"
+     }
+    ],
+    "focus_tables": []
+   },
+   "hits": 2
+  },
+  {
+   "q": "有多少员工",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工主表",
+    "intent": "count",
+    "conditions": [],
+    "focus_tables": []
+   },
+   "hits": 9
+  },
+  {
+   "q": "JCWH（2026）090011看一下这个合同的信息",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "contract_no",
+      "op": "=",
+      "value": "JCWH（2026）090011"
+     }
+    ],
+    "focus_tables": []
+   },
+   "hits": 2
+  },
+  {
+   "q": "陈飞的信息",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工主表",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "full_name",
+      "op": "=",
+      "value": "陈飞"
+     }
+    ],
+    "focus_tables": []
+   },
+   "hits": 1
+  },
+  {
+   "q": "查询中天智航的所有信息",
+   "parsed": {
+    "subject": "comp_enterprise_ledger",
+    "disp": "企业台账",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "enterprise_name",
+      "op": "prefix",
+      "value": "中天智航"
+     }
+    ],
+    "focus_tables": []
+   },
+   "hits": 1
+  },
+  {
+   "q": "看一下中天智航所有合同的结算率",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同主表",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "enterprise_name",
+      "op": "prefix",
+      "value": "中天智航"
+     }
+    ],
+    "focus_tables": []
+   },
+   "hits": 1
+  },
+  {
+   "q": "检索一下中天智航的数据",
+   "parsed": {
+    "subject": "comp_enterprise_ledger",
+    "disp": "企业台账",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "enterprise_name",
+      "op": "prefix",
+      "value": "中天智航"
+     }
+    ],
+    "focus_tables": []
+   },
+   "hits": 1
+  },
+  {
+   "q": "有多少员工",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工",
+    "intent": "count",
+    "conditions": [],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": []
+   },
+   "version": "30dba8502cfc9a7b4d9af38d57b33f58619820f3aaec05b6a10cfbb07073f0e4:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "合同总金额是多少",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同",
+    "intent": "sum",
+    "conditions": [],
+    "focus_tables": [],
+    "aggregate_target": "contract_main",
+    "metric": "contract_amount",
+    "group_by": []
+   },
+   "version": "30dba8502cfc9a7b4d9af38d57b33f58619820f3aaec05b6a10cfbb07073f0e4:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "资金总金额是多少",
+   "parsed": {
+    "subject": "fund_flow_record",
+    "disp": "资金流水",
+    "intent": "sum",
+    "conditions": [],
+    "focus_tables": [],
+    "aggregate_target": "fund_flow_record",
+    "metric": "transaction_amount",
+    "group_by": []
+   },
+   "version": "30dba8502cfc9a7b4d9af38d57b33f58619820f3aaec05b6a10cfbb07073f0e4:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "有多少会议",
+   "parsed": {
+    "subject": "triple_major_meeting_record",
+    "disp": "会议记录",
+    "intent": "count",
+    "conditions": [],
+    "focus_tables": [],
+    "aggregate_target": "triple_major_meeting_record",
+    "metric": null,
+    "group_by": []
+   },
+   "version": "30dba8502cfc9a7b4d9af38d57b33f58619820f3aaec05b6a10cfbb07073f0e4:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "今年有多少会议",
+   "parsed": {
+    "subject": "triple_major_meeting_record",
+    "disp": "会议记录",
+    "intent": "count",
+    "conditions": [
+     {
+      "table": "triple_major_meeting_record",
+      "col": "meeting_time",
+      "op": "prefix",
+      "value": "2026"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "triple_major_meeting_record",
+    "metric": null,
+    "group_by": []
+   },
+   "version": "30dba8502cfc9a7b4d9af38d57b33f58619820f3aaec05b6a10cfbb07073f0e4:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "查找信科公司李康平的情况",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工",
+    "intent": "detail",
+    "conditions": [
+     {
+      "table": "comp_employee",
+      "col": "full_name",
+      "op": "=",
+      "value": "李康平"
+     },
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91420116MACTDG7E9W"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": []
+   },
+   "version": "30dba8502cfc9a7b4d9af38d57b33f58619820f3aaec05b6a10cfbb07073f0e4:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "天运达的付款节点",
+   "parsed": {
+    "subject": "comp_enterprise_ledger",
+    "disp": "企业台账",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91420712MAG0C45Q72"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_enterprise_ledger",
+    "metric": null,
+    "group_by": []
+   },
+   "version": "30dba8502cfc9a7b4d9af38d57b33f58619820f3aaec05b6a10cfbb07073f0e4:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "查找信科公司李康平的情况",
+   "parsed": {
+    "subject": "comp_employee",
+    "intent": "detail",
+    "conditions": [
+     {
+      "table": "comp_employee",
+      "col": "enterprise_name",
+      "op": "=",
+      "value": "信科公司"
+     },
+     {
+      "table": "comp_employee",
+      "col": "full_name",
+      "op": "=",
+      "value": "李康平"
+     },
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91420116MACTDG7E9W"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "员工"
+   },
+   "version": "e09b1ae21b6915f70398a9c2642ed248ddb7aa0f0774ea125e24c8fb9960fce7:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "资金总金额是多少",
+   "parsed": {
+    "subject": "fund_flow_record",
+    "intent": "sum",
+    "conditions": [],
+    "focus_tables": [],
+    "aggregate_target": "fund_flow_record",
+    "metric": "transaction_amount",
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "资金流水"
+   },
+   "version": "e09b1ae21b6915f70398a9c2642ed248ddb7aa0f0774ea125e24c8fb9960fce7:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "按月份统计会议数量",
+   "parsed": {
+    "subject": "triple_major_meeting_record",
+    "intent": "count",
+    "conditions": [],
+    "focus_tables": [
+     "triple_major_meeting_record"
+    ],
+    "aggregate_target": "triple_major_meeting_record",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": {
+     "field": "meeting_time",
+     "grain": "month"
+    },
+    "unresolved": [],
+    "disp": "会议记录"
+   },
+   "version": "e09b1ae21b6915f70398a9c2642ed248ddb7aa0f0774ea125e24c8fb9960fce7:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 2
+  },
+  {
+   "q": "今年签了多少合同",
+   "parsed": {
+    "subject": "contract_main",
+    "intent": "count",
+    "conditions": [
+     {
+      "table": "contract_main",
+      "col": "signing_at",
+      "op": "prefix",
+      "value": "2026"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "contract_main",
+    "metric": "contract_amount",
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "合同"
+   },
+   "version": "e09b1ae21b6915f70398a9c2642ed248ddb7aa0f0774ea125e24c8fb9960fce7:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "今年签了多少合同",
+   "parsed": {
+    "subject": "contract_main",
+    "intent": "count",
+    "conditions": [
+     {
+      "table": "contract_main",
+      "col": "signing_at",
+      "op": "prefix",
+      "value": "2026"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "contract_main",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "合同"
+   },
+   "version": "ontology-flow-v2.1:e09b1ae21b6915f70398a9c2642ed248ddb7aa0f0774ea125e24c8fb9960fce7:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "资金总金额是多少",
+   "parsed": {
+    "subject": "fund_flow_record",
+    "intent": "sum",
+    "conditions": [],
+    "focus_tables": [],
+    "aggregate_target": "fund_flow_record",
+    "metric": "transaction_amount",
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "资金流水"
+   },
+   "version": "ontology-flow-v2.1:e09b1ae21b6915f70398a9c2642ed248ddb7aa0f0774ea125e24c8fb9960fce7:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "按月份统计会议数量",
+   "parsed": {
+    "subject": "triple_major_meeting_record",
+    "intent": "count",
+    "conditions": [],
+    "focus_tables": [],
+    "aggregate_target": "triple_major_meeting_record",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": {
+     "field": "meeting_time",
+     "grain": "month"
+    },
+    "unresolved": [],
+    "disp": "会议记录"
+   },
+   "version": "ontology-flow-v2.1:e09b1ae21b6915f70398a9c2642ed248ddb7aa0f0774ea125e24c8fb9960fce7:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "查找信科公司李康平的情况",
+   "parsed": {
+    "subject": "comp_employee",
+    "intent": "detail",
+    "conditions": [
+     {
+      "table": "comp_employee",
+      "col": "full_name",
+      "op": "=",
+      "value": "李康平"
+     },
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91420116MACTDG7E9W"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "员工"
+   },
+   "version": "ontology-flow-v2.1:e09b1ae21b6915f70398a9c2642ed248ddb7aa0f0774ea125e24c8fb9960fce7:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 2
+  },
+  {
+   "q": "按月份统计会议数量",
+   "parsed": {
+    "subject": "triple_major_meeting_record",
+    "intent": "count",
+    "conditions": [],
+    "focus_tables": [],
+    "aggregate_target": "triple_major_meeting_record",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": {
+     "field": "meeting_time",
+     "grain": "month"
+    },
+    "unresolved": [],
+    "disp": "会议记录"
+   },
+   "version": "ontology-flow-v2.1:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 4
+  },
+  {
+   "q": "今年签了多少合同",
+   "parsed": {
+    "subject": "contract_main",
+    "intent": "count",
+    "conditions": [
+     {
+      "table": "contract_main",
+      "col": "signing_at",
+      "op": "prefix",
+      "value": "2026"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "contract_main",
+    "metric": "contract_amount",
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "合同"
+   },
+   "version": "ontology-flow-v2.1:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "资金总金额是多少",
+   "parsed": {
+    "subject": "fund_flow_record",
+    "intent": "sum",
+    "conditions": [],
+    "focus_tables": [],
+    "aggregate_target": "fund_flow_record",
+    "metric": "transaction_amount",
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "资金流水"
+   },
+   "version": "ontology-flow-v2.1:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "查找信科公司李康平的情况",
+   "parsed": {
+    "subject": "comp_employee",
+    "intent": "detail",
+    "conditions": [
+     {
+      "table": "comp_employee",
+      "col": "full_name",
+      "op": "=",
+      "value": "李康平"
+     },
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91420116MACTDG7E9W"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "员工"
+   },
+   "version": "ontology-flow-v2.1:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "信科 员工 李康平 查询详细信息",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工",
+    "intent": "detail",
+    "conditions": [
+     {
+      "table": "comp_employee",
+      "col": "full_name",
+      "op": "=",
+      "value": "李康平"
+     },
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91420116MACTDG7E9W"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null
+   },
+   "version": "ontology-flow-v2.1:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "资产卡片共有多少条记录？",
+   "parsed": {
+    "subject": "asset_card_record",
+    "intent": "count",
+    "conditions": [],
+    "focus_tables": [],
+    "aggregate_target": "asset_card_record",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "资产卡片"
+   },
+   "version": "ontology-flow-v2.1:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:deepseek-ai/DeepSeek-V4-Flash:2026-10-03",
+   "hits": 1
+  },
+  {
+   "q": "资产卡片共有多少条记录？",
+   "parsed": {
+    "subject": "asset_card_record",
+    "intent": "count",
+    "conditions": [],
+    "focus_tables": [],
+    "aggregate_target": "asset_card_record",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "资产卡片"
+   },
+   "version": "ontology-flow-v2.2:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:b7a06a09efc3104b38ce:2026-10-04",
+   "hits": 1
+  },
+  {
+   "q": "资金总金额是多少",
+   "parsed": {
+    "subject": "fund_flow_record",
+    "intent": "sum",
+    "conditions": [],
+    "focus_tables": [],
+    "aggregate_target": "fund_flow_record",
+    "metric": "transaction_amount",
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "资金流水"
+   },
+   "version": "ontology-flow-v2.2:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:b7a06a09efc3104b38ce:2026-10-04",
+   "hits": 1
+  },
+  {
+   "q": "按月份统计会议数量",
+   "parsed": {
+    "subject": "triple_major_meeting_record",
+    "disp": "会议记录",
+    "intent": "count",
+    "conditions": [],
+    "focus_tables": [],
+    "aggregate_target": "triple_major_meeting_record",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": {
+     "field": "meeting_time",
+     "grain": "month"
+    }
+   },
+   "version": "ontology-flow-v2.2:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:b7a06a09efc3104b38ce:2026-10-04",
+   "hits": 1
+  },
+  {
+   "q": "查找信科公司李康平的情况",
+   "parsed": {
+    "subject": "comp_employee",
+    "intent": "detail",
+    "conditions": [
+     {
+      "table": "comp_employee",
+      "col": "full_name",
+      "op": "=",
+      "value": "李康平"
+     },
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91420116MACTDG7E9W"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "员工"
+   },
+   "version": "ontology-flow-v2.2:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:b7a06a09efc3104b38ce:2026-10-04",
+   "hits": 1
+  },
+  {
+   "q": "今年签了多少合同",
+   "parsed": {
+    "subject": "contract_main",
+    "disp": "合同",
+    "intent": "count",
+    "conditions": [
+     {
+      "table": "contract_main",
+      "col": "signing_at",
+      "op": "prefix",
+      "value": "2026"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "contract_main",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null
+   },
+   "version": "ontology-flow-v2.2:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:b7a06a09efc3104b38ce:2026-10-04",
+   "hits": 1
+  },
+  {
+   "q": "查找中天智航陈飞的信息",
+   "parsed": {
+    "subject": "comp_employee",
+    "intent": "detail",
+    "conditions": [
+     {
+      "table": "comp_employee",
+      "col": "enterprise_name",
+      "op": "=",
+      "value": "中天智航"
+     },
+     {
+      "table": "comp_employee",
+      "col": "full_name",
+      "op": "=",
+      "value": "陈飞"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "员工"
+   },
+   "version": "ontology-flow-v2.2:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:b7a06a09efc3104b38ce:2026-10-04",
+   "hits": 1
+  },
+  {
+   "q": "查找陈飞的信息",
+   "parsed": {
+    "subject": "comp_employee",
+    "intent": "detail",
+    "conditions": [
+     {
+      "table": "comp_employee",
+      "col": "full_name",
+      "op": "=",
+      "value": "陈飞"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": null,
+    "disp": "员工"
+   },
+   "version": "ontology-flow-v2.2:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:b7a06a09efc3104b38ce:2026-10-04",
+   "hits": 1
+  },
+  {
+   "q": "查找信科公司李康平的情况",
+   "parsed": {
+    "subject": "comp_employee",
+    "intent": "detail",
+    "conditions": [
+     {
+      "table": "comp_employee",
+      "col": "full_name",
+      "op": "=",
+      "value": "李康平"
+     },
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91420116MACTDG7E9W"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "员工"
+   },
+   "version": "ontology-flow-v2.2:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:b7a06a09efc3104b38ce:2026-10-05",
+   "hits": 1
+  },
+  {
+   "q": "我需要查找租房合同  你帮我看一下有多少类似合同",
+   "parsed": {
+    "subject": "contract_main",
+    "intent": "count",
+    "conditions": [
+     {
+      "table": "contract_main",
+      "col": "contract_category_level1",
+      "op": "=",
+      "value": "租房合同"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "contract_main",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "合同"
+   },
+   "version": "ontology-flow-v2.2:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:b7a06a09efc3104b38ce:2026-10-05",
+   "hits": 2
+  },
+  {
+   "q": "查找信科公司夏姓员工的信息",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "full_name",
+      "op": "prefix",
+      "value": "夏"
+     },
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91420116MACTDG7E9W"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null
+   },
+   "version": "ontology-flow-v2.3:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:b7a06a09efc3104b38ce:2026-10-05",
+   "hits": 1
+  },
+  {
+   "q": "查找信科公司李姓员工情况",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "full_name",
+      "op": "prefix",
+      "value": "李"
+     },
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91420116MACTDG7E9W"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null
+   },
+   "version": "ontology-flow-v2.3:22d811a80e5c276c1adad0e20154ce65d0bda9b3d48a1ca7132fa84b08e71187:b7a06a09efc3104b38ce:2026-10-05",
+   "hits": 1
+  },
+  {
+   "q": "查找信科公司李姓员工信息",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "full_name",
+      "op": "prefix",
+      "value": "李"
+     },
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91420116MACTDG7E9W"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null
+   },
+   "version": "ontology-flow-v2.3:ea01c5f560369a7bd8ff91de887ac7d1ebb254b6063b329e8845a0bef247c4c4:e300c7fed1c62d1f1c5e:2026-10-05",
+   "hits": 1
+  },
+  {
+   "q": "查找张浩的情况",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工",
+    "intent": "detail",
+    "conditions": [
+     {
+      "table": "comp_employee",
+      "col": "full_name",
+      "op": "=",
+      "value": "张浩"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null
+   },
+   "version": "ontology-flow-v2.3:ea01c5f560369a7bd8ff91de887ac7d1ebb254b6063b329e8845a0bef247c4c4:e300c7fed1c62d1f1c5e:2026-10-05",
+   "hits": 1
+  },
+  {
+   "q": "查询一下陈飞的情况",
+   "parsed": {
+    "subject": "comp_employee",
+    "intent": "detail",
+    "conditions": [
+     {
+      "table": "comp_employee",
+      "col": "full_name",
+      "op": "=",
+      "value": "陈飞"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": "",
+    "disp": "员工"
+   },
+   "version": "ontology-flow-v2.3:ea01c5f560369a7bd8ff91de887ac7d1ebb254b6063b329e8845a0bef247c4c4:b7a06a09efc3104b38ce:2026-10-05",
+   "hits": 1
+  },
+  {
+   "q": "查询一下王唯的情况",
+   "parsed": {
+    "subject": "comp_employee",
+    "intent": "detail",
+    "conditions": [
+     {
+      "table": "comp_employee",
+      "col": "full_name",
+      "op": "=",
+      "value": "王唯"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": "",
+    "disp": "员工"
+   },
+   "version": "ontology-flow-v2.3:ea01c5f560369a7bd8ff91de887ac7d1ebb254b6063b329e8845a0bef247c4c4:b7a06a09efc3104b38ce:2026-10-05",
+   "hits": 1
+  },
+  {
+   "q": "中天智航（湖北）信息技术有限公司 合同执行情况",
+   "parsed": {
+    "subject": "contract_main",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91370102MA3TMQ7R5G"
+     }
+    ],
+    "focus_tables": [
+     "contract_payment_node",
+     "contract_perf_settlement",
+     "contract_perf_invoice",
+     "contract_perf_delivery",
+     "contract_perf_receipt",
+     "fund_flow_record"
+    ],
+    "aggregate_target": "contract_main",
+    "metric": "contract_amount",
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "合同"
+   },
+   "version": "ontology-flow-v2.3:ea01c5f560369a7bd8ff91de887ac7d1ebb254b6063b329e8845a0bef247c4c4:b7a06a09efc3104b38ce:2026-10-05",
+   "hits": 1
+  },
+  {
+   "q": "查找一下中天智航（湖北）信息技术有限公司的合同执行情况",
+   "parsed": {
+    "subject": "contract_main",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91370102MA3TMQ7R5G"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "contract_main",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "合同"
+   },
+   "version": "ontology-flow-v2.3:ea01c5f560369a7bd8ff91de887ac7d1ebb254b6063b329e8845a0bef247c4c4:b7a06a09efc3104b38ce:2026-10-05",
+   "hits": 1
+  },
+  {
+   "q": "查找一下中天智航（湖北）信息技术有限公司的合同执行情况",
+   "parsed": {
+    "subject": "contract_main",
+    "intent": "detail",
+    "conditions": [
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91370102MA3TMQ7R5G"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "contract_main",
+    "metric": "contract_amount",
+    "group_by": [],
+    "time_bucket": null,
+    "unresolved": [],
+    "disp": "合同"
+   },
+   "version": "ontology-flow-v2.3:ea01c5f560369a7bd8ff91de887ac7d1ebb254b6063b329e8845a0bef247c4c4:b7a06a09efc3104b38ce:2026-10-08",
+   "hits": 1
+  },
+  {
+   "q": "查找信科公司李康平的情况",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工",
+    "intent": "detail",
+    "conditions": [
+     {
+      "table": "comp_employee",
+      "col": "full_name",
+      "op": "=",
+      "value": "李康平"
+     },
+     {
+      "col": "enterprise_scc",
+      "op": "=",
+      "value": "91420116MACTDG7E9W"
+     }
+    ],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null
+   },
+   "version": "ontology-flow-v2.3:ea01c5f560369a7bd8ff91de887ac7d1ebb254b6063b329e8845a0bef247c4c4:b7a06a09efc3104b38ce:2026-10-08",
+   "hits": 1
+  }
+ ]
+}

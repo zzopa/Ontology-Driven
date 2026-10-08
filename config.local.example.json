@@ -1,0 +1,8 @@
+{
+  "database": {
+    "password": "填写本地数据库密码"
+  },
+  "llm": {
+    "api_key": "填写模型服务 API Key"
+  }
+}

@@ -1,0 +1,789 @@
+{
+  "entities": {
+    "contract_main": {
+      "name": "合同",
+      "aliases": [
+        "合同",
+        "协议",
+        "合同台账",
+        "单子"
+      ],
+      "identity_fields": [
+        "contract_no",
+        "contract_name",
+        "enterprise_name"
+      ],
+      "default_depth": 2,
+      "bindings": {
+        "code": "contract_no",
+        "company": "enterprise_scc",
+        "company_name": "enterprise_name",
+        "name": "contract_name",
+        "time": "signing_at"
+      },
+      "metrics": {
+        "contract_amount": {
+          "name": "合同金额合计",
+          "aliases": [
+            "合同金额",
+            "总金额",
+            "总额"
+          ],
+          "field": "lump_sum_amount_wan",
+          "unit": "万元",
+          "default": true,
+          "description": "合同主表金额算术合计，不代表付款或履约金额"
+        }
+      }
+    },
+    "comp_employee": {
+      "name": "员工",
+      "aliases": [
+        "员工",
+        "人员",
+        "职工",
+        "雇员",
+        "人事"
+      ],
+      "identity_fields": [
+        "full_name",
+        "enterprise_name"
+      ],
+      "default_depth": 2,
+      "bindings": {
+        "name": "full_name",
+        "company": "enterprise_scc",
+        "company_name": "enterprise_name"
+      },
+      "name_lookup": true
+    },
+    "comp_payroll_monthly": {
+      "name": "月度薪酬",
+      "aliases": [
+        "薪酬",
+        "工资",
+        "薪资",
+        "月度工资"
+      ],
+      "identity_fields": [
+        "payroll_month",
+        "enterprise_name"
+      ],
+      "default_depth": 1,
+      "bindings": {
+        "company": "enterprise_scc",
+        "company_name": "enterprise_name",
+        "time": "payroll_month"
+      },
+      "metrics": {
+        "gross_pay": {
+          "name": "应发工资合计",
+          "aliases": [
+            "应发工资",
+            "工资合计",
+            "工资总额"
+          ],
+          "field": "sal_wage_total",
+          "unit": "元",
+          "numeric_text": true,
+          "default": true
+        },
+        "net_pay": {
+          "name": "实发工资合计",
+          "aliases": [
+            "实发工资",
+            "实发合计"
+          ],
+          "field": "sal_staff_net_paid",
+          "unit": "元",
+          "numeric_text": true
+        }
+      }
+    },
+    "procurement_project": {
+      "name": "采购项目",
+      "aliases": [
+        "采购",
+        "招标",
+        "采购项目"
+      ],
+      "identity_fields": [
+        "purchase_name",
+        "bidding_code"
+      ],
+      "default_depth": 1,
+      "bindings": {
+        "name": "purchase_name",
+        "code": "bidding_code"
+      }
+    },
+    "asset_card_record": {
+      "name": "资产卡片",
+      "aliases": [
+        "资产",
+        "固定资产",
+        "设备",
+        "资产卡片"
+      ],
+      "identity_fields": [
+        "asset_name",
+        "asset_no"
+      ],
+      "default_depth": 1,
+      "bindings": {
+        "name": "asset_name",
+        "code": "asset_no"
+      }
+    },
+    "comp_enterprise_ledger": {
+      "name": "企业台账",
+      "aliases": [
+        "企业台账",
+        "公司台账"
+      ],
+      "identity_fields": [
+        "enterprise_name",
+        "enterprise_scc",
+        "stat_month"
+      ],
+      "default_depth": 1,
+      "bindings": {
+        "name": "enterprise_name",
+        "company": "enterprise_scc",
+        "company_name": "enterprise_name",
+        "time": "stat_month"
+      },
+      "enterprise_lookup": true,
+      "grain": "企业月度台账记录"
+    },
+    "inv_plan_project_info": {
+      "name": "投资项目",
+      "aliases": [
+        "投资",
+        "投资项目"
+      ],
+      "identity_fields": [
+        "projectname",
+        "projectcode"
+      ],
+      "default_depth": 1,
+      "bindings": {
+        "name": "projectname",
+        "code": "projectcode"
+      }
+    },
+    "receivables_record": {
+      "name": "应收记录",
+      "aliases": [
+        "应收",
+        "应收款",
+        "应收记录"
+      ],
+      "identity_fields": [],
+      "default_depth": 1,
+      "bindings": {}
+    },
+    "fund_flow_record": {
+      "name": "资金流水",
+      "aliases": [
+        "资金流水",
+        "资金交易",
+        "资金信息",
+        "资金收支",
+        "资金",
+        "交易流水"
+      ],
+      "identity_fields": [
+        "transaction_no",
+        "transaction_at",
+        "our_unit_name"
+      ],
+      "bindings": {
+        "company": "our_unit_scc",
+        "company_name": "our_unit_name",
+        "code": "transaction_no",
+        "time": "transaction_at"
+      },
+      "default_depth": 1,
+      "metrics": {
+        "transaction_amount": {
+          "name": "交易金额合计",
+          "aliases": [
+            "交易金额",
+            "资金总金额",
+            "资金总额"
+          ],
+          "field": "transaction_amount",
+          "unit": "元",
+          "default": true,
+          "group_by": [
+            "currency",
+            "transaction_type"
+          ],
+          "description": "按币种、交易类型分组的原始交易金额合计，不代表净现金流或账户余额"
+        }
+      },
+      "attributes": {
+        "account_balance": {
+          "unit": "元",
+          "description": "该流水记录的账户余额快照，不能逐笔相加作为账户余额",
+          "aggregation": "nonadditive",
+          "aliases": [
+            "余额",
+            "账户余额"
+          ]
+        },
+        "transaction_amount": {
+          "unit": "元"
+        }
+      }
+    },
+    "bank_account_record": {
+      "name": "银行账户",
+      "aliases": [
+        "银行账户",
+        "银行账号",
+        "资金账户",
+        "开户信息"
+      ],
+      "identity_fields": [
+        "bank_account_no",
+        "enterprise_name",
+        "opening_bank"
+      ],
+      "bindings": {
+        "company": "enterprise_scc",
+        "company_name": "enterprise_name",
+        "code": "bank_account_no",
+        "time": "opened_at"
+      },
+      "default_depth": 1
+    },
+    "triple_major_meeting_record": {
+      "name": "会议记录",
+      "aliases": [
+        "会议信息",
+        "会议记录",
+        "三重一大会议",
+        "三重一大",
+        "会议"
+      ],
+      "identity_fields": [
+        "meeting_code",
+        "meeting_name",
+        "meeting_time",
+        "host"
+      ],
+      "bindings": {
+        "company": "enterprise_scc",
+        "code": "meeting_code",
+        "name": "meeting_name",
+        "time": "meeting_time"
+      },
+      "default_depth": 1,
+      "json_attributes": {
+        "meeting_name": {
+          "column": "fields_json",
+          "path": [
+            "triple-major_mtg_会议名称"
+          ],
+          "label": "会议名称"
+        },
+        "meeting_time": {
+          "column": "fields_json",
+          "path": [
+            "triple-major_mtg_会议时间开始时间"
+          ],
+          "label": "会议开始时间",
+          "description": "会议业务时间，与入库创建时间不同"
+        },
+        "host": {
+          "column": "fields_json",
+          "path": [
+            "triple-major_mtg_主持人"
+          ],
+          "label": "主持人"
+        },
+        "location": {
+          "column": "fields_json",
+          "path": [
+            "triple-major_mtg_会议地点"
+          ],
+          "label": "会议地点"
+        },
+        "minutes": {
+          "column": "fields_json",
+          "path": [
+            "triple-major_mtg_会议纪要"
+          ],
+          "label": "会议纪要"
+        },
+        "participants": {
+          "column": "fields_json",
+          "path": [
+            "__rows__会议表-参会人员表"
+          ],
+          "label": "参会人员明细",
+          "structured": true
+        },
+        "topics": {
+          "column": "fields_json",
+          "path": [
+            "__rows__会议表-议题表"
+          ],
+          "label": "议题明细",
+          "structured": true
+        }
+      }
+    }
+  },
+  "relationship_hints": [
+    {
+      "source": "app_role_menu.role_id",
+      "target": "app_role.id"
+    },
+    {
+      "source": "app_role_menu.menu_id",
+      "target": "app_sys_menu.id"
+    },
+    {
+      "source": "app_role_permission.permission_id",
+      "target": "app_sys_permission.id"
+    },
+    {
+      "source": "app_role_permission.role_id",
+      "target": "app_role.id"
+    },
+    {
+      "source": "app_sys_menu.parent_id",
+      "target": "app_sys_menu.id"
+    },
+    {
+      "source": "app_sys_permission.parent_menu_id",
+      "target": "app_sys_menu.id"
+    },
+    {
+      "source": "app_user.department_id",
+      "target": "department.id"
+    },
+    {
+      "source": "app_user_role.user_id",
+      "target": "app_user.id"
+    },
+    {
+      "source": "app_user_role.role_id",
+      "target": "app_role.id"
+    },
+    {
+      "source": "approval_form_binding.workflow_id",
+      "target": "approval_workflow_def.id"
+    },
+    {
+      "source": "approval_step_def.workflow_id",
+      "target": "approval_workflow_def.id"
+    },
+    {
+      "source": "asset_card_qty_line.asset_card_id",
+      "target": "asset_card_record.id"
+    },
+    {
+      "source": "comp_employee_employment_history.employee_id",
+      "target": "comp_employee.id"
+    },
+    {
+      "source": "comp_employee_qualification.employee_id",
+      "target": "comp_employee.id"
+    },
+    {
+      "source": "comp_employee_research_project.employee_id",
+      "target": "comp_employee.id"
+    },
+    {
+      "source": "comp_enterprise_ledger.submission_id",
+      "target": "comp_enterprise_ledger_submission.id"
+    },
+    {
+      "source": "comp_payroll_allowance_line.allowance_submission_id",
+      "target": "comp_payroll_allowance_submission.id"
+    },
+    {
+      "source": "comp_payroll_allowance_line.payroll_id",
+      "target": "comp_payroll_monthly.id"
+    },
+    {
+      "source": "comp_payroll_incentive_line.payroll_id",
+      "target": "comp_payroll_monthly.id"
+    },
+    {
+      "source": "comp_payroll_monthly.employee_id",
+      "target": "comp_employee.id"
+    },
+    {
+      "source": "comp_salary_assessment_attachment.file_id",
+      "target": "comp_salary_assessment_file.id"
+    },
+    {
+      "source": "contract_counterparty.main_id",
+      "target": "contract_main.id"
+    },
+    {
+      "source": "contract_payment_node.main_id",
+      "target": "contract_main.id"
+    },
+    {
+      "source": "contract_sales_purchase_link.main_id",
+      "target": "contract_main.id"
+    },
+    {
+      "source": "department.parent_id",
+      "target": "department.id"
+    },
+    {
+      "source": "gzw_report_task_log.task_id",
+      "target": "gzw_report_task.id"
+    },
+    {
+      "source": "org_structure_investor.record_id",
+      "target": "org_structure_record.id"
+    },
+    {
+      "source": "procurement_award.project_id",
+      "target": "procurement_project.id"
+    },
+    {
+      "source": "procurement_award_candidate.project_id",
+      "target": "procurement_project.id"
+    },
+    {
+      "source": "procurement_bid_opening.project_id",
+      "target": "procurement_project.id"
+    },
+    {
+      "source": "procurement_bid_submission.project_id",
+      "target": "procurement_project.id"
+    },
+    {
+      "source": "procurement_breach.project_id",
+      "target": "procurement_project.id"
+    },
+    {
+      "source": "procurement_evaluation_expert.project_id",
+      "target": "procurement_project.id"
+    },
+    {
+      "source": "procurement_objection.project_id",
+      "target": "procurement_project.id"
+    },
+    {
+      "source": "procurement_registration.project_id",
+      "target": "procurement_project.id"
+    }
+  ],
+  "logical_links": [
+    {
+      "source": "contract_main.submission_id",
+      "target": "contract_submission.id",
+      "note": "填报记录"
+    },
+    {
+      "source": "contract_main.submitter_user_id",
+      "target": "app_user.id",
+      "note": "提交人"
+    },
+    {
+      "source": "contract_main.enterprise_scc",
+      "target": "comp_enterprise_ledger.enterprise_scc",
+      "note": "企业台账"
+    },
+    {
+      "source": "contract_main.gzw_biz_id",
+      "target": "gzw_business_data.biz_id",
+      "note": "国资业务数据"
+    },
+    {
+      "source": "contract_perf_settlement.related_contract_id",
+      "target": "contract_main.id",
+      "note": "履约结算"
+    },
+    {
+      "source": "contract_perf_invoice.related_contract_id",
+      "target": "contract_main.id",
+      "note": "履约发票"
+    },
+    {
+      "source": "contract_perf_delivery.related_contract_id",
+      "target": "contract_main.id",
+      "note": "履约交货"
+    },
+    {
+      "source": "contract_perf_receipt.related_contract_id",
+      "target": "contract_main.id",
+      "note": "履约收据"
+    },
+    {
+      "source": "contract_perf_settlement.submission_id",
+      "target": "contract_performance_submission.id",
+      "note": "履约填报"
+    },
+    {
+      "source": "contract_perf_invoice.submission_id",
+      "target": "contract_performance_submission.id",
+      "note": "履约填报"
+    },
+    {
+      "source": "contract_perf_delivery.submission_id",
+      "target": "contract_performance_submission.id",
+      "note": "履约填报"
+    },
+    {
+      "source": "contract_perf_receipt.submission_id",
+      "target": "contract_performance_submission.id",
+      "note": "履约填报"
+    },
+    {
+      "source": "contract_perf_shipping_attachment.sales_purchase_link_id",
+      "target": "contract_perf_sales_purchase_link.id",
+      "note": "履约购销关联"
+    },
+    {
+      "source": "fund_flow_record.related_contract_id",
+      "target": "contract_main.id",
+      "note": "资金流水填报的关联合同",
+      "status": "configured"
+    },
+    {
+      "source": "fund_flow_record.related_contract_node_id",
+      "target": "contract_payment_node.id",
+      "note": "资金流水填报的关联合同付款节点",
+      "status": "configured"
+    },
+    {
+      "source": "fund_flow_record.related_triple_major_id",
+      "target": "triple_major_meeting_record.id",
+      "note": "资金流水填报的关联会议",
+      "status": "configured"
+    }
+  ],
+  "enterprise_aliases": {
+    "天运达": "91420712MAG0C45Q72",
+    "空港天运达": "91420712MAG0C45Q72",
+    "机场集团信息科技": "91420116MACTDG7E9W",
+    "信科公司": "91420116MACTDG7E9W",
+    "信科": "91420116MACTDG7E9W"
+  },
+  "relations": {
+    "contract_main": {
+      "contract_counterparty": {
+        "name": "合同相对方",
+        "aliases": [
+          "相对方",
+          "交易对手",
+          "对手方",
+          "合同相对方"
+        ]
+      },
+      "contract_payment_node": {
+        "name": "付款节点",
+        "aliases": [
+          "付款节点",
+          "支付节点",
+          "付款计划",
+          "付款安排",
+          "支付安排",
+          "支付计划",
+          "打款安排",
+          "打款节点"
+        ],
+        "default_unscoped": true
+      },
+      "contract_sales_purchase_link": {
+        "name": "购销关联",
+        "aliases": [
+          "购销关联",
+          "购销关系"
+        ]
+      },
+      "contract_submission": {
+        "name": "合同填报",
+        "aliases": [
+          "合同填报",
+          "填报记录"
+        ]
+      },
+      "contract_perf_settlement": {
+        "name": "履约结算",
+        "aliases": [
+          "履约结算",
+          "结算记录"
+        ]
+      },
+      "contract_perf_invoice": {
+        "name": "履约发票",
+        "aliases": [
+          "履约发票",
+          "发票"
+        ]
+      },
+      "contract_perf_delivery": {
+        "name": "履约交货",
+        "aliases": [
+          "履约交货",
+          "交货",
+          "交付记录"
+        ]
+      },
+      "contract_perf_receipt": {
+        "name": "履约收据",
+        "aliases": [
+          "履约收据",
+          "收据"
+        ]
+      },
+      "fund_flow_record": {
+        "name": "关联资金流水",
+        "aliases": [
+          "实际付款",
+          "资金流水",
+          "交易流水",
+          "实际交易"
+        ]
+      }
+    },
+    "comp_employee": {
+      "comp_employee_employment_history": {
+        "name": "任职经历",
+        "aliases": [
+          "任职经历",
+          "工作经历",
+          "履历",
+          "任职记录"
+        ]
+      },
+      "comp_employee_qualification": {
+        "name": "资格证书",
+        "aliases": [
+          "资格证书",
+          "证书",
+          "资质"
+        ]
+      },
+      "comp_employee_research_project": {
+        "name": "科研项目",
+        "aliases": [
+          "科研项目",
+          "科研经历"
+        ]
+      },
+      "comp_payroll_monthly": {
+        "name": "月度薪酬",
+        "aliases": [
+          "薪酬",
+          "工资",
+          "薪资",
+          "月度工资"
+        ]
+      },
+      "comp_payroll_allowance_line": {
+        "name": "津贴明细",
+        "aliases": [
+          "津贴",
+          "补贴",
+          "津贴明细"
+        ]
+      },
+      "comp_payroll_incentive_line": {
+        "name": "激励明细",
+        "aliases": [
+          "激励",
+          "奖金",
+          "激励明细"
+        ]
+      }
+    },
+    "procurement_project": {
+      "procurement_award": {
+        "name": "中标结果",
+        "aliases": [
+          "中标",
+          "成交结果",
+          "定标结果"
+        ]
+      },
+      "procurement_bid_opening": {
+        "name": "开标记录",
+        "aliases": [
+          "开标",
+          "开标记录"
+        ]
+      },
+      "procurement_bid_submission": {
+        "name": "投标记录",
+        "aliases": [
+          "投标",
+          "投标记录"
+        ]
+      },
+      "procurement_objection": {
+        "name": "采购异议",
+        "aliases": [
+          "异议",
+          "质疑"
+        ]
+      }
+    },
+    "asset_card_record": {
+      "asset_card_qty_line": {
+        "name": "资产数量明细",
+        "aliases": [
+          "数量明细",
+          "资产数量",
+          "数量记录"
+        ]
+      }
+    },
+    "fund_flow_record": {
+      "contract_main": {
+        "name": "关联合同",
+        "aliases": [
+          "关联合同",
+          "合同信息",
+          "对应合同"
+        ]
+      },
+      "contract_payment_node": {
+        "name": "关联付款节点",
+        "aliases": [
+          "付款节点",
+          "付款计划"
+        ]
+      },
+      "triple_major_meeting_record": {
+        "name": "关联会议",
+        "aliases": [
+          "关联会议",
+          "对应会议",
+          "会议信息"
+        ]
+      }
+    },
+    "triple_major_meeting_record": {
+      "fund_flow_record": {
+        "name": "关联资金流水",
+        "aliases": [
+          "资金流水",
+          "交易记录",
+          "关联资金",
+          "涉及资金"
+        ]
+      }
+    }
+  },
+  "format_version": 2,
+  "description": "数据库注释 + 人工业务规则；所有业务域使用统一查询引擎。",
+  "sensitive_fields": [
+    "id_card",
+    "mobile",
+    "gzw_encrypted_payload",
+    "counterparty_id_or_scc"
+  ]
+}

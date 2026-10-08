@@ -1,0 +1,397 @@
+{
+  "source": "gzwtb backend security/scope and per-module services, 2026-10-05",
+  "group_scc": "91420000764112758r",
+  "enterprise_parents": {
+    "91420100300249262t": "91420000764112758r",
+    "914201166667674279": "91420100300249262t",
+    "91422800770780066f": "91420000764112758r",
+    "91422800707044680r": "91422800770780066f",
+    "91420116ma4k4b2h6w": "91420000764112758r",
+    "91420116771399160g": "91420000764112758r",
+    "91420116mad5k8fa38": "91420116771399160g",
+    "91420116mactdg7e9w": "91420000764112758r",
+    "91370102ma3tmq7r5g": "91420116mactdg7e9w",
+    "91420700ma492cpy3y": "91420000764112758r",
+    "914290210872261596": "91420000764112758r",
+    "91440300ma5dpq8g75": "91420000764112758r",
+    "91420000ma496f4b1r": "91420000764112758r",
+    "91420712maekcupj2d": "91420000ma496f4b1r",
+    "91420712madpbw5883": "91420000ma496f4b1r",
+    "91420116mag08jnn6e": "91420000ma496f4b1r",
+    "91420712mag0c45q72": "91420000ma496f4b1r",
+    "91420116maclp4ua8e": "91420000ma496f4b1r",
+    "91420712madqnb6t5y": "91420000ma496f4b1r",
+    "91420116mae40awa9k": "91420000764112758r",
+    "914206006156621906": "91420000764112758r",
+    "91420116madwq76k26": "91420000764112758r",
+    "9142011677455156x0": "91420000764112758r",
+    "91420116macy3p2824": "9142011677455156x0",
+    "91420116madnqagp7q": "9142011677455156x0",
+    "91420116macrukl211": "91420000764112758r"
+  },
+  "tables": {
+    "comp_employee": {
+      "indicator": "compensation-offboarding.segment.personnel-master",
+      "scc": [
+        "enterprise_scc",
+        "membership_group_scc"
+      ]
+    },
+    "comp_employee_employment_history": {
+      "indicator": "compensation-offboarding.segment.personnel-master",
+      "scc": [
+        "enterprise_scc",
+        "membership_group_scc"
+      ],
+      "parent": "comp_employee",
+      "parent_key": "id",
+      "foreign_key": "employee_id"
+    },
+    "comp_enterprise_attribute": {
+      "indicator": "compensation-offboarding.segment.enterprise-attribute",
+      "scc": [
+        "enterprise_scc"
+      ]
+    },
+    "comp_enterprise_ledger": {
+      "indicator": "compensation-offboarding.segment.enterprise-ledger",
+      "scc": [
+        "enterprise_scc",
+        "membership_group_scc"
+      ]
+    },
+    "comp_migrant_worker_comp": {
+      "indicator": "compensation-offboarding.segment.migrant-worker-comp",
+      "scc": [
+        "enterprise_scc",
+        "membership_group_scc"
+      ]
+    },
+    "comp_payroll_monthly": {
+      "indicator": "compensation-offboarding.segment.monthly-payroll",
+      "scc": [
+        "enterprise_scc",
+        "membership_group_scc"
+      ],
+      "parent": "comp_employee",
+      "parent_key": "id",
+      "foreign_key": "employee_id",
+      "require_parent": true
+    },
+    "comp_salary_assessment_file": {
+      "indicator": "compensation-offboarding.segment.salary-assessment-file",
+      "scc": [
+        "enterprise_scc",
+        "membership_group_scc"
+      ]
+    },
+    "comp_supp_medical": {
+      "indicator": "compensation-offboarding.segment.supplementary-medical",
+      "scc": [
+        "enterprise_scc",
+        "membership_group_scc"
+      ]
+    },
+    "comp_target_budget": {
+      "indicator": "compensation-offboarding.segment.target-budget",
+      "scc": [
+        "enterprise_scc",
+        "membership_group_scc"
+      ]
+    },
+    "contract_main": {
+      "indicator": "basic-contract",
+      "scc": [
+        "enterprise_scc"
+      ]
+    },
+    "fund_flow_record": {
+      "indicator": "fund-flow",
+      "scc": [
+        "our_unit_scc"
+      ]
+    },
+    "bank_account_record": {
+      "indicator": "bank-account",
+      "scc": [
+        "enterprise_scc"
+      ]
+    },
+    "org_structure_record": {
+      "indicator": "org-structure",
+      "scc": [
+        "scc"
+      ]
+    },
+    "lending_mgmt_record": {
+      "indicator": "lending-mgmt",
+      "scc": [
+        "borrower_scc",
+        "lender_scc"
+      ]
+    },
+    "guarantee_mgmt_record": {
+      "indicator": "guarantee-mgmt",
+      "scc": [
+        "guarantor_enterprise_scc",
+        "guaranteed_enterprise_scc"
+      ]
+    },
+    "receivables_record": {
+      "indicator": "receivables",
+      "scc": [
+        "enterprise_scc"
+      ]
+    },
+    "partner_record": {
+      "indicator": "partner-mgmt",
+      "scc": [
+        "owner_enterprise_scc"
+      ],
+      "empty_company_submitter_fallback": true
+    },
+    "procurement_project": {
+      "indicator": "procurement-bidding",
+      "scc": [
+        "bidding_org_scc"
+      ]
+    },
+    "procurement_breach": {
+      "indicator": "procurement-breach",
+      "scc": [
+        "provider_group_scc"
+      ]
+    },
+    "fin_monthly_report": {
+      "indicator": "finance-monthly-report",
+      "scc": [
+        "enterprise_scc",
+        "membership_group_scc"
+      ]
+    },
+    "fin_target_budget": {
+      "indicator": "finance-target-budget",
+      "scc": [
+        "enterprise_scc"
+      ]
+    },
+    "triple_major_meeting_record": {
+      "indicator": "triple-major",
+      "scc": [
+        "enterprise_scc"
+      ]
+    },
+    "asset_card_record": {
+      "indicator": "asset-card",
+      "scc": [
+        "owner_unit_scc"
+      ]
+    },
+    "asset_usage_record": {
+      "indicator": "asset-usage",
+      "scc": [
+        "owner_unit_scc"
+      ]
+    },
+    "asset_appraisal_record": {
+      "indicator": "asset-appraisal",
+      "scc": [
+        "owner_unit_scc"
+      ]
+    },
+    "asset_lease_record": {
+      "indicator": "asset-lease",
+      "scc": [
+        "owner_unit_scc"
+      ]
+    },
+    "asset_disposal_record": {
+      "indicator": "asset-disposal",
+      "scc": [
+        "owner_unit_scc"
+      ]
+    },
+    "asset_project_record": {
+      "indicator": "asset-project",
+      "scc": [
+        "owner_unit_scc"
+      ]
+    },
+    "comprehensive_phone_reception_record": {
+      "indicator": "comprehensive-phone-reception",
+      "scc": [
+        "enterprise_credit_code"
+      ]
+    },
+    "comprehensive_pre_approval_record": {
+      "indicator": "comprehensive-pre-approval",
+      "scc": [
+        "enterprise_credit_code"
+      ]
+    },
+    "comprehensive_reception_list_record": {
+      "indicator": "comprehensive-reception-list",
+      "scc": [
+        "enterprise_credit_code"
+      ]
+    },
+    "comp_employee_qualification": {
+      "indicator": "compensation-offboarding.segment.personnel-master",
+      "parent": "comp_employee",
+      "parent_key": "id",
+      "foreign_key": "employee_id"
+    },
+    "comp_employee_research_project": {
+      "indicator": "compensation-offboarding.segment.personnel-master",
+      "parent": "comp_employee",
+      "parent_key": "id",
+      "foreign_key": "employee_id"
+    },
+    "comp_salary_assessment_attachment": {
+      "indicator": "compensation-offboarding.segment.salary-assessment-file",
+      "parent": "comp_salary_assessment_file",
+      "parent_key": "id",
+      "foreign_key": "file_id"
+    },
+    "asset_card_qty_line": {
+      "indicator": "asset-card",
+      "parent": "asset_card_record",
+      "parent_key": "id",
+      "foreign_key": "asset_card_id"
+    },
+    "asset_project_resource_line": {
+      "indicator": "asset-project",
+      "parent": "asset_project_record",
+      "parent_key": "id",
+      "foreign_key": "asset_project_id"
+    },
+    "org_structure_investor": {
+      "indicator": "org-structure",
+      "parent": "org_structure_record",
+      "parent_key": "id",
+      "foreign_key": "record_id"
+    },
+    "contract_counterparty": {
+      "indicator": "basic-contract",
+      "parent": "contract_main",
+      "parent_key": "id",
+      "foreign_key": "main_id"
+    },
+    "contract_payment_node": {
+      "indicator": "basic-contract",
+      "parent": "contract_main",
+      "parent_key": "id",
+      "foreign_key": "main_id"
+    },
+    "contract_sales_purchase_link": {
+      "indicator": "basic-contract",
+      "parent": "contract_main",
+      "parent_key": "id",
+      "foreign_key": "main_id"
+    },
+    "procurement_award": {
+      "indicator": "procurement-bidding",
+      "parent": "procurement_project",
+      "parent_key": "id",
+      "foreign_key": "project_id"
+    },
+    "procurement_award_candidate": {
+      "indicator": "procurement-bidding",
+      "parent": "procurement_project",
+      "parent_key": "id",
+      "foreign_key": "project_id"
+    },
+    "procurement_bid_opening": {
+      "indicator": "procurement-bidding",
+      "parent": "procurement_project",
+      "parent_key": "id",
+      "foreign_key": "project_id"
+    },
+    "procurement_bid_submission": {
+      "indicator": "procurement-bidding",
+      "parent": "procurement_project",
+      "parent_key": "id",
+      "foreign_key": "project_id"
+    },
+    "procurement_evaluation_expert": {
+      "indicator": "procurement-bidding",
+      "parent": "procurement_project",
+      "parent_key": "id",
+      "foreign_key": "project_id"
+    },
+    "procurement_objection": {
+      "indicator": "procurement-bidding",
+      "parent": "procurement_project",
+      "parent_key": "id",
+      "foreign_key": "project_id"
+    },
+    "procurement_registration": {
+      "indicator": "procurement-bidding",
+      "parent": "procurement_project",
+      "parent_key": "id",
+      "foreign_key": "project_id"
+    },
+    "comp_payroll_allowance_line": {
+      "indicator": "compensation-offboarding.segment.payroll-allowance",
+      "parent": "comp_payroll_monthly",
+      "parent_key": "id",
+      "foreign_key": "payroll_id"
+    },
+    "comp_payroll_incentive_line": {
+      "indicator": "compensation-offboarding.segment.cash-incentive",
+      "parent": "comp_payroll_monthly",
+      "parent_key": "id",
+      "foreign_key": "payroll_id"
+    },
+    "contract_perf_delivery": {
+      "indicator": "contract-performance",
+      "scc": [
+        "credit_code"
+      ],
+      "contract_refs": [
+        "related_contract_id"
+      ]
+    },
+    "contract_perf_receipt": {
+      "indicator": "contract-performance",
+      "scc": [
+        "credit_code"
+      ],
+      "contract_refs": [
+        "related_contract_id"
+      ]
+    },
+    "contract_perf_settlement": {
+      "indicator": "contract-performance",
+      "scc": [
+        "credit_code"
+      ],
+      "contract_refs": [
+        "related_contract_id"
+      ]
+    },
+    "contract_perf_invoice": {
+      "indicator": "contract-performance",
+      "scc": [
+        "credit_code"
+      ],
+      "contract_refs": [
+        "related_contract_id"
+      ]
+    },
+    "contract_perf_shipping_attachment": {
+      "indicator": "contract-performance",
+      "scc": [
+        "credit_code"
+      ]
+    },
+    "contract_perf_sales_purchase_link": {
+      "indicator": "contract-performance",
+      "scc": [],
+      "contract_refs": [
+        "sales_contract_id",
+        "related_purchase_contract_id"
+      ]
+    }
+  }
+}

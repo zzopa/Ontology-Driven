@@ -1,0 +1,73 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8088,
+    "lan_cidr": "192.168.31.0/24",
+    "embed_parent_origins": []
+  },
+  "admin": {
+    "directory": "data/admin",
+    "session_hours": 12,
+    "retention_days": 90
+  },
+  "database": {
+    "host": "127.0.0.1",
+    "port": 5432,
+    "user": "lightrag",
+    "database": "hbairport01",
+    "timeout": 8
+  },
+  "llm": {
+    "url": "https://api.siliconflow.cn/v1/chat/completions",
+    "model": "deepseek-ai/DeepSeek-V4-Flash"
+  },
+  "files": {
+    "graph": "data/runtime/graph_full.json",
+    "schema": "data/runtime/hbairport_schema.json",
+    "ontology": "data/business_ontology.json",
+    "memory": "data/ask_demo_memory.json",
+    "page": "frontend/out/index.html"
+  },
+  "metadata": {
+    "schemas": [
+      "public"
+    ],
+    "excluded_prefixes": [
+      "app_",
+      "dict_",
+      "flyway",
+      "operation_",
+      "sync_",
+      "oa_",
+      "geo_",
+      "va_",
+      "approval_",
+      "gzw_"
+    ],
+    "excluded_suffixes": [
+      "_serial_bucket",
+      "_sync_checkpoint",
+      "_sync_error"
+    ]
+  },
+  "query": {
+    "page_size": 20,
+    "drill_ttl_seconds": 1800,
+    "graph_main_limit": 50,
+    "graph_related_limit": 200,
+    "timeout_ms": 15000,
+    "max_depth": 3,
+    "max_related_tables": 12,
+    "preflight": true,
+    "evidence_budget": 45000,
+    "evidence_workers": 3,
+    "evidence_timeout_seconds": 120,
+    "evidence_retries": 1,
+    "evidence_enable_thinking": false,
+    "answer_composition_enabled": true,
+    "answer_composition_budget": 18000,
+    "answer_composition_timeout_seconds": 20,
+    "relation_probe_timeout_ms": 2000,
+    "relation_probe_budget_seconds": 30
+  }
+}
