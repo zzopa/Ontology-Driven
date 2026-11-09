@@ -36,6 +36,8 @@ export type QueryResult = {
 };
 export type PageData = { rows: Row[]; field_meta: FieldMeta; subject?: string; table?: string; total: number; page: number; page_size: number };
 export type Status = {
+  data_source?: string; external_models_enabled?: boolean;
+  coverage?: { start: string; end_exclusive: string; exported_at: string };
   ready: boolean; database: string; tables: number; fields: number; relations: number; queryable_entities: number;
   refreshed_at: string; startup_seconds: number; average_seconds: number; requests: number; failures: number;
   version: string; warnings: unknown[]; metadata_diff: Record<string, string[]>;

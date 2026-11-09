@@ -128,7 +128,7 @@ def prepare_question(request, data):
     model = store.model()
     conversation_id, message_id = store.begin_question(value['owner'], question.strip(), model['model'], conversation_id)
     return {'question': question.strip(), 'model': model, 'conversation_id': conversation_id, 'message_id': message_id,
-            'business_user_id': value['access'].user_id if value.get('access') else None}
+            'business_user_id': value['user']['id']}
 
 
 def run_question(prepared, on_event=None):
@@ -140,7 +140,17 @@ def run_question(prepared, on_event=None):
             conn = core.connect_db()
             trace.finish('connect', '只读数据库连接已就绪', ['业务数据库：' + settings.db['database']])
             try:
-                access = business_access.load_access(conn, prepared['business_user_id']) if prepared.get('business_user_id') else None
+                if settings.data_source in ('acdm', 'ops_ask'):
+                    auth_conn = core.connect_db(identity=True)
+                    try:
+                        account = business_access.load_access(auth_conn, prepared['business_user_id'])
+                        if 'admin' not in account.roles:
+                            raise HTTPException(403, '运营数据源仅允许原系统管理员访问')
+                    finally:
+                        auth_conn.close()
+                    access = None
+                else:
+                    access = business_access.load_access(conn, prepared['business_user_id']) if prepared.get('business_user_id') else None
                 options = {'access': access} if access else {}
                 result = core.do_ask(conn, prepared['question'], on_event=on_event, trace=trace, **options)
                 if access and business_access.load_access(conn,access.user_id).revision != access.revision:

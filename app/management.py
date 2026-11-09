@@ -50,7 +50,18 @@ class OntologyStore:
                 if not pairs or any(len(pair) != 2 or any(
                         not isinstance(field, str) or '.' not in field for field in pair) for pair in pairs):
                     raise ValueError('关系必须填写 source/target 或完整 pairs')
-        return Catalog(schema, document, self.settings)
+        catalog = Catalog(schema, document, self.settings)
+        for source, targets in document.get('relations', {}).items():
+            for target, relation in targets.items():
+                if 'pairs' in relation:
+                    pairs = relation['pairs']
+                    if not isinstance(pairs, list) or not pairs or any(
+                            not isinstance(pair, (list, tuple)) or len(pair) != 2 or any(
+                                not isinstance(field, str) or '.' not in field for field in pair)
+                            for pair in pairs):
+                        raise ValueError('关系路径必须填写完整的字段 pairs')
+                    catalog.path(source, target)
+        return catalog
 
     def save(self, document, expected, schema):
         with self.lock:

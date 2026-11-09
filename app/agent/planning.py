@@ -9,6 +9,7 @@ the rule plan and have a valid unambiguous path in the authorized catalog.
   2. 拓扑追踪/明细关联类意图 → 保留现有本体图谱路径规划与 Graph-to-SQL
 """
 from copy import deepcopy
+from dataclasses import dataclass, field
 import json
 import re
 from datetime import date
@@ -156,3 +157,131 @@ def dispatch_semantic(question: str, engine: SemanticEngine,
     spec = extract_semantic_spec(question, engine, chat)
     sql = engine.compile(spec)
     return {'intent': 'metric_aggregation', 'spec': spec, 'sql': sql}
+
+
+# ---------------------------------------------------------------------------
+# 多轮对话上下文继承与指代消解
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ConversationContext:
+    """多轮对话上下文摘要：保存上一轮的核心查询要素供指代消解。"""
+    question: str
+    subject: str = ''
+    intent: str = ''
+    conditions: list = field(default_factory=list)
+    time_bucket: dict | None = None
+    aggregate_target: str | None = None
+    metric: str | None = None
+    focus_tables: list = field(default_factory=list)
+    group_by: list = field(default_factory=list)
+    # 指代消解标记，供调用方判断追问模式
+    time_overwrite: bool = False
+    new_time_period: str | None = None
+    condition_append: bool = False
+
+
+# 时间切片覆写追问模式：如"那今年呢"、"换成去年看看"、"改成按季度"
+_TIME_OVERWRITE_RE = re.compile(
+    r'今年|去年|前年|上月|本月|上季|本季|本年|去岁'
+    r'|那.{0,6}(呢|怎么样|如何)'
+    r'|换.{0,6}看'
+    r'|改成'
+)
+
+# 条件追加深入追问模式：如"把其中的超期合同列出来"、"再加上金额大于"
+_CONDITION_APPEND_RE = re.compile(
+    r'其中|把.{0,10}的|再.{0,4}筛选|加上|排除'
+)
+
+# 从追问中提取新的时间周期
+_TIME_PERIOD_RE = re.compile(
+    r'(今年|去年|前年|本年|上月|本月|上季|本季|本季度|上季度|去岁)'
+)
+
+# 时间维度字段名特征，用于区分时间条件与非时间条件
+_TIME_FIELD_RE = re.compile(
+    r'(date|time|year|month|day|period|created|updated|signing|_at$|签定|签订|生效|到期|交付)', re.I
+)
+
+
+def _is_time_condition(cond: dict) -> bool:
+    """判断筛选条件是否作用于时间维度字段。"""
+    return bool(_TIME_FIELD_RE.search(str(cond.get('col', ''))))
+
+
+def resolve_coreference(question: str, prev: ConversationContext | None) -> ConversationContext | None:
+    """检测追问模式，继承上一轮上下文并进行指代消解。
+
+    支持两种追问模式：
+    1. 时间切片覆写（如"那今年呢"）：继承 subject/intent/非时间条件，仅覆写时间维度
+    2. 条件追加深入（如"把其中的超期合同列出来"）：继承 subject/intent/已有条件，拼接新增过滤条件
+
+    若不匹配追问模式则返回 None。
+    """
+    if prev is None:
+        return None
+    text = question.strip()
+    if not text:
+        return None
+
+    # 模式一：时间切片覆写
+    if _TIME_OVERWRITE_RE.search(text):
+        non_time_conditions = [
+            c for c in prev.conditions
+            if not _is_time_condition(c)
+        ]
+        ctx = ConversationContext(
+            question=text,
+            subject=prev.subject,
+            intent=prev.intent,
+            conditions=non_time_conditions,
+            time_bucket=prev.time_bucket,
+            aggregate_target=prev.aggregate_target,
+            metric=prev.metric,
+            focus_tables=list(prev.focus_tables),
+            group_by=list(prev.group_by),
+        )
+        ctx.time_overwrite = True
+        match = _TIME_PERIOD_RE.search(text)
+        ctx.new_time_period = match.group(1) if match else text
+        return ctx
+
+    # 模式二：条件追加深入
+    if _CONDITION_APPEND_RE.search(text):
+        ctx = ConversationContext(
+            question=text,
+            subject=prev.subject,
+            intent=prev.intent,
+            conditions=list(prev.conditions),
+            time_bucket=prev.time_bucket,
+            aggregate_target=prev.aggregate_target,
+            metric=prev.metric,
+            focus_tables=list(prev.focus_tables),
+            group_by=list(prev.group_by),
+        )
+        ctx.condition_append = True
+        return ctx
+
+    return None
+
+
+def build_correction_prompt(question: str, failed_sql: str, error: str, schema_context: str) -> str:
+    """构造 SQL 自愈修正 Prompt。
+
+    将用户原始意图、执行失败的 SQL、具体报错日志及关联表 Schema 构造为修正 Prompt，
+    由 Agent 重新调整/编译生成修正 SQL。
+    """
+    return (
+        '你是 SQL 修正专家，请根据以下信息修正 SQL。\n'
+        '规则：\n'
+        '1. 仅输出一条修正后的 SELECT 语句，不要输出任何其他文字或解释。\n'
+        '2. 禁止使用 DML（INSERT/UPDATE/DELETE）或 DDL 语句。\n'
+        '3. 确保列名与表名与下方 Schema 上下文完全一致。\n'
+        '4. 根据报错信息定位并修复问题。\n\n'
+        f'用户原始问题：\n{question}\n\n'
+        f'失败的 SQL：\n{failed_sql}\n\n'
+        f'报错信息：\n{error}\n\n'
+        f'相关表 Schema 上下文：\n{schema_context}\n\n'
+        '请输出修正后的 SQL：'
+    )

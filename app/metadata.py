@@ -16,7 +16,7 @@ def fingerprint(value):
                                      default=str).encode('utf-8')).hexdigest()
 
 
-def read_schema(conn, schemas=('public',)):
+def read_schema(conn, schemas=('public',), views=()):
     cur = conn.cursor()
     try:
         cur.execute('SELECT current_database()')
@@ -25,9 +25,10 @@ def read_schema(conn, schemas=('public',)):
             SELECT n.nspname, c.relname, GREATEST(c.reltuples::bigint, 0),
                    obj_description(c.oid, 'pg_class')
             FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE n.nspname = ANY(%s::text[]) AND c.relkind IN ('r', 'p')
+            WHERE n.nspname = ANY(%s::text[]) AND (c.relkind IN ('r', 'p')
+                OR (c.relkind = 'v' AND n.nspname || '.' || c.relname = ANY(%s::text[])))
             ORDER BY n.nspname, c.relname
-        """, (list(schemas),))
+        """, (list(schemas), list(views)))
         tables = [{'schema': ns, 'table': table_key(ns, name), 'name': name,
                    'comment': comment or '', 'columns': [], 'primary_key': [],
                    'unique_keys': [], 'unique_constraints': [], 'est_rows': rows}
@@ -41,9 +42,10 @@ def read_schema(conn, schemas=('public',)):
             JOIN pg_attribute a ON a.attrelid = c.oid
                 AND a.attnum > 0 AND NOT a.attisdropped
             LEFT JOIN pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
-            WHERE n.nspname = ANY(%s::text[]) AND c.relkind IN ('r', 'p')
+            WHERE n.nspname = ANY(%s::text[]) AND (c.relkind IN ('r', 'p')
+                OR (c.relkind = 'v' AND n.nspname || '.' || c.relname = ANY(%s::text[])))
             ORDER BY n.nspname, c.relname, a.attnum
-        """, (list(schemas),))
+        """, (list(schemas), list(views)))
         for ns, table, name, typ, nullable, default, comment in cur.fetchall():
             by_name[table_key(ns, table)]['columns'].append({
                 'name': name, 'type': typ, 'nullable': nullable,

@@ -41,11 +41,12 @@ def _literal(value: Any) -> str:
 class SemanticEngine:
     """加载指标定义配置并编译结构化查询规范为标准 SQL。"""
 
-    def __init__(self, schema_path: Path | None = None) -> None:
+    def __init__(self, schema_path: Path | None = None, access: Any = None) -> None:
         path = schema_path or (ROOT / 'data' / 'metrics_schema.json')
         with path.open(encoding='utf-8') as source:
             self.schema: dict[str, Any] = json.load(source)
         self.cubes: dict[str, Any] = self.schema.get('cubes', {})
+        self.access = access
 
     def _cube(self, name: str) -> dict[str, Any]:
         cube = self.cubes.get(name)
@@ -217,6 +218,12 @@ class SemanticEngine:
             if not isinstance(flt, dict):
                 raise ValueError('过滤条件必须是 JSON 对象')
             where_parts.append(self._filter_sql(cube_name, flt))
+
+        # 行级数据权限强制下推：将 RLS 条件物理注入 SQL WHERE 子句
+        if self.access is not None:
+            rls = self.access.rls_predicate(cube.get('sql_table', ''), 't0')
+            if rls:
+                where_parts.append(rls)
 
         table_ref = self._table_ref(cube)
         sql = 'SELECT ' + ', '.join(select_parts) + '\nFROM ' + table_ref + ' AS t0'

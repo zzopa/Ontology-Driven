@@ -172,6 +172,37 @@ class Access:
                     conditions.append('FALSE')
         return '(SELECT ' + select + ' FROM ' + raw + ' a' + (' WHERE ' + ' AND '.join(conditions) if conditions else '') + ')', params
 
+    def rls_predicate(self, table: str, alias: str = 't0') -> str | None:
+        """生成行级数据权限（RLS）WHERE 片段，用于物理下推到 SQL。
+
+        返回 None 表示无权限约束（unrestricted 用户或表不在策略中）。
+        返回的 SQL 片段不含 WHERE 关键字，可直接 AND 合并到已有条件。
+        """
+        if self.unrestricted:
+            return None
+        spec = POLICY['tables'].get(table)
+        if not spec:
+            return None
+        conditions: list[str] = []
+        scc_cols = spec.get('scc', [])
+        if scc_cols and self.companies:
+            companies = sorted(self.companies)
+            ors: list[str] = []
+            for col in scc_cols:
+                vals = ','.join("'" + str(c).replace("'", "''") + "'" for c in companies)
+                ors.append('lower(trim(%s.%s)) IN (%s)' % (alias, identifier(col), vals))
+            conditions.append('(' + ' OR '.join(ors) + ')')
+        if self.scope == 'SELF_ONLY':
+            uid = str(self.user_id).replace("'", "''")
+            conditions.append('%s."submitter_user_id" = \'%s\'' % (alias, uid))
+        if self.department_ids and spec.get('empty_company_submitter_fallback'):
+            dept_ids = sorted(self.department_ids)
+            vals = ','.join("'" + str(d).replace("'", "''") + "'" for d in dept_ids)
+            conditions.append('%s."submitter_department_id" IN (%s)' % (alias, vals))
+        if not conditions:
+            conditions.append('FALSE')
+        return ' AND '.join(conditions)
+
     def catalog(self, catalog):
         result = copy(catalog)
         allowed = {t for t in catalog.entities if self.allowed(t)}
@@ -273,7 +304,7 @@ def identity(request):
                          (digest(request.cookies.get(COOKIE, '')), time())).fetchone()
     if not row:
         raise HTTPException(401, '请使用 hbairport01 业务账号登录')
-    conn = core.connect_db()
+    conn = core.connect_db(identity=True)
     try:
         access = load_access(conn, row['user_id'])
     finally:
@@ -294,7 +325,7 @@ def login(username, password, client):
             row = db.execute('SELECT * FROM login_attempts WHERE scope=?', (scope,)).fetchone()
             if row and time() - row['window'] < 900 and row['failures'] >= 10:
                 raise HTTPException(429, '登录尝试过多，请稍后重试')
-    conn = core.connect_db()
+    conn = core.connect_db(identity=True)
     try:
         users = execute(conn, Statement('SELECT id,password_hash,enabled FROM app_user WHERE username=%s', (username,)))
         row = users[0] if users else None
@@ -333,4 +364,9 @@ def logout(token):
 
 
 def query_identity(request):
-    return identity(request)
+    value = identity(request)
+    if settings.data_source in ('acdm', 'ops_ask'):
+        if 'admin' not in value['access'].roles:
+            raise HTTPException(403, '运营数据源仅允许原系统管理员访问')
+        value['access'] = None
+    return value

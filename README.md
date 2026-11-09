@@ -82,6 +82,8 @@ cd ..
 
 已存在 `config.local.json` 时不要执行复制命令覆盖密钥。也可运行 `start.ps1`。
 
+标准航班库 `ops_ask` 可使用 `start-ops-ask.cmd` 切换，配置、关系口径与同步边界见 [ops_ask 数据源](docs/ops-ask-data-source.md)。
+
 日常重启直接双击根目录的 **`restart.cmd`**。脚本读取实际配置与当前环境变量（默认端口 8088），先检查数据库端口、前端产物和监听进程归属，再停止本项目旧服务、后台启动并等待 `/api/status` 与页面就绪，成功后自动打开浏览器。正在执行的问答会中断；不会删除会话、配置或数据库数据，不会重建前端。修改前端后请先执行 `npm run build`。
 
 日志保存在 `artifacts/logs/restart-*.stdout.log`、`restart-*.stderr.log`，双击窗口不会自动关闭，失败会提示原因。端口属于其他项目或无法核实归属时不会强杀；支持现有项目虚拟环境执行 `ask_web.py` 的启动方式，不接受任意 Python/Uvicorn 启动命令。遇到进程访问权限不足可右键“以管理员身份运行”。

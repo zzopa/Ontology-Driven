@@ -1,5 +1,5 @@
 """Question interpretation using only the current catalog and configured bindings."""
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 import json
 import re
@@ -128,6 +128,12 @@ class Planner:
 
     def period(self, question):
         today = date.today()
+        match = re.search(r'(20\d{2})[年/-](\d{1,2})[月/-](\d{1,2})(?:日|号)?', question)
+        if match:
+            return date(*(int(value) for value in match.groups())).isoformat()
+        for word, offset in [('前天',2),('昨天',1),('今天',0)]:
+            if word in question:
+                return (today - timedelta(days=offset)).isoformat()
         if '今年' in question:
             return str(today.year)
         if '去年' in question:
@@ -309,7 +315,10 @@ class Planner:
                     'op 仅允许 =、!=、>、>=、<、<=、prefix、contains、in、null、notnull。'
                     '姓氏用姓名字段 prefix，value 只填姓氏，例如夏，不带 %；不输出 like。'
                     '返回 {subject,intent,conditions:[{table,col,op,value}],focus_tables,aggregate_target,metric,group_by,time_bucket,unresolved}。'
-                    '当前日期：' + date.today().isoformat() + '\n相关本体：' + json.dumps(context, ensure_ascii=False))
+                    '当前日期：' + date.today().isoformat() +
+                    ('\n当前是本地数据副本，覆盖范围：' + json.dumps(self.catalog.overrides['coverage'],ensure_ascii=False) +
+                     '。覆盖范围外或跨出范围的统计不能当作全库结果；需要全量历史数据时填写 unresolved。' if self.catalog.overrides.get('coverage') else '') +
+                    '\n相关本体：' + json.dumps(context, ensure_ascii=False))
                 try:
                     content = self.chat(prompt, question, max_tokens=1200, timeout=40)
                     match = re.search(r'\{.*\}', content, re.S)

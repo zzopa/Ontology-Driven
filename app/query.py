@@ -1,4 +1,5 @@
 """Validated query plans compiled to parameterized, read-only PostgreSQL SELECTs."""
+from copy import deepcopy
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 import json
@@ -310,3 +311,37 @@ def json_safe(value):
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     return str(value)
+
+
+def merge_plans(base: dict, overrides: dict) -> dict:
+    """合并上一轮查询计划与新增条件，用于多轮对话上下文继承。
+
+    - subject/intent 继承 base
+    - conditions 合并去重（同 table+col+op 的条件以 overrides 为准）
+    - time_bucket 以 overrides 为准（时间覆写）
+    - focus_tables/aggregate_target 以 overrides 为准（若 overrides 中有值）
+    """
+    merged = deepcopy(base)
+    # conditions: 移除 base 中与 overrides 冲突的条件，再拼接 overrides 条件
+    override_keys = {
+        (c.get('table'), c.get('col'), c.get('op'))
+        for c in overrides.get('conditions', [])
+    }
+    base_conditions = [
+        c for c in merged.get('conditions', [])
+        if (c.get('table'), c.get('col'), c.get('op')) not in override_keys
+    ]
+    merged['conditions'] = base_conditions + overrides.get('conditions', [])
+    # time_bucket: 以 overrides 为准（时间覆写）
+    if overrides.get('time_bucket') is not None:
+        merged['time_bucket'] = overrides['time_bucket']
+    # focus_tables: 以 overrides 为准（若非空）
+    if overrides.get('focus_tables'):
+        merged['focus_tables'] = overrides['focus_tables']
+    # aggregate_target: 以 overrides 为准（若有值）
+    if overrides.get('aggregate_target') is not None:
+        merged['aggregate_target'] = overrides['aggregate_target']
+    # metric: 以 overrides 为准（若有值）
+    if overrides.get('metric') is not None:
+        merged['metric'] = overrides['metric']
+    return merged

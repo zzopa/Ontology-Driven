@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 from contextlib import contextmanager
 from contextvars import ContextVar
 from hashlib import sha256
+from ipaddress import ip_address
 from app.config import settings
 
 _provider = None
@@ -26,8 +27,22 @@ def model_fingerprint():
     return sha256(json.dumps([value['url'], value['model'], value['key']]).encode()).hexdigest()[:20]
 
 
+def local_model(value):
+    try:
+        parsed = urlparse(value['url'])
+        if parsed.scheme not in ('http','https') or parsed.username or parsed.password:
+            return False
+        if parsed.scheme + '://' + parsed.netloc in getattr(settings,'permitted_model_origins',()):
+            return True
+        return parsed.hostname == 'localhost' or ip_address(parsed.hostname).is_loopback
+    except (ValueError, TypeError, KeyError):
+        return False
+
+
 def model_available():
     value = current_model()
+    if not settings.external_models_enabled and not local_model(value):
+        return False
     if value.get('key'):
         return True
     try:
@@ -59,6 +74,8 @@ def open_request(request, timeout):
 def chat(system, user, max_tokens=800, temperature=0.1, timeout=45, enable_thinking=None):
     """通用 LLM 对话，返回模型输出文本；失败抛异常由调用方处理。"""
     model = current_model()
+    if not settings.external_models_enabled and not local_model(model):
+        raise ValueError('运营数据源仅允许本机模型或明确指定的内网模型服务')
     payload = {
         'model': model['model'],
         'messages': [
@@ -87,6 +104,8 @@ def chat(system, user, max_tokens=800, temperature=0.1, timeout=45, enable_think
 def chat_stream(system, user, on_delta, max_tokens=800, temperature=0.1, timeout=45):
     """以 OpenAI 兼容 SSE 协议读取模型增量文本。"""
     model = current_model()
+    if not settings.external_models_enabled and not local_model(model):
+        raise ValueError('运营数据源仅允许本机模型或明确指定的内网模型服务')
     payload = {
         'model': model['model'],
         'messages': [

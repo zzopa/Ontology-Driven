@@ -145,7 +145,7 @@ def conversations(request: Request):
 
 
 def conversation_access(request):
-    value = identity(request)
+    value = business_access.query_identity(request)
     if request.query_params.get('scope') == 'all':
         raise HTTPException(403, '只能查看自己的问答会话')
     return value, False
@@ -249,3 +249,18 @@ def purge(request: Request):
 def audit(request: Request):
     require_role(request, 'admin')
     return service.get_store().audit_list(page_number(request), request.query_params.get('search', '')[:100])
+
+
+@router.post('/api/admin/schema/sync-diff')
+async def schema_sync_diff(request: Request):
+    """数据库元数据与本地配置（指标/本体/字段图谱）的自动感知比对。"""
+    require_role(request, 'admin')
+    from app.metadata_diff import compare_schema_to_configs
+    from app import metadata
+
+    conn = core.connect_db()
+    try:
+        db_schema = metadata.read_schema(conn, settings.schemas, settings.metadata_views)
+    finally:
+        conn.close()
+    return compare_schema_to_configs(db_schema)

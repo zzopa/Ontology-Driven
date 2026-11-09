@@ -1,0 +1,1760 @@
+{
+  "entities": {
+    "dim_abnormal_reason": {
+      "name": "不正常原因维表",
+      "aliases": [
+        "延误原因",
+        "不正常原因"
+      ],
+      "description": "code；不正常/延误原因；业务键 code；parent_code 指向父级 code",
+      "queryable": true,
+      "bindings": {
+        "name": "name_zh"
+      },
+      "attributes": {
+        "id": {
+          "label": "内部主键"
+        },
+        "code": {
+          "label": "code"
+        },
+        "name_zh": {
+          "label": "中文名称"
+        },
+        "name_en": {
+          "label": "英文名称"
+        },
+        "reason_type": {
+          "label": "reason_type"
+        },
+        "is_super": {
+          "label": "is_super"
+        },
+        "parent_code": {
+          "label": "父原因码 ← SUPER_CODE",
+          "description": "父原因码 ← SUPER_CODE"
+        },
+        "ext_json": {
+          "label": "ext_json"
+        },
+        "created_at": {
+          "label": "created_at"
+        },
+        "updated_at": {
+          "label": "本地更新时间"
+        },
+        "deleted_at": {
+          "label": "删除时间"
+        }
+      },
+      "metrics": {}
+    },
+    "dim_agency": {
+      "name": "代理维表",
+      "aliases": [
+        "代理",
+        "代理公司"
+      ],
+      "description": "code；代理维表；业务键 code ← TB_AGENCY.CODE",
+      "queryable": true,
+      "bindings": {
+        "name": "name_zh"
+      },
+      "attributes": {
+        "id": {
+          "label": "内部主键"
+        },
+        "code": {
+          "label": "code"
+        },
+        "name_zh": {
+          "label": "中文名称"
+        },
+        "name_en": {
+          "label": "英文名称"
+        },
+        "description": {
+          "label": "description"
+        },
+        "agent_sort": {
+          "label": "agent_sort"
+        },
+        "ext_json": {
+          "label": "ext_json"
+        },
+        "created_at": {
+          "label": "created_at"
+        },
+        "updated_at": {
+          "label": "本地更新时间"
+        },
+        "deleted_at": {
+          "label": "删除时间"
+        }
+      },
+      "metrics": {}
+    },
+    "dim_air_bridge": {
+      "name": "廊桥",
+      "aliases": [
+        "廊桥"
+      ],
+      "description": "廊桥维表；业务键 (airport_code, bridge_code) ← TB_AIR_BRIDGE",
+      "queryable": true,
+      "bindings": {
+        "name": "name_zh"
+      },
+      "attributes": {
+        "id": {
+          "label": "内部主键"
+        },
+        "airport_code": {
+          "label": "本场机场三字码"
+        },
+        "bridge_code": {
+          "label": "bridge_code"
+        },
+        "source_id": {
+          "label": "source_id"
+        },
+        "name_zh": {
+          "label": "中文名称"
+        },
+        "name_en": {
+          "label": "英文名称"
+        },
+        "attribute": {
+          "label": "attribute"
+        },
+        "terminal_code": {
+          "label": "terminal_code"
+        },
+        "status": {
+          "label": "status"
+        },
+        "ext_json": {
+          "label": "ext_json"
+        },
+        "created_at": {
+          "label": "created_at"
+        },
+        "updated_at": {
+          "label": "本地更新时间"
+        },
+        "deleted_at": {
+          "label": "删除时间"
+        }
+      },
+      "metrics": {}
+    },
+    "dim_aircraft": {
+      "name": "飞机维表",
+      "aliases": [
+        "飞机",
+        "航空器"
+      ],
+      "description": "reg_no；飞机维表；业务键 reg_no（机号）← TB_AIR_CRAFT.CODE",
+      "queryable": true,
+      "bindings": {},
+      "attributes": {
+        "id": {
+          "label": "内部主键"
+        },
+        "reg_no": {
+          "label": "reg_no"
+        },
+        "aircraft_icao": {
+          "label": "aircraft_icao"
+        },
+        "airline_iata": {
+          "label": "所属航司二字码 → dim_airline.iata_code",
+          "description": "所属航司二字码 → dim_airline.iata_code"
+        },
+        "airline_branch": {
+          "label": "airline_branch"
+        },
+        "seat_max": {
+          "label": "seat_max"
+        },
+        "seat_ops": {
+          "label": "seat_ops"
+        },
+        "mtow": {
+          "label": "mtow"
+        },
+        "max_payload": {
+          "label": "max_payload"
+        },
+        "ops_payload": {
+          "label": "ops_payload"
+        },
+        "ext_json": {
+          "label": "ext_json"
+        },
+        "created_at": {
+          "label": "created_at"
+        },
+        "updated_at": {
+          "label": "本地更新时间"
+        },
+        "deleted_at": {
+          "label": "删除时间"
+        }
+      },
+      "metrics": {}
+    },
+    "dim_airline": {
+      "name": "航司维表",
+      "aliases": [
+        "航空公司",
+        "航司"
+      ],
+      "description": "iata_code；自然键 iata_code；航司维表；业务键 iata_code ← TB_AIRLINE.TWO_CHAR_CD",
+      "queryable": true,
+      "bindings": {
+        "name": "name_zh"
+      },
+      "attributes": {
+        "id": {
+          "label": "内部主键"
+        },
+        "iata_code": {
+          "label": "IATA 二字码；std_flight_core.airline_code 逻辑关联",
+          "description": "IATA 二字码；std_flight_core.airline_code 逻辑关联"
+        },
+        "icao_code": {
+          "label": "icao_code"
+        },
+        "attribute": {
+          "label": "attribute"
+        },
+        "name_zh": {
+          "label": "中文名称"
+        },
+        "name_en": {
+          "label": "英文名称"
+        },
+        "ext_json": {
+          "label": "ext_json"
+        },
+        "created_at": {
+          "label": "created_at"
+        },
+        "updated_at": {
+          "label": "本地更新时间"
+        },
+        "deleted_at": {
+          "label": "删除时间"
+        }
+      },
+      "metrics": {}
+    },
+    "dim_airport": {
+      "name": "机场维表",
+      "aliases": [
+        "机场"
+      ],
+      "description": "iata_code；自然键 iata_code；含城市名；机场维表；业务键 iata_code；合并 TB_AIRPORT + TB_AIRPORT_POSITION",
+      "queryable": true,
+      "bindings": {
+        "name": "name_zh"
+      },
+      "attributes": {
+        "id": {
+          "label": "内部主键"
+        },
+        "iata_code": {
+          "label": "IATA 三字码；本场/起降站逻辑关联",
+          "description": "IATA 三字码；本场/起降站逻辑关联"
+        },
+        "icao_code": {
+          "label": "icao_code"
+        },
+        "attribute": {
+          "label": "attribute"
+        },
+        "name_zh": {
+          "label": "中文名称"
+        },
+        "name_en": {
+          "label": "英文名称"
+        },
+        "short_name": {
+          "label": "short_name"
+        },
+        "city_name": {
+          "label": "city_name"
+        },
+        "city_code": {
+          "label": "city_code"
+        },
+        "province_code": {
+          "label": "province_code"
+        },
+        "province_name": {
+          "label": "province_name"
+        },
+        "country_code": {
+          "label": "country_code"
+        },
+        "country_name": {
+          "label": "country_name"
+        },
+        "is_open": {
+          "label": "is_open"
+        },
+        "purpose": {
+          "label": "purpose"
+        },
+        "longitude": {
+          "label": "longitude"
+        },
+        "latitude": {
+          "label": "latitude"
+        },
+        "ext_json": {
+          "label": "ext_json"
+        },
+        "created_at": {
+          "label": "created_at"
+        },
+        "updated_at": {
+          "label": "本地更新时间"
+        },
+        "deleted_at": {
+          "label": "删除时间"
+        }
+      },
+      "metrics": {}
+    },
+    "dim_gate": {
+      "name": "登机口维表",
+      "aliases": [
+        "登机口"
+      ],
+      "description": "(airport_code, gate_code)；登机口维表；业务键 (airport_code, gate_code) ← FIMS.TB_GATE",
+      "queryable": true,
+      "bindings": {
+        "name": "name_zh"
+      },
+      "attributes": {
+        "id": {
+          "label": "内部主键"
+        },
+        "airport_code": {
+          "label": "本场机场三字码"
+        },
+        "gate_code": {
+          "label": "登机口编号"
+        },
+        "source_id": {
+          "label": "source_id"
+        },
+        "name_zh": {
+          "label": "中文名称"
+        },
+        "name_en": {
+          "label": "英文名称"
+        },
+        "attribute": {
+          "label": "attribute"
+        },
+        "terminal_code": {
+          "label": "terminal_code"
+        },
+        "status": {
+          "label": "status"
+        },
+        "agency": {
+          "label": "agency"
+        },
+        "ext_json": {
+          "label": "ext_json"
+        },
+        "created_at": {
+          "label": "created_at"
+        },
+        "updated_at": {
+          "label": "本地更新时间"
+        },
+        "deleted_at": {
+          "label": "删除时间"
+        }
+      },
+      "metrics": {}
+    },
+    "dim_stand": {
+      "name": "机位维表",
+      "aliases": [
+        "机位",
+        "停机位"
+      ],
+      "description": "(airport_code, stand_code)；含 is_bridge_stand 靠桥；机位维表；业务键 (airport_code, stand_code) ← FIMS.TB_CRAFT_SITE",
+      "queryable": true,
+      "bindings": {
+        "name": "name_zh"
+      },
+      "attributes": {
+        "id": {
+          "label": "内部主键"
+        },
+        "airport_code": {
+          "label": "本场"
+        },
+        "stand_code": {
+          "label": "机位编号",
+          "description": "机位编号；std_flight_core.stand_code 逻辑关联"
+        },
+        "name_zh": {
+          "label": "中文名称"
+        },
+        "name_en": {
+          "label": "英文名称"
+        },
+        "is_remote": {
+          "label": "远机位",
+          "description": "远机位标志；源 IS_REMOTE=Y"
+        },
+        "is_bridge_stand": {
+          "label": "可靠桥/近机位",
+          "description": "IS_REMOTE=N"
+        },
+        "terminal_code": {
+          "label": "terminal_code"
+        },
+        "status": {
+          "label": "status"
+        },
+        "ext_json": {
+          "label": "ext_json"
+        },
+        "created_at": {
+          "label": "created_at"
+        },
+        "updated_at": {
+          "label": "本地更新时间"
+        },
+        "deleted_at": {
+          "label": "删除时间"
+        }
+      },
+      "metrics": {}
+    },
+    "std_flight_core": {
+      "name": "航班主事实",
+      "aliases": [
+        "航班",
+        "航班动态",
+        "航班明细",
+        "航班量",
+        "航班数量",
+        "航班架次"
+      ],
+      "description": "1 行 = 本场 1 次进/出港；问数主表；biz_key={airport}:{date}:{DEP|ARR}:{flight_no}；航班主事实：本场一次进/出港；与 dim 用自然码逻辑关联；架次按本表记录统计；计划和实际起降时间分开；flight_date 是业务日期。执行架次必须按进港实际落地/出港实际起飞判断，并排除取消。数量表示本表匹配记录数；未明确要求时不得自动追加 deleted_at 为空或航班状态等筛选。删除标记作为原始字段展示，只有问题明确要求才筛选。始发/目的/本场机场是不同角色，不能猜测机场关联路径。",
+      "queryable": true,
+      "bindings": {
+        "code": "flight_no",
+        "time": "flight_date",
+        "direction": "direction"
+      },
+      "attributes": {
+        "id": {
+          "label": "内部主键",
+          "description": "代理键；卫星表 FK"
+        },
+        "flight_no": {
+          "label": "航班号",
+          "description": "含航司前缀如 CZ9301"
+        },
+        "flight_date": {
+          "label": "航班业务日",
+          "description": "航班日期（三要素之一）；比较按业务日"
+        },
+        "direction": {
+          "label": "进出港",
+          "description": "仅 DEP/ARR",
+          "enums": {
+            "DEP": "出港",
+            "ARR": "进港"
+          }
+        },
+        "scheduled_departure": {
+          "label": "计划起飞"
+        },
+        "actual_departure": {
+          "label": "实际起飞"
+        },
+        "scheduled_arrival": {
+          "label": "计划到达"
+        },
+        "actual_arrival": {
+          "label": "实际到达"
+        },
+        "flight_status": {
+          "label": "航班状态"
+        },
+        "source_system": {
+          "label": "来源系统"
+        },
+        "vendor_code": {
+          "label": "vendor_code"
+        },
+        "created_at": {
+          "label": "created_at"
+        },
+        "updated_at": {
+          "label": "本地更新时间"
+        },
+        "aircraft_type": {
+          "label": "机型"
+        },
+        "aircraft_reg": {
+          "label": "机号"
+        },
+        "stand_code": {
+          "label": "机位",
+          "description": "与 airport_code 组成自然键"
+        },
+        "link_id": {
+          "label": "link_id"
+        },
+        "partner_flight_no": {
+          "label": "连班航班号",
+          "description": "连班快照；完整关系见 link"
+        },
+        "is_link_turn": {
+          "label": "is_link_turn"
+        },
+        "origin_city": {
+          "label": "起站展示",
+          "description": "冗余展示；权威名以 dim 为准"
+        },
+        "flight_nature": {
+          "label": "航班性质"
+        },
+        "airline_code": {
+          "label": "航司二字码",
+          "description": "航司 IATA 二字码 → dim_airline.iata_code"
+        },
+        "terminal": {
+          "label": "航站楼"
+        },
+        "dest_city": {
+          "label": "目的站展示"
+        },
+        "via_city": {
+          "label": "via_city"
+        },
+        "estimated_departure": {
+          "label": "预计起飞"
+        },
+        "estimated_arrival": {
+          "label": "预计到达"
+        },
+        "board_time": {
+          "label": "登机时间",
+          "description": "core 快照"
+        },
+        "cobt": {
+          "label": "COBT"
+        },
+        "airport_code": {
+          "label": "本场三字码"
+        },
+        "biz_key": {
+          "label": "业务键",
+          "description": "{airport}:{date}:{DEP|ARR}:{flight_no}"
+        },
+        "flight_identity": {
+          "label": "航班全称",
+          "description": "航班全称，如 HU1234A"
+        },
+        "airline_icao": {
+          "label": "airline_icao"
+        },
+        "primary_source_id": {
+          "label": "当前主写源侧航班唯一号",
+          "description": "当前主写源侧航班唯一号"
+        },
+        "flight_country_type": {
+          "label": "flight_country_type"
+        },
+        "caac_service_type": {
+          "label": "caac_service_type"
+        },
+        "iata_service_type": {
+          "label": "iata_service_type"
+        },
+        "aircraft_iata": {
+          "label": "aircraft_iata"
+        },
+        "aircraft_icao": {
+          "label": "aircraft_icao"
+        },
+        "call_sign": {
+          "label": "call_sign"
+        },
+        "agency": {
+          "label": "agency"
+        },
+        "is_transit": {
+          "label": "is_transit"
+        },
+        "is_overnight": {
+          "label": "is_overnight"
+        },
+        "is_origin": {
+          "label": "is_origin"
+        },
+        "is_divert": {
+          "label": "is_divert"
+        },
+        "is_virtual": {
+          "label": "是否虚拟航班",
+          "description": "不计架次场景可排除"
+        },
+        "is_ferry": {
+          "label": "is_ferry"
+        },
+        "origin_airport": {
+          "label": "始发机场",
+          "description": "始发机场三字码 → dim_airport.iata_code"
+        },
+        "previous_airport": {
+          "label": "前站"
+        },
+        "next_airport": {
+          "label": "下一站"
+        },
+        "dest_airport": {
+          "label": "目的机场",
+          "description": "目的机场三字码 → dim_airport.iata_code"
+        },
+        "full_route": {
+          "label": "full_route"
+        },
+        "aircraft_terminal": {
+          "label": "aircraft_terminal"
+        },
+        "gate_code": {
+          "label": "登机口",
+          "description": "当前登机口；与 airport_code 组成资源自然键"
+        },
+        "runway": {
+          "label": "runway"
+        },
+        "baggage_reclaim": {
+          "label": "baggage_reclaim"
+        },
+        "flight_scheduled_datetime": {
+          "label": "本场计划时间"
+        },
+        "operation_status": {
+          "label": "operation_status"
+        },
+        "delay_code": {
+          "label": "delay_code"
+        },
+        "delay_reason_text": {
+          "label": "delay_reason_text"
+        },
+        "diversion_airport": {
+          "label": "diversion_airport"
+        },
+        "change_landing_airport": {
+          "label": "change_landing_airport"
+        },
+        "display_code": {
+          "label": "display_code"
+        },
+        "public_comment": {
+          "label": "public_comment"
+        },
+        "deleted_at": {
+          "label": "删除时间"
+        },
+        "row_version": {
+          "label": "乐观版本，防旧事件覆盖",
+          "description": "乐观版本，防旧事件覆盖"
+        },
+        "last_event_time": {
+          "label": "源事件时间"
+        }
+      },
+      "metrics": {}
+    },
+    "std_flight_indicator": {
+      "name": "航班派生指标",
+      "aliases": [
+        "航班指标",
+        "延误指标",
+        "正常性指标"
+      ],
+      "description": "1:1 core；延误/正常性等派生指标；航班派生指标：延误/正常性；可 RULE 自算或源灌入",
+      "queryable": true,
+      "bindings": {},
+      "attributes": {
+        "id": {
+          "label": "内部主键"
+        },
+        "flight_id": {
+          "label": "航班ID",
+          "description": "FK → core.id"
+        },
+        "is_delayed": {
+          "label": "是否延误",
+          "description": "出港通常 >15 分钟"
+        },
+        "delay_minutes": {
+          "label": "延误分钟"
+        },
+        "is_origin_flight": {
+          "label": "is_origin_flight"
+        },
+        "is_overnight_flight": {
+          "label": "is_overnight_flight"
+        },
+        "delay_rule_code": {
+          "label": "delay_rule_code"
+        },
+        "delay_rule_version": {
+          "label": "delay_rule_version"
+        },
+        "delay_basis": {
+          "label": "delay_basis"
+        },
+        "data_quality": {
+          "label": "data_quality"
+        },
+        "computed_at": {
+          "label": "computed_at"
+        },
+        "delay_reason": {
+          "label": "延误原因"
+        },
+        "release_on_time": {
+          "label": "放行正常"
+        },
+        "dep_on_time": {
+          "label": "出港正常"
+        },
+        "takeoff_on_time": {
+          "label": "起飞正常"
+        },
+        "land_on_time": {
+          "label": "land_on_time"
+        },
+        "arr_on_time": {
+          "label": "arr_on_time"
+        },
+        "flight_on_time": {
+          "label": "flight_on_time"
+        },
+        "release_delay_minutes": {
+          "label": "release_delay_minutes"
+        },
+        "dep_delay_minutes": {
+          "label": "dep_delay_minutes"
+        },
+        "takeoff_delay_minutes": {
+          "label": "takeoff_delay_minutes"
+        },
+        "land_delay_minutes": {
+          "label": "land_delay_minutes"
+        },
+        "arr_delay_minutes": {
+          "label": "arr_delay_minutes"
+        },
+        "source_system": {
+          "label": "来源系统"
+        },
+        "updated_at": {
+          "label": "本地更新时间"
+        }
+      },
+      "metrics": {}
+    },
+    "std_flight_link": {
+      "name": "航班关系边",
+      "aliases": [
+        "共享航班",
+        "代码共享",
+        "连班关系"
+      ],
+      "description": "1:N core；连班 TURNAROUND / 共享 CODESHARE；连班/共享等航班关系；对端未入库时用 linked_* 原文",
+      "queryable": true,
+      "bindings": {},
+      "attributes": {
+        "id": {
+          "label": "内部主键"
+        },
+        "flight_id": {
+          "label": "本端航班ID"
+        },
+        "linked_flight_id": {
+          "label": "对端航班ID",
+          "description": "对端已入库时填充"
+        },
+        "linked_biz_key": {
+          "label": "linked_biz_key"
+        },
+        "linked_flight_identity": {
+          "label": "对端航班标识",
+          "description": "共享号如 CZ9301；不计架次"
+        },
+        "linked_flight_date": {
+          "label": "linked_flight_date"
+        },
+        "linked_direction": {
+          "label": "linked_direction"
+        },
+        "link_type": {
+          "label": "关系类型",
+          "description": "TURNAROUND / CODESHARE"
+        },
+        "created_at": {
+          "label": "created_at"
+        },
+        "updated_at": {
+          "label": "本地更新时间"
+        }
+      },
+      "metrics": {}
+    },
+    "std_flight_process": {
+      "name": "航班过程时刻",
+      "aliases": [
+        "航班过程",
+        "保障过程",
+        "保障时刻"
+      ],
+      "description": "1:1 core；轮挡、登机、行李等过程窗；航班过程时刻；源特有深字段进 ext_json",
+      "queryable": true,
+      "bindings": {},
+      "attributes": {
+        "flight_id": {
+          "label": "航班ID"
+        },
+        "prev_scheduled_departure": {
+          "label": "prev_scheduled_departure"
+        },
+        "prev_estimated_departure": {
+          "label": "prev_estimated_departure"
+        },
+        "prev_actual_departure": {
+          "label": "prev_actual_departure"
+        },
+        "next_scheduled_arrival": {
+          "label": "next_scheduled_arrival"
+        },
+        "next_estimated_arrival": {
+          "label": "next_estimated_arrival"
+        },
+        "next_actual_arrival": {
+          "label": "next_actual_arrival"
+        },
+        "scheduled_on_block": {
+          "label": "scheduled_on_block"
+        },
+        "estimated_on_block": {
+          "label": "estimated_on_block"
+        },
+        "actual_on_block": {
+          "label": "上轮挡"
+        },
+        "scheduled_off_block": {
+          "label": "scheduled_off_block"
+        },
+        "estimated_off_block": {
+          "label": "estimated_off_block"
+        },
+        "actual_off_block": {
+          "label": "撤轮挡"
+        },
+        "cobt": {
+          "label": "cobt"
+        },
+        "tobt": {
+          "label": "tobt"
+        },
+        "tsat": {
+          "label": "tsat"
+        },
+        "ttot": {
+          "label": "ttot"
+        },
+        "boarding_start": {
+          "label": "登机开始"
+        },
+        "last_call": {
+          "label": "last_call"
+        },
+        "boarding_end": {
+          "label": "登机结束"
+        },
+        "first_baggage": {
+          "label": "首件行李"
+        },
+        "last_baggage": {
+          "label": "末件行李"
+        },
+        "stand_sched_start": {
+          "label": "stand_sched_start"
+        },
+        "stand_sched_end": {
+          "label": "stand_sched_end"
+        },
+        "stand_act_start": {
+          "label": "stand_act_start"
+        },
+        "stand_act_end": {
+          "label": "stand_act_end"
+        },
+        "gate_sched_start": {
+          "label": "gate_sched_start"
+        },
+        "gate_sched_end": {
+          "label": "gate_sched_end"
+        },
+        "gate_act_start": {
+          "label": "gate_act_start"
+        },
+        "gate_act_end": {
+          "label": "gate_act_end"
+        },
+        "checkin_sched_begin": {
+          "label": "checkin_sched_begin"
+        },
+        "checkin_sched_end": {
+          "label": "checkin_sched_end"
+        },
+        "checkin_act_begin": {
+          "label": "checkin_act_begin"
+        },
+        "checkin_act_end": {
+          "label": "checkin_act_end"
+        },
+        "ext_json": {
+          "label": "ACDM 除冰/配餐等非标准槽位",
+          "description": "ACDM 除冰/配餐等非标准槽位"
+        },
+        "updated_at": {
+          "label": "本地更新时间"
+        }
+      },
+      "metrics": {}
+    },
+    "std_flight_production": {
+      "name": "航班生产量",
+      "aliases": [
+        "生产量",
+        "货邮行",
+        "旅客",
+        "货物",
+        "邮件",
+        "行李"
+      ],
+      "description": "1 行 = 本场+日+向+航班+航段；货邮行/旅客/座位；软关联 core.flight_id；航班生产量：一行=本场+日+航班+方向+航段；货邮行单位 kg；本表一行是一个航段，不等于一架次。qty_scope=FLIGHT_REPEAT 时不得直接 SUM；需按航班去重取 MAX 后再汇总。本体暂不提供生产量直接求和指标，明细按原值展示。",
+      "queryable": true,
+      "bindings": {
+        "code": "flight_no",
+        "time": "flight_date",
+        "direction": "direction"
+      },
+      "attributes": {
+        "id": {
+          "label": "内部主键"
+        },
+        "biz_key": {
+          "label": "业务键",
+          "description": "…:L{leg}"
+        },
+        "flight_id": {
+          "label": "关联航班ID",
+          "description": "软关联可空"
+        },
+        "airport_code": {
+          "label": "本场机场三字码",
+          "description": "本场三字码"
+        },
+        "flight_date": {
+          "label": "执行日"
+        },
+        "airline_code": {
+          "label": "航空公司二字码"
+        },
+        "flight_no": {
+          "label": "航班号"
+        },
+        "flight_identity": {
+          "label": "flight_identity"
+        },
+        "direction": {
+          "label": "进出港",
+          "enums": {
+            "DEP": "出港",
+            "ARR": "进港"
+          }
+        },
+        "aircraft_type": {
+          "label": "机型"
+        },
+        "aircraft_reg": {
+          "label": "飞机注册号"
+        },
+        "flight_task_cd": {
+          "label": "flight_task_cd"
+        },
+        "area_code": {
+          "label": "area_code"
+        },
+        "source_system": {
+          "label": "来源系统"
+        },
+        "primary_source_id": {
+          "label": "primary_source_id"
+        },
+        "route_name_zh": {
+          "label": "route_name_zh"
+        },
+        "route_name_en": {
+          "label": "route_name_en"
+        },
+        "route_type": {
+          "label": "route_type"
+        },
+        "custom_route_type": {
+          "label": "custom_route_type"
+        },
+        "leg": {
+          "label": "航段"
+        },
+        "leg_seq": {
+          "label": "航段序号",
+          "description": "航段序号；多航段统计靠此+聚合策略"
+        },
+        "leg_type": {
+          "label": "leg_type"
+        },
+        "is_local_leg": {
+          "label": "本场航段",
+          "description": "旅客统计常用"
+        },
+        "origin_airport": {
+          "label": "始发机场三字码"
+        },
+        "dest_airport": {
+          "label": "目的机场三字码"
+        },
+        "qty_scope": {
+          "label": "数量口径",
+          "description": "LEG=分段真实量可SUM；FLIGHT_REPEAT=段上重复写航班总量应用MAX",
+          "enums": {
+            "LEG": "分航段真实数量",
+            "FLIGHT_REPEAT": "航班总量在航段重复，不能直接累加"
+          }
+        },
+        "max_payload": {
+          "label": "max_payload"
+        },
+        "max_seat": {
+          "label": "max_seat"
+        },
+        "available_payload": {
+          "label": "available_payload"
+        },
+        "available_seat": {
+          "label": "可售座位"
+        },
+        "movement_count": {
+          "label": "源架次仅对账；问数架次用 std_flight_core",
+          "description": "源架次仅对账；问数架次用 std_flight_core",
+          "unit": "人"
+        },
+        "movement_time_text": {
+          "label": "movement_time_text"
+        },
+        "adult_count": {
+          "label": "成人",
+          "unit": "人"
+        },
+        "child_count": {
+          "label": "儿童",
+          "unit": "人"
+        },
+        "infant_count": {
+          "label": "婴儿",
+          "unit": "人"
+        },
+        "transit_adult_count": {
+          "label": "transit_adult_count",
+          "unit": "人"
+        },
+        "transit_child_count": {
+          "label": "transit_child_count",
+          "unit": "人"
+        },
+        "transit_infant_count": {
+          "label": "transit_infant_count",
+          "unit": "人"
+        },
+        "baggage_weight": {
+          "label": "行李kg",
+          "description": "行李重量 kg",
+          "unit": "kg"
+        },
+        "mail_weight": {
+          "label": "邮件kg",
+          "description": "邮件重量 kg",
+          "unit": "kg"
+        },
+        "cargo_weight": {
+          "label": "货物kg",
+          "description": "货物重量 kg",
+          "unit": "kg"
+        },
+        "ext_json": {
+          "label": "PE_* 等暂忽略字段可放入",
+          "description": "PE_* 等暂忽略字段可放入"
+        },
+        "created_at": {
+          "label": "created_at"
+        },
+        "updated_at": {
+          "label": "本地更新时间"
+        },
+        "deleted_at": {
+          "label": "删除时间"
+        },
+        "row_version": {
+          "label": "row_version"
+        },
+        "last_event_time": {
+          "label": "源事件时间"
+        }
+      },
+      "metrics": {}
+    },
+    "std_flight_resource": {
+      "name": "航班多值资源",
+      "aliases": [
+        "航班资源",
+        "资源占用"
+      ],
+      "description": "1:N core；登机口/机位/值机/行李等多值历史；航班多值资源占用；自然码 resource_code，本场范围由 core.airport_code 决定",
+      "queryable": true,
+      "bindings": {},
+      "attributes": {
+        "id": {
+          "label": "内部主键"
+        },
+        "flight_id": {
+          "label": "标准航班主键"
+        },
+        "resource_type": {
+          "label": "resource_type"
+        },
+        "resource_code": {
+          "label": "resource_code"
+        },
+        "status": {
+          "label": "status"
+        },
+        "class_service": {
+          "label": "class_service"
+        },
+        "is_primary": {
+          "label": "is_primary"
+        },
+        "sched_start": {
+          "label": "sched_start"
+        },
+        "sched_end": {
+          "label": "sched_end"
+        },
+        "act_start": {
+          "label": "act_start"
+        },
+        "act_end": {
+          "label": "act_end"
+        },
+        "source_system": {
+          "label": "来源系统"
+        },
+        "updated_at": {
+          "label": "本地更新时间"
+        }
+      },
+      "metrics": {}
+    },
+    "std_flight_source_ref": {
+      "name": "多源主键对照",
+      "aliases": [
+        "航班来源",
+        "来源对照"
+      ],
+      "description": "1:N core；仅同步对账，问数不直接读；多源主键对照；换源/双源融合靠此表对齐到同一 flight_id",
+      "queryable": true,
+      "bindings": {},
+      "attributes": {
+        "id": {
+          "label": "内部主键"
+        },
+        "flight_id": {
+          "label": "标准航班主键"
+        },
+        "source_system": {
+          "label": "来源系统"
+        },
+        "source_flight_id": {
+          "label": "source_flight_id"
+        },
+        "source_ffid": {
+          "label": "source_ffid"
+        },
+        "last_seen_at": {
+          "label": "last_seen_at"
+        },
+        "created_at": {
+          "label": "created_at"
+        }
+      },
+      "metrics": {}
+    },
+    "ops_ask_views.flight_execution": {
+      "name": "实际执飞航班",
+      "aliases": [
+        "航班执飞情况",
+        "航班执行情况",
+        "执飞航班",
+        "执行航班",
+        "执飞情况",
+        "实际执飞"
+      ],
+      "description": "一行是一次本场实际进港或出港，进港按 actual_arrival、出港按 actual_departure，统一为 execution_time；视图已排除取消、删除和虚拟航班。按实际发生日统计，不是计划航班日期。不要再添加两个实际时间同时非空或其他默认筛选。",
+      "queryable": true,
+      "bindings": {
+        "time": "execution_time",
+        "code": "flight_no",
+        "direction": "direction"
+      },
+      "attributes": {
+        "id": {
+          "label": "内部主键",
+          "description": "代理键；卫星表 FK"
+        },
+        "flight_no": {
+          "label": "航班号",
+          "description": "含航司前缀如 CZ9301"
+        },
+        "flight_date": {
+          "label": "航班业务日",
+          "description": "航班日期（三要素之一）；比较按业务日"
+        },
+        "direction": {
+          "label": "进出港",
+          "description": "仅 DEP/ARR",
+          "enums": {
+            "DEP": "出港",
+            "ARR": "进港"
+          }
+        },
+        "scheduled_departure": {
+          "label": "计划起飞"
+        },
+        "actual_departure": {
+          "label": "实际起飞"
+        },
+        "scheduled_arrival": {
+          "label": "计划到达"
+        },
+        "actual_arrival": {
+          "label": "实际到达"
+        },
+        "flight_status": {
+          "label": "航班状态"
+        },
+        "source_system": {
+          "label": "来源系统"
+        },
+        "vendor_code": {
+          "label": "vendor_code"
+        },
+        "created_at": {
+          "label": "created_at"
+        },
+        "updated_at": {
+          "label": "本地更新时间"
+        },
+        "aircraft_type": {
+          "label": "机型"
+        },
+        "aircraft_reg": {
+          "label": "机号"
+        },
+        "stand_code": {
+          "label": "机位",
+          "description": "与 airport_code 组成自然键"
+        },
+        "link_id": {
+          "label": "link_id"
+        },
+        "partner_flight_no": {
+          "label": "连班航班号",
+          "description": "连班快照；完整关系见 link"
+        },
+        "is_link_turn": {
+          "label": "is_link_turn"
+        },
+        "origin_city": {
+          "label": "起站展示",
+          "description": "冗余展示；权威名以 dim 为准"
+        },
+        "flight_nature": {
+          "label": "航班性质"
+        },
+        "airline_code": {
+          "label": "航司二字码",
+          "description": "航司 IATA 二字码 → dim_airline.iata_code"
+        },
+        "terminal": {
+          "label": "航站楼"
+        },
+        "dest_city": {
+          "label": "目的站展示"
+        },
+        "via_city": {
+          "label": "via_city"
+        },
+        "estimated_departure": {
+          "label": "预计起飞"
+        },
+        "estimated_arrival": {
+          "label": "预计到达"
+        },
+        "board_time": {
+          "label": "登机时间",
+          "description": "core 快照"
+        },
+        "cobt": {
+          "label": "COBT"
+        },
+        "airport_code": {
+          "label": "本场三字码"
+        },
+        "biz_key": {
+          "label": "业务键",
+          "description": "{airport}:{date}:{DEP|ARR}:{flight_no}"
+        },
+        "flight_identity": {
+          "label": "航班全称",
+          "description": "航班全称，如 HU1234A"
+        },
+        "airline_icao": {
+          "label": "airline_icao"
+        },
+        "primary_source_id": {
+          "label": "当前主写源侧航班唯一号",
+          "description": "当前主写源侧航班唯一号"
+        },
+        "flight_country_type": {
+          "label": "flight_country_type"
+        },
+        "caac_service_type": {
+          "label": "caac_service_type"
+        },
+        "iata_service_type": {
+          "label": "iata_service_type"
+        },
+        "aircraft_iata": {
+          "label": "aircraft_iata"
+        },
+        "aircraft_icao": {
+          "label": "aircraft_icao"
+        },
+        "call_sign": {
+          "label": "call_sign"
+        },
+        "agency": {
+          "label": "agency"
+        },
+        "is_transit": {
+          "label": "is_transit"
+        },
+        "is_overnight": {
+          "label": "is_overnight"
+        },
+        "is_origin": {
+          "label": "is_origin"
+        },
+        "is_divert": {
+          "label": "is_divert"
+        },
+        "is_virtual": {
+          "label": "是否虚拟航班",
+          "description": "不计架次场景可排除"
+        },
+        "is_ferry": {
+          "label": "is_ferry"
+        },
+        "origin_airport": {
+          "label": "始发机场",
+          "description": "始发机场三字码 → dim_airport.iata_code"
+        },
+        "previous_airport": {
+          "label": "前站"
+        },
+        "next_airport": {
+          "label": "下一站"
+        },
+        "dest_airport": {
+          "label": "目的机场",
+          "description": "目的机场三字码 → dim_airport.iata_code"
+        },
+        "full_route": {
+          "label": "full_route"
+        },
+        "aircraft_terminal": {
+          "label": "aircraft_terminal"
+        },
+        "gate_code": {
+          "label": "登机口",
+          "description": "当前登机口；与 airport_code 组成资源自然键"
+        },
+        "runway": {
+          "label": "runway"
+        },
+        "baggage_reclaim": {
+          "label": "baggage_reclaim"
+        },
+        "flight_scheduled_datetime": {
+          "label": "本场计划时间"
+        },
+        "operation_status": {
+          "label": "operation_status"
+        },
+        "delay_code": {
+          "label": "delay_code"
+        },
+        "delay_reason_text": {
+          "label": "delay_reason_text"
+        },
+        "diversion_airport": {
+          "label": "diversion_airport"
+        },
+        "change_landing_airport": {
+          "label": "change_landing_airport"
+        },
+        "display_code": {
+          "label": "display_code"
+        },
+        "public_comment": {
+          "label": "public_comment"
+        },
+        "deleted_at": {
+          "label": "删除时间"
+        },
+        "row_version": {
+          "label": "乐观版本，防旧事件覆盖",
+          "description": "乐观版本，防旧事件覆盖"
+        },
+        "last_event_time": {
+          "label": "源事件时间"
+        },
+        "execution_time": {
+          "label": "本场实际起降时间",
+          "description": "出港实际起飞、进港实际落地，按北京时间确定实际发生日。"
+        }
+      },
+      "metrics": {},
+      "identity_fields": [
+        "id"
+      ]
+    }
+  },
+  "logical_links": [
+    {
+      "pairs": [
+        [
+          "std_flight_core.airline_code",
+          "dim_airline.iata_code"
+        ]
+      ],
+      "role": "core_airline",
+      "note": "主事实→航司",
+      "status": "configured"
+    },
+    {
+      "pairs": [
+        [
+          "std_flight_core.origin_airport",
+          "dim_airport.iata_code"
+        ]
+      ],
+      "role": "core_origin_airport",
+      "note": "主事实→始发机场",
+      "status": "configured"
+    },
+    {
+      "pairs": [
+        [
+          "std_flight_core.dest_airport",
+          "dim_airport.iata_code"
+        ]
+      ],
+      "role": "core_dest_airport",
+      "note": "主事实→目的机场",
+      "status": "configured"
+    },
+    {
+      "pairs": [
+        [
+          "std_flight_core.airport_code",
+          "dim_airport.iata_code"
+        ]
+      ],
+      "role": "core_home_airport",
+      "note": "主事实→本场",
+      "status": "configured"
+    },
+    {
+      "pairs": [
+        [
+          "std_flight_core.airport_code",
+          "dim_stand.airport_code"
+        ],
+        [
+          "std_flight_core.stand_code",
+          "dim_stand.stand_code"
+        ]
+      ],
+      "role": "core_stand",
+      "note": "主事实→机位",
+      "status": "configured"
+    },
+    {
+      "pairs": [
+        [
+          "std_flight_core.airport_code",
+          "dim_gate.airport_code"
+        ],
+        [
+          "std_flight_core.gate_code",
+          "dim_gate.gate_code"
+        ]
+      ],
+      "role": "core_gate",
+      "note": "主事实→登机口",
+      "status": "configured"
+    },
+    {
+      "pairs": [
+        [
+          "std_flight_core.agency",
+          "dim_agency.code"
+        ]
+      ],
+      "role": "core_agency",
+      "note": "主事实→代理",
+      "status": "configured"
+    },
+    {
+      "pairs": [
+        [
+          "std_flight_core.aircraft_reg",
+          "dim_aircraft.reg_no"
+        ]
+      ],
+      "role": "core_aircraft",
+      "note": "主事实→飞机",
+      "status": "configured"
+    },
+    {
+      "pairs": [
+        [
+          "std_flight_production.airline_code",
+          "dim_airline.iata_code"
+        ]
+      ],
+      "role": "prod_airline",
+      "note": "生产量→航司",
+      "status": "configured"
+    },
+    {
+      "source": "ops_ask_views.flight_execution.id",
+      "target": "std_flight_core.id",
+      "note": "实际执飞视图对应原航班记录",
+      "status": "configured"
+    }
+  ],
+  "relations": {
+    "std_flight_core": {
+      "std_flight_indicator": {
+        "name": "主事实→指标",
+        "aliases": [
+          "航班指标",
+          "延误指标",
+          "正常性指标"
+        ]
+      },
+      "std_flight_process": {
+        "name": "主事实→过程",
+        "aliases": [
+          "航班过程",
+          "保障过程",
+          "保障时刻"
+        ]
+      },
+      "std_flight_resource": {
+        "name": "主事实→资源",
+        "aliases": [
+          "航班资源",
+          "资源占用"
+        ]
+      },
+      "std_flight_link": {
+        "name": "主事实→关系边",
+        "aliases": [
+          "共享航班",
+          "代码共享",
+          "连班关系"
+        ],
+        "pairs": [
+          [
+            "std_flight_core.id",
+            "std_flight_link.flight_id"
+          ]
+        ]
+      },
+      "std_flight_source_ref": {
+        "name": "主事实→源对照",
+        "aliases": [
+          "航班来源",
+          "来源对照"
+        ]
+      },
+      "std_flight_production": {
+        "name": "主事实→生产量",
+        "aliases": [
+          "生产量",
+          "货邮行",
+          "旅客",
+          "货物",
+          "邮件",
+          "行李"
+        ]
+      },
+      "dim_airline": {
+        "name": "主事实→航司",
+        "aliases": [
+          "航空公司",
+          "航司"
+        ]
+      },
+      "dim_stand": {
+        "name": "主事实→机位",
+        "aliases": [
+          "机位",
+          "停机位"
+        ]
+      },
+      "dim_gate": {
+        "name": "主事实→登机口",
+        "aliases": [
+          "登机口"
+        ]
+      },
+      "dim_agency": {
+        "name": "主事实→代理",
+        "aliases": [
+          "代理",
+          "代理公司"
+        ]
+      },
+      "dim_aircraft": {
+        "name": "主事实→飞机",
+        "aliases": [
+          "飞机",
+          "航空器"
+        ]
+      }
+    },
+    "std_flight_production": {
+      "dim_airline": {
+        "name": "生产量→航司",
+        "aliases": [
+          "航空公司",
+          "航司"
+        ]
+      }
+    },
+    "ops_ask_views.flight_execution": {
+      "std_flight_indicator": {
+        "name": "执飞指标",
+        "aliases": [
+          "延误指标",
+          "航班指标"
+        ],
+        "via": [
+          "std_flight_core"
+        ]
+      },
+      "std_flight_process": {
+        "name": "执飞过程",
+        "aliases": [
+          "保障时刻",
+          "保障过程"
+        ],
+        "via": [
+          "std_flight_core"
+        ]
+      }
+    }
+  },
+  "sensitive_fields": [],
+  "source": {
+    "module": "airport-ops-data-sync",
+    "database": "ops_ask",
+    "model": "meta_model_entity/meta_model_field/meta_model_relation"
+  },
+  "offline_queries": [
+    {
+      "subject": "ops_ask_views.flight_execution",
+      "intent": "count",
+      "group_by": [
+        "direction"
+      ],
+      "aliases": [
+        "航班执飞情况",
+        "航班执行情况",
+        "执飞情况",
+        "执行情况"
+      ]
+    },
+    {
+      "subject": "ops_ask_views.flight_execution",
+      "intent": "count",
+      "aliases": [
+        "执飞航班量",
+        "执行航班量",
+        "执飞架次",
+        "执飞数量",
+        "执行航班数量",
+        "执飞航班数量"
+      ]
+    },
+    {
+      "subject": "ops_ask_views.flight_execution",
+      "intent": "detail",
+      "aliases": [
+        "执飞航班明细",
+        "执行航班明细",
+        "实际执飞明细",
+        "执飞明细",
+        "执飞航班",
+        "执行航班",
+        "实际执飞"
+      ]
+    }
+  ]
+}

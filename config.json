@@ -69,5 +69,6 @@
     "answer_composition_timeout_seconds": 20,
     "relation_probe_timeout_ms": 2000,
     "relation_probe_budget_seconds": 30
-  }
+  },
+  "data_source": "hbairport"
 }

@@ -1,0 +1,32 @@
+{
+  "database": {
+    "database": "acdm_test_20261010_e4325334"
+  },
+  "server": {
+    "host": "127.0.0.1"
+  },
+  "files": {
+    "ontology": "data\\acdm\\acdm_test_20261010_e4325334\\ontology.json",
+    "memory": "data\\acdm\\acdm_test_20261010_e4325334\\memory.json",
+    "schema": "data\\acdm\\acdm_test_20261010_e4325334\\runtime\\schema.json",
+    "graph": "data\\acdm\\acdm_test_20261010_e4325334\\runtime\\graph.json"
+  },
+  "metadata": {
+    "schemas": [
+      "FIMS",
+      "ACDM",
+      "FORMFILL",
+      "TEST"
+    ],
+    "excluded_prefixes": [],
+    "excluded_suffixes": []
+  },
+  "admin": {
+    "directory": "data\\acdm\\acdm_test_20261010_e4325334\\admin"
+  },
+  "llm": {
+    "permitted_origins": [
+      "http://172.26.197.154:3000"
+    ]
+  }
+}

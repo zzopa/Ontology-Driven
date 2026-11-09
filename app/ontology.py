@@ -101,8 +101,9 @@ class Catalog:
                 and any(alias in question for alias in spec.get('aliases', []))]
 
     def path(self, subject, target, via=None):
+        relation = self.overrides.get('relations', {}).get(subject, {}).get(target, {})
         if via is None:
-            via = self.overrides.get('relations', {}).get(subject, {}).get(target, {}).get('via')
+            via = relation.get('via')
         if subject == target:
             return []
         queue = deque([(subject, [])])
@@ -123,6 +124,12 @@ class Catalog:
                                  'validation': edge['validation'],
                                  'cardinality': edge['cardinality'], 'level': len(path) + 1}]
                 if nxt == target:
+                    if relation.get('pairs'):
+                        pairs = {(edge['from_table'] + '.' + a, edge['to_table'] + '.' + b)
+                                 for a, b in edge['pairs']}
+                        expected = {tuple(pair) for pair in relation['pairs']}
+                        if expected != pairs and expected != {(b, a) for a, b in pairs}:
+                            continue
                     if via and [e['table'] for e in route[:-1]] != via:
                         continue
                     found.append(route)
@@ -159,7 +166,7 @@ class Catalog:
         for table in selected:
             expanded.extend(t for t, _ in self.adjacency.get(table, []))
         return {table: {
-            'name': self.entities[table]['name'], 'description': self.tables[table].get('comment', ''),
+            'name': self.entities[table]['name'], 'description': self.entities[table].get('description', self.tables[table].get('comment', '')),
             'bindings': self.entities[table]['bindings'],
             'fields': {key: {k: val for k, val in attr.items()
                              if k in ('label', 'description', 'type', 'unit', 'enums')}

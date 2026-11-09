@@ -50,6 +50,10 @@ class Settings:
     admin_directory: Path
     admin_session_hours: int
     retention_days: int
+    data_source: str = 'hbairport'
+    identity_db: dict | None = None
+    external_models_enabled: bool = True
+    permitted_model_origins: tuple = ()
     evidence_workers: int = 3
     evidence_timeout_seconds: int = 120
     evidence_retries: int = 1
@@ -57,6 +61,7 @@ class Settings:
     answer_composition_enabled: bool = True
     answer_composition_budget: int = 18000
     answer_composition_timeout_seconds: int = 20
+    metadata_views: tuple = ()
 
 
 def load_settings():
@@ -65,6 +70,15 @@ def load_settings():
     local = ROOT / 'config.local.json'
     if local.exists():
         with local.open(encoding='utf-8') as source:
+            _merge(config, json.load(source))
+
+    identity_database = config['database'].copy()
+    identity_database['password'] = os.environ.get('HBASK_DB_PASSWORD', identity_database.get('password', ''))
+    data_source = os.environ.get('HBASK_DATA_SOURCE', config.get('data_source', 'hbairport'))
+    if data_source not in ('hbairport', 'acdm', 'ops_ask'):
+        raise ValueError('数据源必须为 hbairport、acdm 或 ops_ask')
+    if data_source != 'hbairport':
+        with (ROOT / 'data' / data_source / 'profile.json').open(encoding='utf-8') as source:
             _merge(config, json.load(source))
 
     server = config['server']
@@ -95,6 +109,7 @@ def load_settings():
         graph_main_limit=int(query['graph_main_limit']),
         graph_related_limit=int(query['graph_related_limit']),
         schemas=tuple(config.get('metadata', {}).get('schemas', ['public'])),
+        metadata_views=tuple(config.get('metadata', {}).get('views', [])),
         excluded_prefixes=tuple(config.get('metadata', {}).get('excluded_prefixes', [])),
         excluded_suffixes=tuple(config.get('metadata', {}).get('excluded_suffixes', [])),
         query_timeout_ms=int(query.get('timeout_ms', 15000)),
@@ -107,6 +122,9 @@ def load_settings():
         admin_directory=Path(os.environ.get('HBASK_ADMIN_DIR', str(ROOT / config.get('admin', {}).get('directory', 'data/admin')))),
         admin_session_hours=int(config.get('admin', {}).get('session_hours', 12)),
         retention_days=int(config.get('admin', {}).get('retention_days', 90)),
+        data_source=data_source, identity_db=identity_database,
+        external_models_enabled=data_source == 'hbairport',
+        permitted_model_origins=tuple(config.get('llm',{}).get('permitted_origins',[])),
         evidence_workers=max(1,min(4,int(query.get('evidence_workers',3)))),
         evidence_timeout_seconds=max(10,min(300,int(query.get('evidence_timeout_seconds',120)))),
         evidence_retries=max(0,min(2,int(query.get('evidence_retries',1)))),

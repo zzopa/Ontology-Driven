@@ -1,0 +1,38 @@
+{
+  "database": {
+    "database": "ops_ask",
+    "startup_params": {
+      "TimeZone": "Asia/Shanghai"
+    }
+  },
+  "server": {
+    "host": "127.0.0.1"
+  },
+  "files": {
+    "ontology": "data/ops_ask/ontology.json",
+    "memory": "data/ops_ask/memory.json",
+    "schema": "data/ops_ask/runtime/schema.json",
+    "graph": "data/ops_ask/runtime/graph.json"
+  },
+  "metadata": {
+    "schemas": [
+      "public",
+      "ops_ask_views"
+    ],
+    "excluded_prefixes": [
+      ""
+    ],
+    "excluded_suffixes": [],
+    "views": [
+      "ops_ask_views.flight_execution"
+    ]
+  },
+  "admin": {
+    "directory": "data/ops_ask/admin"
+  },
+  "llm": {
+    "permitted_origins": [
+      "http://172.26.197.154:3000"
+    ]
+  }
+}

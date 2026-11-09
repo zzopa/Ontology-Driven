@@ -39,9 +39,9 @@ STATUS = {'ready': False, 'requests': 0, 'failures': 0, 'cache_hits': 0}
 DURATIONS = []
 
 
-def connect_db(repeatable_read=False):
+def connect_db(repeatable_read=False, identity=False):
     import pg8000.dbapi as pg
-    options=settings.db.copy()
+    options=(settings.identity_db if identity else settings.db).copy()
     options['timeout']=max(options.get('timeout',8),settings.query_timeout_ms/1000+5)
     conn = pg.connect(**options)
     cur = conn.cursor()
@@ -124,7 +124,7 @@ def _initialize():
         pass
     conn = connect_db()
     try:
-        schema = read_schema(conn,settings.schemas)
+        schema = read_schema(conn,settings.schemas,settings.metadata_views)
         schema['database_identity'] = {k:settings.db[k] for k in ('host','port','database')}
         schema['fingerprint'] = fingerprint({'metadata':schema['fingerprint'],
                                              'identity':schema['database_identity']})
@@ -212,6 +212,8 @@ def rollback_ontology(revision, expected):
 def status():
     with LOCK:
         return {'ok':True,**deepcopy(STATUS),
+                'data_source':settings.data_source,'external_models_enabled':settings.external_models_enabled,
+                'coverage': current_catalog().overrides.get('coverage') if CATALOG else None,
                 'average_seconds':round(sum(DURATIONS)/len(DURATIONS),3) if DURATIONS else 0}
 
 
@@ -227,6 +229,19 @@ def remember_plan(question, plan, catalog):
 
 
 def parse_question(question, catalog, use_model=True, use_cache=True, trace=None, lookups=None):
+    if settings.data_source == 'ops_ask' and catalog.overrides.get('offline_queries'):
+        from app.acdm_ontology import parse_question as parse_local
+        try:
+            plan = parse_local(question, catalog)
+        except ValueError:
+            pass
+        else:
+            return Compiler(catalog).validate(plan), '本体规则·已定义业务口径'
+    if settings.data_source == 'acdm' and not use_model:
+        from app.acdm_ontology import parse_question as parse_acdm
+        return Compiler(catalog).validate(parse_acdm(question,catalog)), '本体规则·ACDM本地解析'
+    if settings.data_source == 'acdm' and not model_available():
+        raise ValueError('本机模型尚未连接。请在模型管理中配置本机接口和模型名，连接后可使用原本体自由问答。')
     with LOCK:
         cached = next((deepcopy(e['parsed']) for e in MEM['entries']
             if e.get('version')==cache_key(catalog) and e.get('q')==question),None)
