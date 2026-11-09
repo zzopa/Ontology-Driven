@@ -225,8 +225,10 @@ def build_fishbone_meta(
     """根据航班数据行生成鱼骨图元数据."""
     direction = resolve_direction(row)
     flight_no = (
-        safe_str(row.get('FLIGHT_NO')) or
+        safe_str(row.get('FLIGHT_KEY')) or
+        (f"{safe_str(row.get('AIRLINE_TWO_CHAR_CD'))}{safe_str(row.get('FLIGHT_NO'))}" if row.get('AIRLINE_TWO_CHAR_CD') and row.get('FLIGHT_NO') and not str(row.get('FLIGHT_NO', '')).startswith(str(row.get('AIRLINE_TWO_CHAR_CD', ''))) else '') or
         safe_str(row.get('flight_no')) or
+        safe_str(row.get('FLIGHT_NO')) or
         (plan.get('code') if plan else '') or
         '航班'
     )

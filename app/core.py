@@ -237,11 +237,13 @@ def parse_question(question, catalog, use_model=True, use_cache=True, trace=None
             pass
         else:
             return Compiler(catalog).validate(plan), '本体规则·已定义业务口径'
-    if settings.data_source == 'acdm' and not use_model:
+    if settings.data_source == 'acdm':
         from app.acdm_ontology import parse_question as parse_acdm
-        return Compiler(catalog).validate(parse_acdm(question,catalog)), '本体规则·ACDM本地解析'
-    if settings.data_source == 'acdm' and not model_available():
-        raise ValueError('本机模型尚未连接。请在模型管理中配置本机接口和模型名，连接后可使用原本体自由问答。')
+        try:
+            return Compiler(catalog).validate(parse_acdm(question, catalog)), '本体规则·ACDM本地解析'
+        except ValueError:
+            if not model_available():
+                raise ValueError('本机模型尚未连接。请在模型管理中配置本机接口和模型名，连接后可使用原本体自由问答。')
     with LOCK:
         cached = next((deepcopy(e['parsed']) for e in MEM['entries']
             if e.get('version')==cache_key(catalog) and e.get('q')==question),None)
