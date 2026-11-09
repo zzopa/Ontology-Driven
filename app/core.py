@@ -228,7 +228,7 @@ def remember_plan(question, plan, catalog):
         save_snapshot(settings.memory_path,MEM)
 
 
-def parse_question(question, catalog, use_model=True, use_cache=True, trace=None, lookups=None):
+def parse_question(question, catalog, use_model=True, use_cache=True, trace=None, lookups=None, previous_plan=None):
     if settings.data_source == 'ops_ask' and catalog.overrides.get('offline_queries'):
         from app.acdm_ontology import parse_question as parse_local
         try:
@@ -257,7 +257,7 @@ def parse_question(question, catalog, use_model=True, use_cache=True, trace=None
     names, enterprises = lookups if lookups is not None else (NAME_INDEX, ENTERPRISE_NAMES)
     planner = Planner(catalog,names,enterprises,
                       chat if use_model and model_available() else None, trace=trace)
-    return planner.parse(question)
+    return planner.parse(question, previous_plan=previous_plan)
 
 
 def field_meta(catalog, tables):
@@ -528,7 +528,7 @@ def answer(catalog,plan,evidence,main_total,use_model,question='',trace=None,del
     return claims,text,validation
 
 
-def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,access=None):
+def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,access=None,previous_plan=None):
     catalog=current_catalog()
     if access:
         catalog=access.catalog(catalog)
@@ -550,7 +550,7 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
         emit('progress',stage='parse',message='正在匹配业务本体与查询条件…',percent=12)
         checkpoint=perf_counter()
         lookups=load_lookups(conn,catalog,access) if access else None
-        plan,source=parse_question(text,catalog,use_model,use_cache,trace,lookups)
+        plan,source=parse_question(text,catalog,use_model,use_cache,trace,lookups,previous_plan=previous_plan)
         timings['parse']=round(perf_counter()-checkpoint,3)
         subject,intent=plan['subject'],plan['intent']
         trace.start('plan', '校验最终查询计划', '验证最终主体、字段、统计口径和全部筛选条件')
@@ -558,6 +558,11 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
         trace.finish('plan', '查询计划校验通过',
                      ['计划来源：' + source, '主体：' + catalog.entities[subject]['name'] + ' · ' + subject,
                       '最终筛选：' + json.dumps(plan.get('conditions', []), ensure_ascii=False, default=str)])
+        from app.coverage import DataCoverageService
+        coverage_check = DataCoverageService(catalog).assess_plan(plan)
+        if coverage_check['status'] == 'OUT_OF_COVERAGE':
+            trace.start('coverage_notice', '数据覆盖边界提醒', '查询日期超出当前数据源覆盖范围')
+            trace.finish('coverage_notice', coverage_check['message'], [coverage_check['message']])
         emit('progress',stage='graph',message='正在校验业务关系与统计口径…',percent=35)
         trace.start('relations', '校验关联路径', '仅使用当前本体中可校验且无歧义的关系')
         targets=plan.get('focus_tables',[])
@@ -676,6 +681,11 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
             'evidence':evidence,'model_evidence_delivery':delivery,
             'ontology_version':catalog.version,'timings':timings,
             'elapsed':round(perf_counter()-started,3)}
+        from app.agent.visual import build_visual_meta
+        visual_meta = build_visual_meta(plan, main if intent != 'detail' else main[:5], main_total, metric, catalog)
+        output['visual_meta'] = visual_meta
+        output['coverage_assessment'] = coverage_check
+        emit('visual_meta', data=visual_meta)
         if access:
             output['access_revision']=access.revision
             output['data_scope']=access.effective_scope

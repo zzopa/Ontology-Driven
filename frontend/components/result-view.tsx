@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, ArrowUpRight, Braces, Check, ChevronLeft, ChevronRight, Clock3, Code2, Database, Expand, FileCheck2, GitBranch, Layers, List, Search, ShieldCheck, Sparkles, Table2 } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BarChart3, Braces, Check, ChevronLeft, ChevronRight, Clock3, Code2, Database, Expand, FileCheck2, GitBranch, Layers, List, PieChart, Search, ShieldCheck, Sparkles, Table2, TrendingUp } from "lucide-react";
 import { request } from "@/lib/api";
 import { formatValue } from "@/lib/query";
 import { answerCopyText, answerSections } from "@/lib/answer-document";
-import type { Edge, Fact, FieldMeta, PageData, QueryResult, Row } from "@/lib/types";
+import type { Edge, Fact, FieldMeta, PageData, QueryResult, Row, VisualMeta } from "@/lib/types";
 import { Badge, Button, Card, CopyButton, Modal, Notice, Spinner } from "./ui";
 import { ExecutionProcess } from "./execution-process";
 
@@ -21,6 +21,143 @@ function AnswerBody({ result }: { result: QueryResult }) {
     <h3 className="section-title">{section.title}{section.kind === "interpretation" && <Badge>模型解释</Badge>}</h3>
     <div className="answer-text" style={{ marginTop: 10 }}>{section.claims.map((claim, i) => <div key={i} style={{ marginTop: i ? 10 : 0 }}><RichText text={claim.text} /></div>)}</div>
   </section>)}<p className="helper">原始字段和统计口径保留在数据明细中；解释与建议不等于数据库已证实事实，来源检查也不是完整语义证明。</p></>;
+}
+
+function VisualView({ meta }: { meta?: VisualMeta }) {
+  if (!meta || meta.kind === "none") return null;
+
+  if (meta.kind === "stats") {
+    return (
+      <div className="visual-section">
+        <div className="visual-header">
+          <h4 className="visual-title"><BarChart3 size={13} />{meta.title}</h4>
+          <Badge tone="green">统计概览</Badge>
+        </div>
+        <div className="visual-stats-grid">
+          {meta.stats.map((s, i) => (
+            <div key={i} className="visual-stat-card">
+              <span className="visual-stat-label">{s.label}</span>
+              <div className="visual-stat-val">
+                <strong>{s.value}</strong>
+                {s.unit && <small>{s.unit}</small>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (meta.kind === "donut") {
+    const C = 2 * Math.PI * 40;
+    let accumulated = 0;
+    return (
+      <div className="visual-section">
+        <div className="visual-header">
+          <h4 className="visual-title"><PieChart size={13} />{meta.title}</h4>
+          <Badge>合计: {meta.total.toLocaleString()} {meta.unit}</Badge>
+        </div>
+        <div className="visual-donut-wrap">
+          <svg className="visual-donut-svg" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--line)" strokeWidth="14" />
+            {meta.slices.map((slice, i) => {
+              const dash = (slice.percent / 100) * C;
+              const offset = (accumulated / 100) * C;
+              accumulated += slice.percent;
+              return (
+                <circle
+                  key={i}
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  fill="transparent"
+                  stroke={slice.color}
+                  strokeWidth="14"
+                  strokeDasharray={`${dash} ${C - dash}`}
+                  strokeDashoffset={-offset}
+                />
+              );
+            })}
+          </svg>
+          <div className="visual-donut-legend">
+            {meta.slices.map((slice, i) => (
+              <div key={i} className="visual-legend-item">
+                <div className="visual-legend-item-left">
+                  <span className="visual-legend-dot" style={{ backgroundColor: slice.color }} />
+                  <span className="visual-legend-label" title={slice.label}>{slice.label}</span>
+                </div>
+                <span className="visual-legend-val">
+                  {slice.value.toLocaleString()} {meta.unit} ({slice.percent}%)
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (meta.kind === "bar") {
+    const maxVal = Math.max(...meta.bars.map(b => b.value), 1);
+    return (
+      <div className="visual-section">
+        <div className="visual-header">
+          <h4 className="visual-title"><BarChart3 size={13} />{meta.title}</h4>
+          <Badge>{meta.bars.length} 个分类</Badge>
+        </div>
+        <div className="visual-bars-wrap">
+          {meta.bars.map((bar, i) => {
+            const widthPct = Math.min(100, Math.max(2, (bar.value / maxVal) * 100));
+            return (
+              <div key={i} className="visual-bar-item">
+                <div className="visual-bar-label-row">
+                  <span className="visual-bar-name">{bar.label}</span>
+                  <span className="visual-bar-value">
+                    {bar.value.toLocaleString()} {meta.unit} {bar.percent > 0 ? `(${bar.percent}%)` : ""}
+                  </span>
+                </div>
+                <div className="visual-bar-track">
+                  <div
+                    className="visual-bar-fill"
+                    style={{ width: `${widthPct}%`, backgroundColor: bar.color }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (meta.kind === "trend") {
+    const maxVal = Math.max(...meta.series.map(s => s.value), 1);
+    return (
+      <div className="visual-section">
+        <div className="visual-header">
+          <h4 className="visual-title"><TrendingUp size={13} />{meta.title}</h4>
+          <Badge>{meta.metric_label || "趋势"}</Badge>
+        </div>
+        <div className="visual-trend-wrap">
+          {meta.series.map((pt, i) => {
+            const heightPct = Math.min(100, Math.max(6, (pt.value / maxVal) * 100));
+            return (
+              <div key={i} className="visual-trend-col">
+                <span className="visual-trend-val">{pt.value.toLocaleString()}</span>
+                <div
+                  className="visual-trend-pillar"
+                  style={{ height: `${heightPct}%` }}
+                />
+                <span className="visual-trend-label" title={pt.label}>{pt.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 type Cell = { field: string; label: string; value: unknown; unit?: string; comment?: string };
@@ -85,7 +222,7 @@ export function ResultView({ result, showProcess = true }: { result: QueryResult
   const relatedHits = result.related.reduce((sum, item) => sum + item.count, 0);
   const tabs = [{ id: "answer", label: "智能回答", icon: Sparkles }, { id: "data", label: "数据明细", icon: Table2 }, { id: "evidence", label: "回答依据", icon: ShieldCheck }, { id: "graph", label: "关联图谱", icon: GitBranch }, { id: "sql", label: "执行 SQL", icon: Code2 }];
   return <>{showProcess && <ExecutionProcess steps={result.execution_trace || []} />}<div className="result-top"><div><h2>查询结果</h2><p>{result.question}</p></div><div className="result-top-actions"><Badge>{result.elapsed}s</Badge><CopyButton text={answerCopyText(result)} label="复制回答" /></div></div><Card className="result-card"><div className="result-tabs" role="tablist" aria-label="查询结果内容">{tabs.map(item => <button key={item.id} id={`tab-${item.id}`} className={`result-tab ${tab === item.id ? "selected" : ""}`} role="tab" aria-selected={tab === item.id} aria-controls="result-panel" onClick={() => setTab(item.id)}><item.icon size={13} />{item.label}{item.id === "evidence" && <Badge>{result.claims?.length || 0}</Badge>}</button>)}</div><div className="result-content" role="tabpanel" id="result-panel" aria-labelledby={`tab-${tab}`}>
-    {tab === "answer" && <><div className="answer-head"><span className="answer-mark"><Sparkles size={17} /></span><div><strong>智能数据助手</strong><small>基于实时查询与来源证据</small></div><Badge tone="green"><Check size={10} />已完成查询</Badge></div><AnswerBody result={result} /><div className="result-meta"><span><Database size={11} />{result.parse.disp || result.parse.subject}</span><span><Clock3 size={11} />{result.elapsed}s</span><span><Code2 size={11} />{result.intent === "detail" ? "信息明细" : result.intent === "sum" ? "金额合计" : "记录统计"}</span><span><ShieldCheck size={11} />{result.answer_validation === "deterministic" ? "确定性统计" : result.answer_validation === "evidence_fallback" ? "事实摘要回退" : "来源及数值校验"}</span></div><div className="metrics"><button className="metric-card" disabled={!result.drill_token} onClick={() => setRecords(true)}><strong>{result.main_total.toLocaleString()}</strong><span className="metric-label">{result.intent === "sum" ? "参与记录数" : "命中记录数"}<ArrowUpRight size={13} /></span></button><div className="metric-card static"><strong>{relatedHits.toLocaleString()}</strong><span className="metric-label">关联记录数</span></div><button className="metric-card" onClick={() => setTab("graph")}><strong>{(result.graph?.nodes?.length || result.graph_tables.length + 1).toLocaleString()}</strong><span className="metric-label">查询涉及数据表<ArrowUpRight size={13} /></span></button></div>{result.metric?.description && <Notice>{result.metric.description}{result.metric.unit ? ` · 单位：${result.metric.unit}` : ""}</Notice>}{result.intent === "sum" && <div style={{ marginTop: 20 }}><DataRows rows={result.main_rows} table={target} meta={result.field_meta} /></div>}{result.main_total > 5 && result.intent === "detail" && <div className="quiet-note"><List size={12} /><span>统计和关联查询覆盖全部 {result.main_total.toLocaleString()} 条命中记录。模型依据已提供证据回答，完整明细可分页查看。</span></div>}</>}
+    {tab === "answer" && <><div className="answer-head"><span className="answer-mark"><Sparkles size={17} /></span><div><strong>智能数据助手</strong><small>基于实时查询与来源证据</small></div><Badge tone="green"><Check size={10} />已完成查询</Badge></div><AnswerBody result={result} />{result.visual_meta && <VisualView meta={result.visual_meta} />}<div className="result-meta"><span><Database size={11} />{result.parse.disp || result.parse.subject}</span><span><Clock3 size={11} />{result.elapsed}s</span><span><Code2 size={11} />{result.intent === "detail" ? "信息明细" : result.intent === "sum" ? "金额合计" : "记录统计"}</span><span><ShieldCheck size={11} />{result.answer_validation === "deterministic" ? "确定性统计" : result.answer_validation === "evidence_fallback" ? "事实摘要回退" : "来源及数值校验"}</span></div><div className="metrics"><button className="metric-card" disabled={!result.drill_token} onClick={() => setRecords(true)}><strong>{result.main_total.toLocaleString()}</strong><span className="metric-label">{result.intent === "sum" ? "参与记录数" : "命中记录数"}<ArrowUpRight size={13} /></span></button><div className="metric-card static"><strong>{relatedHits.toLocaleString()}</strong><span className="metric-label">关联记录数</span></div><button className="metric-card" onClick={() => setTab("graph")}><strong>{(result.graph?.nodes?.length || result.graph_tables.length + 1).toLocaleString()}</strong><span className="metric-label">查询涉及数据表<ArrowUpRight size={13} /></span></button></div>{result.metric?.description && <Notice>{result.metric.description}{result.metric.unit ? ` · 单位：${result.metric.unit}` : ""}</Notice>}{result.intent === "sum" && <div style={{ marginTop: 20 }}><DataRows rows={result.main_rows} table={target} meta={result.field_meta} /></div>}{result.main_total > 5 && result.intent === "detail" && <div className="quiet-note"><List size={12} /><span>统计和关联查询覆盖全部 {result.main_total.toLocaleString()} 条命中记录。模型依据已提供证据回答，完整明细可分页查看。</span></div>}</>}
     {tab === "data" && <><div className="data-toolbar"><span>{result.intent === "detail" ? `主表预览 ${result.main_rows.length} / ${result.main_total.toLocaleString()} 条 · 展示全部允许字段` : `统计分组 ${result.main_rows.length} 组 · ${result.metric?.unit || "记录数"}`}</span><div className="manager-tools">{result.intent === "detail" && <Button onClick={() => setCards(v => !v)}><Table2 size={12} />{cards ? "表格视图" : "卡片视图"}</Button>}{result.drill_token && <Button onClick={() => setRecords(true)}><ArrowUpRight size={12} />全部明细</Button>}</div></div><DataRows rows={result.main_rows} table={result.intent === "detail" ? result.parse.subject : target} meta={result.field_meta} cards={cards && result.intent === "detail"} />
       {!!result.related.length && <><div className="card-head" style={{ marginTop: 24, marginBottom: 13 }}><h3 className="section-title"><Layers size={13} />关联业务数据</h3><Badge>{result.related.length} 张关联表</Badge></div><div className="related-grid">{result.related.map(item => <button className="related-card" key={item.table} onClick={() => setRelated(item)}><span className="related-heading"><GitBranch size={13} /><strong>{item.name || item.table}</strong><Badge>{item.type === "fk" ? "外键" : "逻辑关联"}</Badge></span><small>{item.table}</small><p>{item.note || "依据已配置路径查询"}</p><span className="related-card-bottom"><span><b>{item.count.toLocaleString()}</b> 条关联记录</span><span>查看完整字段 <ArrowUpRight size={11} style={{ display: "inline" }} /></span></span></button>)}</div></>}
     </>}

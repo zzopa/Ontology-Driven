@@ -128,7 +128,7 @@ def prepare_question(request, data):
     model = store.model()
     conversation_id, message_id = store.begin_question(value['owner'], question.strip(), model['model'], conversation_id)
     return {'question': question.strip(), 'model': model, 'conversation_id': conversation_id, 'message_id': message_id,
-            'business_user_id': value['user']['id']}
+            'business_user_id': value['user']['id'], 'owner': value['owner']}
 
 
 def run_question(prepared, on_event=None):
@@ -151,7 +151,12 @@ def run_question(prepared, on_event=None):
                     access = None
                 else:
                     access = business_access.load_access(conn, prepared['business_user_id']) if prepared.get('business_user_id') else None
-                options = {'access': access} if access else {}
+                previous_plan = store.latest_completed_plan(prepared.get('conversation_id'), prepared.get('owner'))
+                options = {}
+                if access:
+                    options['access'] = access
+                if previous_plan is not None:
+                    options['previous_plan'] = previous_plan
                 result = core.do_ask(conn, prepared['question'], on_event=on_event, trace=trace, **options)
                 if access and business_access.load_access(conn,access.user_id).revision != access.revision:
                     raise ValueError('业务权限已变化，请重新提问')

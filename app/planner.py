@@ -260,7 +260,19 @@ class Planner:
                 'conditions': conditions, 'focus_tables': focus,
                 'aggregate_target': target, 'metric': metric, 'group_by': [], 'time_bucket': bucket}
 
-    def parse(self, question):
+    def parse(self, question, previous_plan=None):
+        if previous_plan:
+            from app.agent.follow_up import FollowUpNormalizer
+            normalizer = FollowUpNormalizer()
+            follow_up = normalizer.apply(question, previous_plan, self.catalog, self)
+            if follow_up:
+                if self.trace:
+                    self.trace.start('follow_up', '追问上下文继承', '基于上一轮查询计划继承主体与条件，仅差量置换当前槽位')
+                    details = ['继承主体：' + follow_up.get('disp', follow_up['subject']) + ' · ' + follow_up['subject'],
+                               '查询方式：' + {'detail':'信息明细', 'count':'记录计数', 'sum':'金额合计'}.get(follow_up.get('intent', 'detail'), '信息明细'),
+                               '最终条件：' + json.dumps(follow_up.get('conditions', []), ensure_ascii=False)]
+                    self.trace.finish('follow_up', '已根据多轮追问上下文生成完整计划', details)
+                return self.compiler.validate(follow_up), '多轮追问·槽位继承'
         local, local_error = None, None
         if self.trace:
             self.trace.start('ontology', '匹配业务本体', '检索当前数据库表注释、业务对象与管理别名')

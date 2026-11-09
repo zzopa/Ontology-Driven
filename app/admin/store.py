@@ -262,6 +262,24 @@ class AdminStore:
                 messages.append(value)
             return {'ok': True, 'conversation': dict(row), 'messages': messages}
 
+    def latest_completed_plan(self, conversation_id, owner):
+        if not conversation_id:
+            return None
+        with self.db() as db:
+            row = db.execute(
+                "SELECT m.result FROM messages m JOIN conversations c ON c.id=m.conversation_id "
+                "WHERE m.conversation_id=? AND c.owner=? AND m.status='completed' AND m.result IS NOT NULL "
+                "ORDER BY m.created_at DESC LIMIT 1",
+                (conversation_id, owner)
+            ).fetchone()
+            if not row or not row['result']:
+                return None
+            try:
+                result = json.loads(self.vault.open(row['result']))
+                return result.get('plan')
+            except Exception:
+                return None
+
     def edit_conversation(self, conversation_id, owner, data, all_access=False):
         with self.db() as db:
             self.check_conversation(db, conversation_id, owner, all_access)

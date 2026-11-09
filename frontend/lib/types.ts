@@ -18,6 +18,16 @@ export type AnswerDocument = {
   claim_count: number; query_claim_count: number; semantic_proof: boolean;
   sections: { kind: AnswerKind; title: string; claim_ids: string[] }[];
 };
+export type VisualStatItem = { label: string; value: string; unit?: string };
+export type VisualDonutSlice = { label: string; value: number; percent: number; color: string; count?: number };
+export type VisualBarItem = { label: string; value: number; percent: number; color: string; count?: number };
+export type VisualTrendPoint = { label: string; value: number };
+export type VisualMeta =
+  | { kind: "none" }
+  | { kind: "stats"; title: string; stats: VisualStatItem[] }
+  | { kind: "donut"; title: string; slices: VisualDonutSlice[]; total: number; unit: string; group_label: string }
+  | { kind: "bar"; title: string; bars: VisualBarItem[]; unit: string; group_label: string }
+  | { kind: "trend"; title: string; series: VisualTrendPoint[]; unit: string; metric_label: string };
 export type QueryResult = {
   execution_trace?: ExecutionStep[];
   conversation_id?: string; message_id?: string;
@@ -29,6 +39,7 @@ export type QueryResult = {
   graph_tables: unknown[]; drill_token?: string; related_token?: string; page_size: number;
   metric?: { name: string; unit: string; description: string; target: string };
   claims?: { text: string; fact_ids: string[]; kind?: Exclude<AnswerKind, "query_facts"> }[];
+  visual_meta?: VisualMeta;
   query_summary?: string; answer_document?: AnswerDocument;
   answer_validation: string; ontology_version: string;
   evidence?: { facts: Fact[]; queried_at: string; coverage: { table: string; name: string; total: number; provided: number; complete: boolean }[] };
