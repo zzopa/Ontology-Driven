@@ -22,12 +22,45 @@ export type VisualStatItem = { label: string; value: string; unit?: string };
 export type VisualDonutSlice = { label: string; value: number; percent: number; color: string; count?: number };
 export type VisualBarItem = { label: string; value: number; percent: number; color: string; count?: number };
 export type VisualTrendPoint = { label: string; value: number };
+export type FishboneNode = {
+  key: string;
+  name: string;
+  code: string;
+  category: "passenger" | "ramp" | "control" | "runway";
+  position: "top" | "bottom";
+  plan_time?: string;
+  actual_time?: string;
+  time_display: string;
+  status: "completed" | "ongoing" | "delayed" | "planned" | "pending";
+  status_label: string;
+  delay_minutes?: number;
+  note?: string;
+};
+export type VisualFishbone = {
+  kind: "fishbone";
+  title: string;
+  flight_no: string;
+  direction?: string;
+  direction_label?: string;
+  flight_date?: string;
+  aircraft_type?: string;
+  aircraft_reg?: string;
+  stand?: string;
+  gate?: string;
+  origin?: string;
+  destination?: string;
+  status?: string;
+  summary?: string;
+  total_flights?: number;
+  nodes: FishboneNode[];
+};
 export type VisualMeta =
   | { kind: "none" }
   | { kind: "stats"; title: string; stats: VisualStatItem[] }
   | { kind: "donut"; title: string; slices: VisualDonutSlice[]; total: number; unit: string; group_label: string }
   | { kind: "bar"; title: string; bars: VisualBarItem[]; unit: string; group_label: string }
-  | { kind: "trend"; title: string; series: VisualTrendPoint[]; unit: string; metric_label: string };
+  | { kind: "trend"; title: string; series: VisualTrendPoint[]; unit: string; metric_label: string }
+  | VisualFishbone;
 export type QueryResult = {
   execution_trace?: ExecutionStep[];
   conversation_id?: string; message_id?: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, ArrowUpRight, BarChart3, Braces, Check, ChevronLeft, ChevronRight, Clock3, Code2, Database, Expand, FileCheck2, GitBranch, Layers, List, PieChart, Search, ShieldCheck, Sparkles, Table2, TrendingUp } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BarChart3, Braces, Check, ChevronLeft, ChevronRight, Clock3, Code2, Database, Expand, FileCheck2, GitBranch, Layers, List, PieChart, Plane, Search, ShieldCheck, Sparkles, Table2, TrendingUp } from "lucide-react";
 import { request } from "@/lib/api";
 import { formatValue } from "@/lib/query";
 import { answerCopyText, answerSections } from "@/lib/answer-document";
@@ -152,6 +152,79 @@ function VisualView({ meta }: { meta?: VisualMeta }) {
               </div>
             );
           })}
+        </div>
+      </div>
+    );
+  }
+
+  if (meta.kind === "fishbone") {
+    return (
+      <div className="visual-section fishbone-card">
+        <div className="visual-header">
+          <div className="fishbone-title-wrap">
+            <span className="fishbone-plane-icon"><Plane size={15} /></span>
+            <div>
+              <h4 className="visual-title">{meta.title}</h4>
+              <small className="fishbone-summary">{meta.summary}</small>
+            </div>
+          </div>
+          <div className="fishbone-badge-group">
+            <Badge tone="green">{meta.direction_label || "航班运行"}</Badge>
+            {meta.status && <Badge>{meta.status}</Badge>}
+          </div>
+        </div>
+
+        <div className="fishbone-scroll-wrap">
+          <div className="fishbone-diagram">
+            {/* Top Ribs */}
+            <div className="fishbone-row top-row">
+              {meta.nodes.map((node, i) => (
+                <div key={i} className={`fishbone-col ${node.position === "top" ? "has-node" : "is-empty"}`}>
+                  {node.position === "top" && (
+                    <div className={`fishbone-node-card tone-${node.status}`} title={node.note}>
+                      <div className="fishbone-node-top">
+                        <strong className="fishbone-node-name">{node.name}</strong>
+                        <span className="fishbone-node-code">{node.code}</span>
+                      </div>
+                      <div className="fishbone-node-time">{node.time_display || "--:--"}</div>
+                      <div className="fishbone-node-status">{node.status_label}</div>
+                      <div className="fishbone-stem stem-down" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Central Spine Axis */}
+            <div className="fishbone-spine-row">
+              <div className="fishbone-spine-line" />
+              {meta.nodes.map((node, i) => (
+                <div key={i} className="fishbone-spine-node-col">
+                  <span className={`fishbone-spine-dot tone-${node.status}`} title={`${node.name} (${node.code}) · ${node.time_display} · ${node.status_label}`} />
+                </div>
+              ))}
+              <div className="fishbone-spine-arrow"><Plane size={13} /></div>
+            </div>
+
+            {/* Bottom Ribs */}
+            <div className="fishbone-row bottom-row">
+              {meta.nodes.map((node, i) => (
+                <div key={i} className={`fishbone-col ${node.position === "bottom" ? "has-node" : "is-empty"}`}>
+                  {node.position === "bottom" && (
+                    <div className={`fishbone-node-card tone-${node.status}`} title={node.note}>
+                      <div className="fishbone-stem stem-up" />
+                      <div className="fishbone-node-top">
+                        <strong className="fishbone-node-name">{node.name}</strong>
+                        <span className="fishbone-node-code">{node.code}</span>
+                      </div>
+                      <div className="fishbone-node-time">{node.time_display || "--:--"}</div>
+                      <div className="fishbone-node-status">{node.status_label}</div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );

@@ -83,3 +83,42 @@
 .visual-trend-val{font-size:9px;color:var(--muted);font-variant-numeric:tabular-nums}
 .visual-trend-pillar{width:20px;background:var(--accent);border-radius:4px 4px 0 0;min-height:4px;transition:height .4s ease}
 .visual-trend-label{font-size:10px;color:var(--muted);text-align:center;white-space:nowrap}
+
+/* Fishbone Milestone Diagram */
+.fishbone-card{padding:18px 20px}
+.fishbone-title-wrap{display:flex;align-items:center;gap:10px}
+.fishbone-plane-icon{width:32px;height:32px;border-radius:8px;background:color-mix(in srgb, var(--accent) 15%, transparent);color:var(--accent-bright);border:1px solid color-mix(in srgb, var(--accent) 30%, transparent);display:grid;place-items:center}
+.fishbone-summary{display:block;font-size:10px;color:var(--muted);margin-top:2px}
+.fishbone-badge-group{display:flex;gap:6px}
+.fishbone-scroll-wrap{overflow-x:auto;padding:16px 8px 8px;scrollbar-width:thin}
+.fishbone-diagram{min-width:840px;display:flex;flex-direction:column}
+.fishbone-row{display:flex;min-height:86px}
+.top-row{align-items:flex-end}
+.bottom-row{align-items:flex-start}
+.fishbone-col{flex:1;min-width:96px;display:flex;justify-content:center;position:relative}
+.fishbone-col.is-empty{min-height:86px}
+.fishbone-node-card{width:96px;padding:8px 10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;position:relative;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,0.25);transition:transform .2s,border-color .2s}
+.fishbone-node-card:hover{transform:translateY(-2px);border-color:color-mix(in srgb, var(--accent) 40%, transparent)}
+.fishbone-node-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+.fishbone-node-name{font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fishbone-node-code{font-size:8px;font-family:Consolas,monospace;color:var(--muted);padding:0 3px;background:var(--surface);border-radius:3px}
+.fishbone-node-time{font-size:15px;font-weight:700;font-family:Consolas,monospace;letter-spacing:-0.5px;color:var(--accent-bright);margin:3px 0 2px}
+.fishbone-node-status{font-size:9px;color:var(--muted)}
+.fishbone-node-card.tone-completed{border-color:color-mix(in srgb, var(--accent) 30%, transparent)}
+.fishbone-node-card.tone-completed .fishbone-node-time{color:var(--accent-bright)}
+.fishbone-node-card.tone-delayed{border-color:#f8717150;background:#f871710a}
+.fishbone-node-card.tone-delayed .fishbone-node-time{color:#f87171}
+.fishbone-node-card.tone-delayed .fishbone-node-status{color:#fca5a5}
+.fishbone-node-card.tone-planned{border-color:var(--line);opacity:.85}
+.fishbone-node-card.tone-planned .fishbone-node-time{color:var(--muted)}
+.fishbone-stem{position:absolute;left:50%;width:1px;background:var(--line)}
+.stem-down{bottom:-16px;height:16px}
+.stem-up{top:-16px;height:16px}
+.fishbone-spine-row{display:flex;align-items:center;position:relative;height:32px}
+.fishbone-spine-line{position:absolute;left:10px;right:24px;height:2px;background:linear-gradient(90deg,color-mix(in srgb, var(--accent) 40%, transparent),var(--line));z-index:1}
+.fishbone-spine-node-col{flex:1;min-width:96px;display:flex;justify-content:center;position:relative;z-index:2}
+.fishbone-spine-dot{width:12px;height:12px;border-radius:50%;background:var(--panel);border:2px solid var(--muted);box-shadow:0 0 8px rgba(0,0,0,0.5);transition:transform .2s,background .2s}
+.fishbone-spine-dot.tone-completed{border-color:var(--accent-bright);background:var(--accent);box-shadow:0 0 10px color-mix(in srgb, var(--accent) 60%, transparent)}
+.fishbone-spine-dot.tone-delayed{border-color:#f87171;background:#ef4444;box-shadow:0 0 10px rgba(239,68,68,.6)}
+.fishbone-spine-dot.tone-planned{border-color:var(--muted);background:var(--surface)}
+.fishbone-spine-arrow{position:absolute;right:0;color:var(--accent-bright);transform:rotate(90deg);z-index:2}

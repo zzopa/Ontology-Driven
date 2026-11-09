@@ -49,6 +49,15 @@ def build_visual_meta(
     target = plan.get('aggregate_target') or subject
     subject_name = catalog.entities[subject]['name'] if catalog and subject in catalog.entities else subject
 
+    # Case 0: Flight Milestone Fishbone Diagram
+    from app.agent.fishbone import is_flight_row, build_fishbone_meta
+    if main_rows and any(is_flight_row(r) for r in main_rows[:3]):
+        for r in main_rows:
+            if is_flight_row(r):
+                fishbone = build_fishbone_meta(r, plan=plan, total_flights=main_total)
+                if fishbone.get('nodes'):
+                    return fishbone
+
     # Case 1: Temporal Trend (e.g. __period in rows or time_bucket)
     if intent in ('count', 'sum') and len(main_rows) > 1 and any('__period' in r for r in main_rows):
         series = []
