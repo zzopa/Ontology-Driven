@@ -1,6 +1,6 @@
-# hbairport 智能问数
+#  智能问数
 
-基于 FastAPI 的本体驱动问数服务，前端使用 Next.js App Router + Tailwind CSS + Lucide + Framer Motion，默认读取本地 PostgreSQL `hbairport01`。查询主体来自当前库结构，不写死为员工或合同；资金、会议、资产、采购等对象使用同一个查询引擎。
+基于 FastAPI 的本体驱动问数服务，前端使用 Next.js App Router + Tailwind CSS + Lucide + Framer Motion，默认读取本地 PostgreSQL 。查询主体来自当前库结构，不写死为员工或合同；资金、会议、资产、采购等对象使用同一个查询引擎。
 
 完整链路：启动采集元数据 → 编译本地业务本体 → 问题生成结构化计划 → 协调筛选锚点与统计粒度 → 校验并编译参数化 SQL → 实时查询 → 来源事实 → 证据分析与结论校验 → 内容编排 → 流式正文与分组回答。
 
