@@ -29,7 +29,11 @@ export type FishboneNode = {
   category: "passenger" | "ramp" | "control" | "runway";
   position: "top" | "bottom";
   plan_time?: string;
+  estimated_time?: string;
   actual_time?: string;
+  plan_at?: string;
+  estimated_at?: string;
+  actual_at?: string;
   time_display: string;
   status: "completed" | "ongoing" | "delayed" | "planned" | "pending";
   status_label: string;
@@ -54,14 +58,77 @@ export type VisualFishbone = {
   total_flights?: number;
   nodes: FishboneNode[];
 };
+export type TurnaroundMilestones = {
+  aibt: string | null;
+  sobt: string | null;
+  tobt: string | null;
+  tsat: string | null;
+  current_time: string | null;
+};
+export type TurnaroundOperation = {
+  id: string;
+  name: string;
+  icon: string;
+  status: "completed" | "in_progress" | "delayed" | "planned";
+  actual_start?: string | null;
+  actual_end?: string | null;
+  plan_start?: string | null;
+  plan_end?: string | null;
+  delay_min?: number;
+  label?: string;
+  milestones?: { name: string; plan?: string | null; actual?: string | null }[];
+};
+export type TurnaroundPipelineNode = {
+  step: number;
+  name: string;
+  plan: string;
+  actual: string;
+  target?: string;
+  status: "done" | "in_progress" | "waiting";
+};
+export type VisualTurnaround = {
+  kind: "turnaround_gantt";
+  query_identifier?: string;
+  selection_note?: string;
+  source_label?: string;
+  flight_pair: string;
+  in_flight: string;
+  out_flight: string;
+  craft_no: string;
+  stand: string;
+  gate: string;
+  flight_date: string;
+  milestones: TurnaroundMilestones;
+  time_ticks: string[];
+  timeline_range: string;
+  operations: TurnaroundOperation[];
+  pipeline: TurnaroundPipelineNode[];
+  flight_nodes?: FishboneNode[];
+  flight_nodes_source?: string;
+  available_record?: { flight_date: string; flight_no: string; source_label: string; recorded_operations: number; question: string };
+  conclusion: {
+    summary: string;
+    meta: {
+      has_delay: boolean;
+      evidence: string;
+      actual: string;
+      plan_end: string;
+      delay_desc: string;
+    };
+  };
+};
 export type VisualMeta =
   | { kind: "none" }
   | { kind: "stats"; title: string; stats: VisualStatItem[] }
   | { kind: "donut"; title: string; slices: VisualDonutSlice[]; total: number; unit: string; group_label: string }
   | { kind: "bar"; title: string; bars: VisualBarItem[]; unit: string; group_label: string }
   | { kind: "trend"; title: string; series: VisualTrendPoint[]; unit: string; metric_label: string }
-  | VisualFishbone;
+  | VisualFishbone
+  | VisualTurnaround;
 export type QueryResult = {
+  outcome?: "answered" | "clarification_needed" | "unsupported" | "no_data" | "out_of_coverage";
+  clarification?: { question: string; options: { id: string; label: string }[] };
+  coverage_assessment?: { status: string; complete?: boolean; message?: string; table?: string; coverage_start?: string | null; coverage_end?: string | null };
   execution_trace?: ExecutionStep[];
   conversation_id?: string; message_id?: string;
   ok: boolean; question: string; answer: string; intent: string; source: string; elapsed: number;
@@ -71,6 +138,10 @@ export type QueryResult = {
   graph: { nodes: { id: string; main: boolean; level: number }[]; edges: Edge[] };
   graph_tables: unknown[]; drill_token?: string; related_token?: string; page_size: number;
   metric?: { name: string; unit: string; description: string; target: string };
+  applied_rules?: Array<{ code: string; name: string; ruleType?: string; versionNo?: number; domain?: string; description?: string }>;
+  plan_template?: { code: string; name: string; planType?: string; requiredCaps?: string[] } | null;
+  capability_gate?: { allowed: boolean; status: string; capabilityCode?: string; message?: string; alternatives?: string[] } | null;
+  operational_window?: { start: string; end: string; startHour: number; field?: string } | null;
   claims?: { text: string; fact_ids: string[]; kind?: Exclude<AnswerKind, "query_facts"> }[];
   visual_meta?: VisualMeta;
   query_summary?: string; answer_document?: AnswerDocument;
@@ -82,18 +153,34 @@ export type PageData = { rows: Row[]; field_meta: FieldMeta; subject?: string; t
 export type Status = {
   data_source?: string; external_models_enabled?: boolean;
   coverage?: { start: string; end_exclusive: string; exported_at: string };
+  operational_day?: { enabled: boolean; startHour: number; timezone?: string; boundaryLabel?: string } | null;
+  home_airport?: { iataCode?: string; cityName?: string; displayName?: string } | null;
   ready: boolean; database: string; tables: number; fields: number; relations: number; queryable_entities: number;
   refreshed_at: string; startup_seconds: number; average_seconds: number; requests: number; failures: number;
   version: string; warnings: unknown[]; metadata_diff: Record<string, string[]>;
 };
+export type MetricItem = {
+  code: string; name: string; domain?: string; description?: string; formula_desc?: string;
+  aggregation?: string; unit?: string; base_table?: string; aggregate_expression?: string;
+  value_alias?: string; date_field?: string; default_filters?: Record<string, unknown>;
+  joins_json?: Array<{ alias?: string; table?: string; on?: string; type?: string }>;
+  status?: string; field?: string; aliases?: string[];
+};
+export type DimensionItem = { code: string; name: string; expression?: string; alias?: string };
+export type ScenarioItem = { code: string; name: string; query_type?: string; metric_code?: string; dimensions?: string[] };
 export type Entity = {
   name: string; aliases: string[]; attributes: Record<string, Field>; bindings: Record<string, string>;
-  metrics: Record<string, { name?: string; field: string; unit?: string; description?: string }>;
+  metrics: Record<string, MetricItem>;
   identity_fields?: string[]; grain?: string;
 };
 export type Ontology = {
   can_edit: boolean; revision: string; document: Record<string, unknown>;
-  catalog: { database: string; version: string; refreshed_at: string; entities: Record<string, Entity>; warnings: unknown[];
-    graph: { links_all: { source: string; target: string; from_table: string; to_table: string; note: string; cardinality: string; validation: string; status: string; type?: string }[] } };
+  catalog: {
+    database: string; version: string; refreshed_at: string; entities: Record<string, Entity>; warnings: unknown[];
+    metrics?: Record<string, MetricItem>;
+    dimensions?: Record<string, DimensionItem>;
+    scenarios?: Record<string, ScenarioItem>;
+    graph: { links_all: { source: string; target: string; from_table: string; to_table: string; note: string; cardinality: string; validation: string; status: string; type?: string }[] }
+  };
 };
 export type StreamEvent = { type: string; stage?: string; message?: string; percent?: number; delta?: string; data?: QueryResult; conversation_id?: string; step?: ExecutionStep };

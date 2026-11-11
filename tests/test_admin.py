@@ -231,6 +231,70 @@ class StoreTests(unittest.TestCase):
         self.assertNotIn('secret-number', result['payload'])
         self.assertEqual(json.loads(result['payload']), {'普通字段': 1})
 
+    def test_sync_runs_lifecycle_concurrency_and_reconciliation(self):
+        run = self.store.begin_sync_run('full_pipeline', '一键组合同步', 'ui', 'INCREMENTAL', 'admin-1', '管理员')
+        self.assertEqual(run['status'], 'running')
+        with self.assertRaisesRegex(ValueError, '已有同步任务正在执行'):
+            self.store.begin_sync_run('flights_fims', 'FIMS 航班动态', 'ui', 'INCREMENTAL', 'admin-1', '管理员')
+
+        done = self.store.complete_sync_run(
+            run['id'], status='completed', elapsed_ms=4200, fetched=3459, inserted=3453, updated=6,
+            skipped=0, failed=0, watermark_before='2026-11-08T00:00:00+00:00',
+            watermark_after='2026-11-09T01:30:26+00:00', detail={'steps': [{'step': 'flights_fims', 'fetched': 3459}]},
+            message='ok:oracle-fims', backup_file='ops_ask-before-test.dump',
+        )
+        self.assertEqual(done['fetched'], 3459)
+        self.assertEqual(done['backup_file'], 'ops_ask-before-test.dump')
+
+        # Overlapping external run within parent window should NOT duplicate UI run.
+        added = self.store.reconcile_external_sync_runs([
+            {
+                'external_key': 'flight_dyn_sync_fims:' + done['finished_at'],
+                'job_key': 'flights_fims',
+                'title': 'FIMS 航班动态',
+                'mode': 'INCREMENTAL',
+                'started_at': done['started_at'],
+                'finished_at': done['finished_at'],
+                'elapsed_ms': 1000,
+                'fetched': 3459,
+                'inserted': 3453,
+                'updated': 6,
+                'skipped': 0,
+                'failed': 0,
+            },
+            {
+                'external_key': 'flight_dyn_sync_acdm:2026-11-09T01:34:24+00:00',
+                'job_key': 'flights_acdm',
+                'title': 'ACDM 航班动态',
+                'mode': 'INCREMENTAL',
+                'started_at': '2026-11-09T01:32:43+00:00',
+                'finished_at': '2026-11-09T01:34:24+00:00',
+                'elapsed_ms': 101307,
+                'fetched': 3591,
+                'inserted': 132,
+                'updated': 3459,
+                'skipped': 0,
+                'failed': 0,
+                'message': 'ok:oracle-acdm',
+            },
+        ])
+        self.assertEqual(added, 1)
+        # Re-reconciling same key is idempotent.
+        self.assertEqual(self.store.reconcile_external_sync_runs([{
+            'external_key': 'flight_dyn_sync_acdm:2026-11-09T01:34:24+00:00',
+            'job_key': 'flights_acdm', 'title': 'ACDM', 'finished_at': '2026-11-09T01:34:24+00:00',
+        }]), 0)
+
+        listed = self.store.sync_runs()
+        self.assertEqual(listed['total'], 2)
+        self.assertEqual(listed['summary']['total_fetched'], 3459 + 3591)
+
+        # Simulated restart marks any unfinished running job as interrupted.
+        orphan = self.store.begin_sync_run('master_data', '基础资料全量', 'ui', 'FULL', 'admin-1', '管理员')
+        reopened = AdminStore(self.temp.name, INITIAL)
+        self.assertEqual(reopened.sync_run(orphan['id'])['status'], 'interrupted')
+        self.assertIsNone(reopened.active_sync_run())
+
 
 class AdminApiTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
@@ -420,6 +484,243 @@ class AdminApiTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await http(logout,'POST',{},cookie=cookie))[0],200)
             self.assertEqual((await http('/api/admin/models',cookie=cookie))[0],401)
             self.assertIsNone((await http('/api/business-auth/status',cookie=cookie))[2]['user'])
+
+    async def test_sync_routes_enforce_admin_role_and_same_origin(self):
+        self.assertEqual((await http('/api/admin/sync/overview'))[0], 401)
+        self.assertEqual((await http('/api/admin/sync/runs'))[0], 401)
+        self.assertEqual((await http('/api/admin/sync/run', 'POST', {}))[0], 401)
+        self.assertEqual((await http('/api/admin/sync/cancel', 'POST', {}))[0], 401)
+        self.assertEqual((await http('/api/admin/sync/probe-source', 'POST', {}))[0], 401)
+
+        ordinary_cookie = await self.login('jtgly')
+        for path, method in (
+            ('/api/admin/sync/overview', 'GET'),
+            ('/api/admin/sync/runs', 'GET'),
+            ('/api/admin/sync/run', 'POST'),
+            ('/api/admin/sync/backup', 'POST'),
+            ('/api/admin/sync/cancel', 'POST'),
+            ('/api/admin/sync/probe-source', 'POST'),
+        ):
+            self.assertEqual((await http(path, method, {}, cookie=ordinary_cookie))[0], 403)
+
+        admin_cookie = await self.login()
+        self.assertEqual((await http('/api/admin/sync/run', 'POST', {}, cookie=admin_cookie, origin='https://evil.invalid'))[0], 403)
+        self.assertEqual((await http('/api/admin/sync/run', 'POST', {}, cookie=admin_cookie, origin='', marker=False))[0], 403)
+
+    async def test_sync_overview_reconciles_pg_state_and_run_pipeline_records_counts(self):
+        from datetime import date, datetime
+        from unittest.mock import MagicMock
+        import json
+        from app.admin import data_sync
+        from app.sync import oracle_source, pg_sink, runner
+
+        parsed = data_sync.parse_sync_result(
+            '{airline={upserted=248}, airport={positionLoaded=3685, upserted=3822}, elapsedMs=89894}',
+            'master_data_sync',
+        )
+        self.assertEqual(parsed['fetched'], 248 + 3822)
+        self.assertEqual(parsed['elapsed_ms'], 89894)
+
+        secret_pw = 'SuperSecretOraPwd!'
+        fake_ora_cfg = {
+            'host': '172.26.78.133', 'port': 1521, 'service_name': 'datacache',
+            'user': 'sync_reader', 'password': secret_pw, 'airport_code': 'WUH',
+            'acdm_schema': 'ACDM', 'acdm_table': 'TB_DYN_FLIGHT',
+            'fims_schema': 'FIMS', 'fims_table': 'TB_DYN_FLIGHT',
+            'fims_share_table': 'TB_DYN_SHARE_FLIGHTS',
+        }
+        admin_cookie = await self.login()
+        fake_pg = {
+            'available': True,
+            'database': 'ops_ask',
+            'job_states': [{
+                'job_name': 'flight_dyn_sync_fims',
+                'job_key': 'flights_fims',
+                'title': 'FIMS 航班动态',
+                'watermark': '2026-11-09T01:30:26.698000+00:00',
+                'last_success_at': '2026-11-09T01:32:43.171155+00:00',
+                'started_at': '2026-11-09T01:30:45.849155+00:00',
+                'parsed_result': {'mode': 'INCREMENTAL', 'fetched': 3459, 'inserted': 3453, 'updated': 6, 'skipped': 0, 'failed': 0, 'elapsed_ms': 117322, 'message': 'ok:oracle-fims'},
+            }],
+            'tables': {'std_flight_core': {'count': 3864, 'min_date': '2026-09-21 10:25', 'max_date': '2026-11-10 08:00'}},
+            'dimensions': {'dim_airline': 247},
+        }
+        with patch.object(data_sync, 'oracle_config', return_value=fake_ora_cfg), \
+             patch.object(data_sync, '_tcp_probe', return_value={'reachable': True, 'host': '172.26.78.133', 'port': 1521, 'latency_ms': 2.1}), \
+             patch.object(data_sync, 'read_pg_snapshot', return_value=fake_pg), \
+             patch.object(data_sync, 'list_backups', return_value=[]):
+            # Even if /runs finishes before /overview on first load, ensure_reconciled populates it immediately.
+            runs_first_status, _, runs_first = await http('/api/admin/sync/runs', cookie=admin_cookie)
+            self.assertEqual(runs_first_status, 200)
+            self.assertEqual(runs_first['total'], 1)
+            self.assertEqual(runs_first['summary']['total_fetched'], 3459)
+
+            status_code, _, overview = await http('/api/admin/sync/overview', cookie=admin_cookie)
+            settings_status, _, admin_settings = await http('/api/admin/settings', cookie=admin_cookie)
+        self.assertEqual(status_code, 200)
+        self.assertEqual(settings_status, 200)
+        self.assertEqual(overview['engine'], {'mode': 'python-native', 'ready': True, 'airport_code': 'WUH'})
+        self.assertEqual(overview['summary']['total_runs'], 1)
+        self.assertEqual(overview['summary']['total_fetched'], 3459)
+        self.assertEqual(overview['reconciled_added'], 0)
+        self.assertNotIn('password', overview['oracle'])
+        self.assertNotIn('user', overview['oracle'])
+        self.assertNotIn(secret_pw, json.dumps(overview, ensure_ascii=False))
+        self.assertNotIn(secret_pw, json.dumps(admin_settings, ensure_ascii=False))
+
+        # Validate explicit Oracle source probe caching without password exposure.
+        fake_probe = {
+            'latency_ms': 42.3,
+            'tables': {'fims_flight': {'count': 1526685, 'min_date': '2018-08-03', 'max_date': '2026-11-11'}},
+        }
+        with patch.object(data_sync, 'oracle_config', return_value=fake_ora_cfg), \
+             patch.object(oracle_source, 'probe_oracle_source', return_value=fake_probe):
+            probe_status, _, probe_body = await http('/api/admin/sync/probe-source', 'POST', {}, cookie=admin_cookie)
+        self.assertEqual(probe_status, 200)
+        self.assertEqual(probe_body['source_stats']['tables']['fims_flight']['count'], 1526685)
+        self.assertNotIn(secret_pw, json.dumps(probe_body, ensure_ascii=False))
+
+        # Validate invalid date range rejection.
+        status_bad, _, err_bad = await http(
+            '/api/admin/sync/run', 'POST',
+            {'job_type': 'production', 'mode': 'BY_EXEC_DATE', 'exec_date_from': '2026-11-10', 'exec_date_to': '2026-11-08'},
+            cookie=admin_cookie,
+        )
+        self.assertEqual(status_bad, 400)
+        self.assertIn('不能晚于', err_bad['error'])
+
+        # Execute default full_sync against mocked Python runners and verify all 7 steps run in recent-1-month FULL mode + prune.
+        seen_calls = []
+        pruned_dates = []
+        fake_ora_conn = MagicMock()
+        fake_pg_conn = MagicMock()
+        expected_from, _ = data_sync._full_date_bounds()
+        self.assertEqual((date_now := (datetime.now(data_sync.SHANGHAI_TZ).date() - expected_from)).days, 30)
+
+        def fake_prune(pg_conn, keep_from):
+            pruned_dates.append(keep_from)
+            return {'std_flight_core': 12}
+
+        def fake_master(pg_conn, oracle_conn, ora_cfg, *, on_progress=None, cancel_event=None):
+            seen_calls.append(('master_data', 'FULL', None))
+            return {
+                'mode': 'FULL', 'fetched': 248 + 3822, 'inserted': 0, 'updated': 248 + 3822,
+                'skipped': 0, 'failed': 0, 'elapsed_ms': 400,
+                'watermark_before': '', 'watermark_after': '2026-11-10T08:00:00+00:00',
+                'dimensions': {'airline': {'upserted': 248}, 'airport': {'upserted': 3822}},
+                'message': 'ok:master',
+            }
+
+        def fake_flights(pg_conn, oracle_conn, ora_cfg, sync_cfg, source_type, *,
+                         mode='BY_EXEC_DATE', exec_date_from=None, exec_date_to=None,
+                         updated_since=None, on_progress=None, cancel_event=None):
+            seen_calls.append((source_type, mode, exec_date_from))
+            self.assertEqual(mode, 'FULL')
+            self.assertEqual(exec_date_from, expected_from)
+            if 'fims' in source_type:
+                return {'mode': mode, 'fetched': 120, 'inserted': 100, 'updated': 20, 'skipped': 0, 'failed': 0, 'elapsed_ms': 500, 'message': 'ok:oracle-fims'}
+            return {'mode': mode, 'fetched': 130, 'inserted': 10, 'updated': 120, 'skipped': 0, 'failed': 0, 'elapsed_ms': 600, 'message': 'ok:oracle-acdm'}
+
+        def fake_codeshares(pg_conn, oracle_conn, ora_cfg, sync_cfg, *,
+                            mode='BY_EXEC_DATE', exec_date_from=None, exec_date_to=None,
+                            on_progress=None, cancel_event=None):
+            seen_calls.append(('codeshares', mode, exec_date_from))
+            self.assertEqual(mode, 'FULL')
+            self.assertEqual(exec_date_from, expected_from)
+            return {'mode': mode, 'fetched': 60, 'inserted': 60, 'updated': 0, 'skipped': 0, 'failed': 0, 'elapsed_ms': 200, 'message': 'ok:codeshare'}
+
+        def fake_production(pg_conn, oracle_conn, ora_cfg, sync_cfg, *,
+                            mode='BY_EXEC_DATE', exec_date_from=None, exec_date_to=None,
+                            updated_since=None, on_progress=None, cancel_event=None):
+            seen_calls.append(('production', mode, exec_date_from))
+            self.assertEqual(mode, 'FULL')
+            self.assertEqual(exec_date_from, expected_from)
+            return {'mode': mode, 'fetched': 80, 'inserted': 80, 'updated': 0, 'skipped': 0, 'failed': 0, 'elapsed_ms': 300, 'message': 'production ok'}
+
+        def fake_calc_total(pg_conn, oracle_conn, ora_cfg, sync_cfg, *,
+                            mode='BY_EXEC_DATE', exec_date_from=None, exec_date_to=None,
+                            updated_since=None, on_progress=None, cancel_event=None):
+            seen_calls.append(('calc_total', mode, exec_date_from))
+            self.assertEqual(mode, 'FULL')
+            self.assertEqual(exec_date_from, expected_from)
+            return {'mode': mode, 'fetched': 50, 'inserted': 50, 'updated': 0, 'skipped': 0, 'failed': 0, 'elapsed_ms': 150, 'message': 'calc_total ok'}
+
+        def fake_safeguards(pg_conn, oracle_conn, ora_cfg, sync_cfg, *,
+                            mode='BY_EXEC_DATE', exec_date_from=None, exec_date_to=None,
+                            updated_since=None, on_progress=None, cancel_event=None):
+            seen_calls.append(('safeguards', mode, exec_date_from))
+            self.assertEqual(mode, 'FULL')
+            self.assertEqual(exec_date_from, expected_from)
+            return {'mode': mode, 'fetched': 70, 'inserted': 70, 'updated': 0, 'skipped': 0, 'failed': 0, 'elapsed_ms': 250, 'message': 'safeguard ok'}
+
+        with patch.object(data_sync, 'oracle_config', return_value=fake_ora_cfg), \
+             patch.object(oracle_source, 'connect_oracle', return_value=fake_ora_conn), \
+             patch.object(pg_sink, 'connect_pg_write', return_value=fake_pg_conn), \
+             patch.object(pg_sink, 'ensure_acdm_schema_extensions'), \
+             patch.object(pg_sink, 'prune_stale_window', side_effect=fake_prune), \
+             patch.object(runner, 'run_master_data_sync', side_effect=fake_master), \
+             patch.object(runner, 'run_flight_sync', side_effect=fake_flights), \
+             patch.object(runner, 'run_codeshare_sync', side_effect=fake_codeshares), \
+             patch.object(runner, 'run_production_sync', side_effect=fake_production), \
+             patch.object(runner, 'run_calc_total_sync', side_effect=fake_calc_total), \
+             patch.object(runner, 'run_safeguard_sync', side_effect=fake_safeguards):
+            status_run, _, created = await http(
+                '/api/admin/sync/run', 'POST',
+                {'with_backup': False},
+                cookie=admin_cookie,
+            )
+            self.assertEqual(status_run, 200)
+            self.assertEqual(created['run']['job_key'], 'full_sync')
+            self.assertEqual(created['run']['mode'], 'FULL')
+            run_id = created['run']['id']
+            for _ in range(40):
+                item = self.store.sync_run(run_id)
+                if item['status'] != 'running':
+                    break
+                await asyncio.sleep(0.05)
+
+        final_run = self.store.sync_run(run_id)
+        self.assertEqual(final_run['status'], 'completed')
+        self.assertEqual(final_run['fetched'], 248 + 3822 + 120 + 130 + 60 + 80 + 50 + 70)
+        self.assertEqual(final_run['inserted'], 100 + 10 + 60 + 80 + 50 + 70)
+        self.assertEqual(final_run['updated'], 248 + 3822 + 20 + 120)
+        self.assertEqual(len(final_run['detail']['steps']), 7)
+        self.assertEqual(pruned_dates, [expected_from])
+        self.assertEqual([c[0] for c in seen_calls], ['master_data', 'oracle-fims', 'oracle-acdm', 'codeshares', 'production', 'calc_total', 'safeguards'])
+        self.assertTrue(fake_ora_conn.close.called)
+        self.assertTrue(fake_pg_conn.close.called)
+        status_runs, _, runs_data = await http('/api/admin/sync/runs', cookie=admin_cookie)
+        self.assertEqual(status_runs, 200)
+        self.assertEqual(runs_data['total'], 2)
+        self.assertEqual(self.store.audit_list()['items'][0]['action'], 'data_sync.run')
+
+        # Verify online cancellation transitions a running job cleanly to interrupted.
+        def blocking_master(pg_conn, oracle_conn, ora_cfg, *, on_progress=None, cancel_event=None):
+            cancel_event.wait(2.0)
+            raise oracle_source.SyncCancelledError('同步任务已被管理员中止')
+
+        with patch.object(data_sync, 'oracle_config', return_value=fake_ora_cfg), \
+             patch.object(oracle_source, 'connect_oracle', return_value=MagicMock()), \
+             patch.object(pg_sink, 'connect_pg_write', return_value=MagicMock()), \
+             patch.object(runner, 'run_master_data_sync', side_effect=blocking_master):
+            c_status, _, c_created = await http(
+                '/api/admin/sync/run', 'POST',
+                {'job_type': 'master_data', 'with_backup': False},
+                cookie=admin_cookie,
+            )
+            self.assertEqual(c_status, 200)
+            cancel_run_id = c_created['run']['id']
+            cancel_status, _, cancel_body = await http('/api/admin/sync/cancel', 'POST', {}, cookie=admin_cookie)
+            self.assertEqual(cancel_status, 200)
+            self.assertTrue(cancel_body['cancelled'])
+            self.assertEqual(cancel_body['run_id'], cancel_run_id)
+            for _ in range(40):
+                item = self.store.sync_run(cancel_run_id)
+                if item['status'] != 'running':
+                    break
+                await asyncio.sleep(0.05)
+
+        self.assertEqual(self.store.sync_run(cancel_run_id)['status'], 'interrupted')
 
 
 if __name__ == '__main__':

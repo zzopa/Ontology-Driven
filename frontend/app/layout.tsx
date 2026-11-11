@@ -3,8 +3,13 @@ import { Providers } from "@/components/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "智能问数 · Airport Intelligence",
-  description: "基于业务本体、实时 SQL 与来源证据的机场集团数据工作台",
+  title: { default: "知航 · ACDM 智能问询", template: "%s · 知航" },
+  applicationName: "知航",
+  description: "知航，以业务本体连接航班、保障作业与资源，让每次 ACDM 问询都有数据依据。",
+  icons: {
+    icon: [{ url: "/brand/favicon.ico", sizes: "32x32", type: "image/x-icon" }, { url: "/brand/logo.svg", type: "image/svg+xml", sizes: "any" }],
+    apple: "/brand/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

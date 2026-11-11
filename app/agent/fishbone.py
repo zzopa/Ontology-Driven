@@ -4,7 +4,7 @@
 - 出港(DEP): 开始值机 -> 结束值机 -> 机坪保障(供油/保洁) -> 开始登机 -> 催促登机 -> 登机结束 -> 关客舱门 -> 撤离廊桥 -> 目标推出(TOBT) -> 请求开车推出 -> 撤轮挡(AOBT) -> 跑道起飞(ATOT) -> 目的站落地(ALDT)
 - 进港(ARR): 前站起飞(ATOT) -> 预报降落(ELDT) -> 跑道接地(ALDT) -> 跑道脱离/入地 -> 挡轮挡(AIBT) -> 靠接廊桥 -> 开客舱门 -> 首件行李提取
 """
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 
@@ -14,10 +14,16 @@ def safe_str(val: Any) -> str:
     return str(val).strip()
 
 
-def format_node_time(raw: Any) -> str:
+BUSINESS_TZ = timezone(timedelta(hours=8))
+
+
+def format_node_time(raw: Any, business_date: str = '') -> str:
     """格式化时间为 HH:MM 格式，跨天保留 MM-DD HH:MM."""
     if not raw:
         return ''
+    value = parse_dt(raw)
+    if value:
+        return value.strftime('%m-%d %H:%M' if business_date and value.date().isoformat() != business_date else '%H:%M')
     s = str(raw).strip()
     try:
         # Handles '2026-10-03 21:45:00' or ISO format
@@ -38,6 +44,11 @@ def parse_dt(raw: Any) -> Optional[datetime]:
     if not raw:
         return None
     s = str(raw).strip()
+    try:
+        value = datetime.fromisoformat(s.replace('Z', '+00:00'))
+        return value.replace(tzinfo=BUSINESS_TZ) if value.tzinfo is None else value.astimezone(BUSINESS_TZ)
+    except ValueError:
+        pass
     for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d'):
         try:
             return datetime.strptime(s.split('.')[0], fmt)
@@ -62,13 +73,13 @@ DEP_MILESTONES = [
     ),
     (
         'ground_service', '机坪保障', 'RAMP', 'ramp', 'bottom',
-        ['REAL_START_SUPPLY_TIME', 'REAL_START_CLEAN_TIME'],
+        ['ALTERATE_START_SUPPLY_TIME', 'ALTERATE_START_CLEAN_TIME'],
         ['REAL_END_SUPPLY_TIME', 'REAL_END_CLEAN_TIME', 'REAL_MEAL_START_TIME'],
         '加油、保洁、配餐保障'
     ),
     (
-        'boarding_start', '旅客登机', 'BRD_S', 'passenger', 'top',
-        ['ALTERATE_BEGIN_BOARD_TIME', 'boarding_start'],
+        'boarding_start', '开始登机', 'BRD_S', 'passenger', 'top',
+        ['ALTERATE_BEGIN_BOARD_TIME'],
         ['REAL_BEGIN_BOARD_TIME', 'boarding_start'],
         '登机口开启并开始登机'
     ),
@@ -79,15 +90,15 @@ DEP_MILESTONES = [
         '广播催促末批旅客登机'
     ),
     (
-        'boarding_end', '登机结束', 'BRD_E', 'passenger', 'bottom',
-        ['ALTERATE_END_BOARD_TIME', 'boarding_end'],
+        'boarding_end', '登机完成', 'BRD_E', 'passenger', 'bottom',
+        ['ALTERATE_END_BOARD_TIME'],
         ['REAL_END_BOARD_TIME', 'boarding_end'],
         '登机口关闭'
     ),
     (
         'door_close', '客舱关门', 'CLS', 'control', 'top',
         ['PLAN_CLOSE_DOOR_TIME'],
-        ['REAL_CLOSE_CABIN_TIME', 'ALTERATE_CLOSE_CABIN_TIME'],
+        ['REAL_CLOSE_CABIN_TIME', 'cabin_close'],
         '客舱舱门关闭完毕'
     ),
     (
@@ -98,32 +109,32 @@ DEP_MILESTONES = [
     ),
     (
         'tobt', '目标推出', 'TOBT', 'control', 'top',
-        ['COUNT_BLOCK_OFF_TIME', 'TARGT_BLOCK_OFF_TIME', 'tobt'],
-        ['AIRPORT_TARGT_BLOCK_OFF_TIME', 'tsat'],
+        ['tobt', 'TARGT_BLOCK_OFF_TIME', 'AIRPORT_TARGT_BLOCK_OFF_TIME', 'COUNT_BLOCK_OFF_TIME'],
+        [],
         'A-CDM 目标撤轮挡时刻'
     ),
     (
         'push_request', '申请推出', 'REQ', 'control', 'bottom',
         [],
-        ['REQUEST_LAUNCH_TIME', 'REAL_DRIVE_TIME', 'REAL_LAUNCH_TIME'],
+        ['REQUEST_LAUNCH_TIME'],
         '机组向塔台申请推出滑行'
     ),
     (
-        'aobt', '撤轮挡推出', 'AOBT', 'runway', 'top',
+        'aobt', '撤轮挡', 'AOBT', 'runway', 'top',
         ['COUNT_BLOCK_OFF_TIME', 'scheduled_off_block'],
         ['REAL_BLOCK_OFF_TIME', 'actual_off_block'],
-        '撤去飞机轮挡开始推出'
+        '撤去飞机轮挡时刻；推出另列节点'
     ),
     (
         'atot', '跑道起飞', 'ATOT', 'runway', 'bottom',
         ['SCHEME_TAKEOFF_TIME', 'ALTERATE_TAKEOFF_TIME', 'scheduled_departure'],
-        ['REAL_TAKEOFF_TIME', 'actual_departure', 'COUNT_TAKE_OFF_TIME'],
+        ['actual_departure', 'REAL_TAKEOFF_TIME'],
         '跑道滑跑离地起飞'
     ),
     (
         'aldt', '目的站降落', 'ALDT', 'runway', 'top',
         ['SCHEME_LANDIN_TIME', 'scheduled_arrival'],
-        ['REAL_LANDIN_TIME', 'actual_arrival', 'ALTERATE_LANDIN_TIME'],
+        ['actual_arrival', 'REAL_LANDIN_TIME'],
         '飞抵目的地机场降落'
     ),
 ]
@@ -180,6 +191,65 @@ ARR_MILESTONES = [
 ]
 
 
+EXTRA_MILESTONES = [
+    ('inbound_landing', '落地', 'IN_ALDT', 'runway', 'bottom',
+     ['inbound_scheduled_arrival'], ['inbound_actual_arrival'], '前序进港航班在本场落地；未关联时保留空位'),
+    ('cargo_open', '货舱开门', 'CARGO_OPN', 'ramp', 'bottom',
+     [], ['REAL_OPEN_CARGO_TIME', 'cargo_open'], '货舱开启记录'),
+    ('cargo_close', '货舱关门', 'CARGO_CLS', 'ramp', 'top',
+     [], ['REAL_CLOSE_CARGO_TIME', 'cargo_close'], '货舱关闭记录'),
+    ('pushback', '推出', 'PUSH', 'control', 'bottom',
+     [], ['REAL_LAUNCH_TIME', 'pushback'], '实际推出记录'),
+    ('engine_start', '开车', 'ASAT', 'control', 'top',
+     [], ['REAL_DRIVE_TIME', 'engine_start'], '实际开车记录'),
+    ('tsat', '目标开车批准', 'TSAT', 'control', 'top',
+     ['tsat', 'TARGT_DRIVE_TIME'], [], '目标时刻不表示实际开车或完成'),
+]
+
+NODE_ORDER = ['origin_dep', 'eldt', 'inbound_landing', 'runway_exit', 'aibt', 'bridge_on',
+              'door_open', 'cargo_open', 'checkin_start', 'checkin_end', 'ground_service',
+              'boarding_start', 'urge_boarding', 'boarding_end', 'door_close', 'cargo_close',
+              'bridge_off', 'tobt', 'tsat', 'push_request', 'aobt', 'pushback', 'engine_start',
+              'atot', 'aldt', 'baggage']
+
+ESTIMATED_FIELDS = {
+    'origin_dep': ['prev_estimated_departure'],
+    'inbound_landing': ['inbound_estimated_arrival'],
+    'eldt': ['estimated_arrival', 'ALTERATE_LANDIN_TIME'],
+    'aibt': ['estimated_on_block', 'ALTERATE_BLOCK_ON_TIME'],
+    'door_open': ['ALTERATE_OPEN_CABIN_TIME'],
+    'door_close': ['ALTERATE_CLOSE_CABIN_TIME'],
+    'cargo_open': ['ALTERATE_OPEN_CARGO_TIME'],
+    'cargo_close': ['ALTERATE_CLOSE_CARGO_TIME'],
+    'boarding_start': ['ALTERATE_BEGIN_BOARD_TIME'],
+    'boarding_end': ['ALTERATE_END_BOARD_TIME'],
+    'aobt': ['estimated_off_block', 'ALTERATE_BLOCK_OFF_TIME'],
+    'atot': ['estimated_departure', 'ALTERATE_TAKEOFF_TIME', 'COUNT_TAKE_OFF_TIME'],
+    'aldt': ['estimated_arrival', 'ALTERATE_LANDIN_TIME'],
+}
+
+
+def flight_node_specs(direction):
+    specs = {item[0]: item for item in [*DEP_MILESTONES, *ARR_MILESTONES, *EXTRA_MILESTONES]}
+    if direction == 'DEP':
+        specs['aldt'] = next(item for item in DEP_MILESTONES if item[0] == 'aldt')
+        base = specs['origin_dep']
+        specs['origin_dep'] = (*base[:5], ['prev_scheduled_departure', 'START_SCHEME_TAKEOFF_TIME'],
+                               ['prev_actual_departure'], '前序进港航班的前站起飞；不使用本航班起飞时间代替')
+        specs.pop('eldt')
+    else:
+        specs.pop('inbound_landing')
+        base = specs['atot']
+        specs['atot'] = (*base[:5], ['next_scheduled_departure'], ['next_actual_departure'],
+                         '后续出港航班起飞；未关联时保留空位')
+    # ALTERATE fields describe estimates, never evidence of an actual event.
+    for key in ('boarding_start', 'boarding_end', 'door_open', 'aibt'):
+        item = specs[key]
+        specs[key] = (*item[:5], [field for field in item[5] if not field.startswith('ALTERATE_')], *item[6:])
+    order = NODE_ORDER if direction == 'DEP' else ['origin_dep', 'eldt', 'aldt', *[key for key in NODE_ORDER if key not in ('origin_dep', 'eldt', 'aldt')]]
+    return [specs[key] for key in order if key in specs]
+
+
 def is_flight_row(row: Dict[str, Any]) -> bool:
     """判断是否为包含航班时间节点的业务行."""
     if not isinstance(row, dict):
@@ -192,7 +262,7 @@ def is_flight_row(row: Dict[str, Any]) -> bool:
         'REAL_BEGIN_BOARD_TIME', 'PLAN_CLOSE_DOOR_TIME', 'scheduled_departure',
         'actual_departure', 'scheduled_arrival', 'actual_arrival', 'actual_off_block'
     }
-    has_flight_id = bool(keys & flight_id_keys)
+    has_flight_id = bool(keys & (flight_id_keys - {'flight_id', 'FLIGHT_ID'}))
     has_time = bool(keys & time_keys)
     return has_flight_id or has_time
 
@@ -238,7 +308,7 @@ def build_fishbone_meta(
         ''
     )[:10]
 
-    specs = DEP_MILESTONES if direction == 'DEP' else ARR_MILESTONES
+    specs = flight_node_specs(direction)
     nodes: List[Dict[str, Any]] = []
 
     for key, name, code, category, position, plan_keys, act_keys, note in specs:
@@ -253,16 +323,22 @@ def build_fishbone_meta(
             if row.get(ak):
                 act_val = row[ak]
                 break
+        if key == 'eldt':
+            act_val = None
 
-        # 如果计划与实际均为空，跳过该无数据节点以保持鱼骨清晰
-        if not plan_val and not act_val:
-            continue
+        estimate_keys = ESTIMATED_FIELDS.get(key, [])
+        if direction == 'ARR' and key == 'origin_dep':
+            estimate_keys = ['estimated_departure', 'ALTERATE_TAKEOFF_TIME']
+        elif direction == 'ARR' and key == 'atot':
+            estimate_keys = ['next_estimated_departure']
+        estimated_val = next((row[field] for field in estimate_keys if row.get(field)), None)
 
         plan_dt = parse_dt(plan_val)
         act_dt = parse_dt(act_val)
+        estimated_dt = parse_dt(estimated_val)
 
-        status = 'completed'
-        status_label = '已完成'
+        status = 'pending'
+        status_label = '未记录'
         delay_minutes = 0
 
         if act_dt and plan_dt:
@@ -279,10 +355,15 @@ def build_fishbone_meta(
                 status_label = '准点'
         elif act_dt:
             status = 'completed'
-            status_label = '已完成'
+            status_label = '有实际记录'
         elif plan_dt:
             status = 'planned'
-            status_label = '计划中'
+            status_label = '有计划时刻'
+        elif estimated_dt:
+            status = 'planned'
+            status_label = '有预计时刻'
+        if code in ('TOBT', 'TSAT'):
+            status, status_label = ('planned', '目标时刻') if plan_dt else ('pending', '未记录')
 
         nodes.append({
             'key': key,
@@ -290,9 +371,13 @@ def build_fishbone_meta(
             'code': code,
             'category': category,
             'position': position,
-            'plan_time': format_node_time(plan_val),
-            'actual_time': format_node_time(act_val),
-            'time_display': format_node_time(act_val or plan_val),
+            'plan_time': format_node_time(plan_dt, flight_date),
+            'estimated_time': format_node_time(estimated_dt, flight_date),
+            'actual_time': format_node_time(act_dt, flight_date),
+            'plan_at': plan_dt.isoformat() if plan_dt else '',
+            'estimated_at': estimated_dt.isoformat() if estimated_dt else '',
+            'actual_at': act_dt.isoformat() if act_dt else '',
+            'time_display': format_node_time(act_dt or estimated_dt or plan_dt, flight_date),
             'status': status,
             'status_label': status_label,
             'delay_minutes': delay_minutes,

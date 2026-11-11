@@ -41,6 +41,15 @@ class OpsAskTests(unittest.TestCase):
         catalog = Catalog({'tables': tables, 'foreign_keys': []}, self.document, self.settings)
         self.assertEqual(set(catalog.entities), {'std_flight_core', 'dim_airline'})
 
+    def test_only_declared_acdm_source_is_opened(self):
+        tables = [{'table': name, 'name': name.split('.')[-1], 'schema': 'acdm',
+                   'columns': [{'name': col, 'type': 'text', 'nullable': True}
+                               for col in ['FLIGHT_ID', 'FLIGHT_NO', 'EXEC_DATE']],
+                   'primary_key': ['FLIGHT_ID']}
+                  for name in ['acdm.tb_dyn_flight', 'acdm.unregistered_table']]
+        catalog = Catalog({'tables': tables, 'foreign_keys': []}, self.document, self.settings)
+        self.assertEqual(set(catalog.entities), {'acdm.tb_dyn_flight'})
+
     def test_composite_resource_relations_preserve_airport_scope(self):
         for target, code in [('dim_stand', 'stand_code'), ('dim_gate', 'gate_code')]:
             edge = next(edge for edge in self.document['logical_links']
@@ -117,8 +126,58 @@ class OpsAskTests(unittest.TestCase):
                 parse_question('昨天南方航空航班执飞情况', catalog)
 
     def test_execution_view_requires_explicit_metadata_registration(self):
-        self.assertEqual(self.settings.metadata_views, ('ops_ask_views.flight_execution',))
+        self.assertEqual(
+            self.settings.metadata_views,
+            (
+                'ops_ask_views.flight_execution',
+                'public.mv_acdm_dyn_flight_detail',
+                'public.mv_acdm_turnaround_pair',
+                'ops_ask_views.flight_hourly_movements',
+            ),
+        )
 
+
+
+    def test_global_metrics_and_dimensions_in_catalog(self):
+        schema = json.loads(self.settings.schema_path.read_text(encoding='utf-8'))
+        catalog = Catalog(schema, self.document, self.settings)
+        self.assertIn('bridge_stand_rate', catalog.metrics)
+        self.assertIn('flight_count', catalog.metrics)
+        self.assertIn('dep_delay_count', catalog.metrics)
+        self.assertIn('hour', catalog.dimensions)
+        self.assertIn('airline', catalog.dimensions)
+
+    def test_metric_sql_compilation_and_planner_matching(self):
+        from app.query import Compiler
+        from app.planner import Planner
+        schema = json.loads(self.settings.schema_path.read_text(encoding='utf-8'))
+        catalog = Catalog(schema, self.document, self.settings)
+        compiler = Compiler(catalog)
+        planner = Planner(catalog)
+
+        # 1. Test Planner matching global metric
+        local = planner.rules('昨天靠桥率是多少？')
+        self.assertEqual(local['intent'], 'metric')
+        self.assertEqual(local['metric'], 'bridge_stand_rate')
+        self.assertEqual(local['subject'], 'std_flight_core')
+
+        # 2. Test Compiler SQL generation for bridge_stand_rate
+        stmt = compiler.aggregate(local)
+        self.assertIn('bridge_stand_rate', stmt.sql)
+        self.assertIn('dim_stand', stmt.sql)
+        self.assertIn('flight_date', stmt.sql)
+
+        # 3. Test Compiler SQL generation with dimension grouping
+        dim_plan = {
+            'subject': 'std_flight_core',
+            'intent': 'metric',
+            'metric': 'flight_count',
+            'conditions': [{'table': 'std_flight_core', 'col': 'flight_date', 'op': 'prefix', 'value': '2026-11-08'}],
+            'group_by': ['airline']
+        }
+        dim_stmt = compiler.aggregate(dim_plan)
+        self.assertIn('GROUP BY c.airline_code', dim_stmt.sql)
+        self.assertIn('ORDER BY "flight_count" DESC', dim_stmt.sql)
 
 if __name__ == '__main__':
     unittest.main()

@@ -3,20 +3,35 @@ from datetime import date, datetime, timedelta, timezone
 import re
 
 
+def flight_sequence(question, catalog):
+    if 'ops_ask_views.flight_execution' not in catalog.entities or '航班' not in question:
+        return None
+    return re.search(r'最后(?:[一1](?:个|班|架))?|最(?:晚|迟|早)(?:的)?(?:[一1](?:个|班|架))?|第一(?:个|班|架)?|首班|末班', question)
+
+
 def parse_question(question, catalog):
     text = re.sub(r'[\s？?，,。]', '', question)
     text = re.sub(r'(\d{4})年(\d{1,2})月(\d{1,2})日',
                   lambda m: f'{int(m[1]):04d}-{int(m[2]):02d}-{int(m[3]):02d}', text)
-    definitions = catalog.overrides['offline_queries']
-    matches = [(len(alias), alias, spec) for spec in definitions for alias in spec['aliases'] if alias in text]
-    if not matches:
-        raise ValueError('模型外发已禁用。请指定本体对象，例如：昨天计划航班量、昨天执行航班量、昨天出港航班明细、查询航空公司。')
-    _, alias, query = max(matches, key=lambda item:item[0])
+    sequence = flight_sequence(text, catalog)
+    if sequence:
+        alias = sequence.group()
+        query = {'subject': 'ops_ask_views.flight_execution', 'intent': 'detail'}
+    else:
+        definitions = catalog.overrides['offline_queries']
+        matches = [(len(alias), alias, spec) for spec in definitions for alias in spec['aliases'] if alias in text]
+        if not matches:
+            raise ValueError('模型外发已禁用。请指定本体对象，例如：昨天计划航班量、昨天执行航班量、昨天出港航班明细、查询航空公司。')
+        _, alias, query = max(matches, key=lambda item:item[0])
     text = text.replace(alias, '', 1)
     subject = query['subject']
     entity = catalog.entities[subject]
     plan = {'subject': subject, 'disp': entity['name'], 'intent': query['intent'],
             'conditions': [], 'focus_tables': [], 'group_by': list(query.get('group_by', []))}
+    if sequence:
+        descending = any(word in alias for word in ('最后', '最晚', '最迟', '末班'))
+        plan.update(order_by=[{'field': 'execution_time', 'direction': 'desc' if descending else 'asc'}],
+                    limit=1, flight_sequence='last' if descending else 'first')
     period = re.search(r'今天|昨天|前天|最近7天|\d{4}-\d{2}-\d{2}', text)
     if period:
         value = period.group()
@@ -28,14 +43,28 @@ def parse_question(question, catalog):
             start = today - timedelta(days={'今天':0,'昨天':1,'前天':2}[value]) if value in {'今天','昨天','前天'} else date.fromisoformat(value)
             end = start + timedelta(days=1)
         coverage = catalog.overrides.get('coverage')
-        if coverage and (str(start) < coverage['start'] or str(end) > coverage['end_exclusive']):
-            raise ValueError('日期超出本地副本范围：' + coverage['start'] + ' 至 ' + coverage['end_exclusive'] + '（结束日期不含）')
+        if coverage:
+            first = coverage.get('start')
+            last = coverage.get('end_exclusive')
+            if not last and coverage.get('end'):
+                last = str(date.fromisoformat(coverage['end']) + timedelta(days=1))
+            if (first and str(start) < first) or (last and str(end) > last):
+                raise ValueError(f'日期超出本地副本范围：{first or "起始未提供"} 至 {last or "结束未提供"}（结束日期不含）')
         field = entity['bindings'].get('time')
         if not field:
             raise ValueError('此对象没有业务日期绑定')
-        plan['conditions'] += [{'col':field,'op':'>=','value':str(start)}, {'col':field,'op':'<','value':str(end)}]
+        lower, upper = str(start), str(end)
+        if sequence:
+            lower += 'T00:00:00+08:00'
+            upper += 'T00:00:00+08:00'
+        plan['conditions'] += [{'col':field,'op':'>=','value':lower}, {'col':field,'op':'<','value':upper}]
     elif entity['bindings'].get('time'):
-        raise ValueError('请指定业务日期；副本仅含最近7天的数据')
+        raise ValueError('请指定业务日期，例如昨天或 2026-11-09' if sequence else '请指定业务日期；副本仅含最近7天的数据')
+    if sequence:
+        for word in ('离港', '起飞', '出发'):
+            text = text.replace(word, '出港')
+        for word in ('到港', '落地', '降落', '抵达', '到达'):
+            text = text.replace(word, '进港')
     if '出港' in text and '进港' in text:
         raise ValueError('查询进出港总量时请使用计划航班量或执行航班量，不同时指定两个方向')
     for word, value in [('出港','D'),('进港','A')]:
@@ -67,6 +96,10 @@ def parse_question(question, catalog):
         text = text.replace('关联实际航班','')
     for token in ['帮我','查一下','查询','查看','统计','列出','请问','请','是多少','有多少','多少','共有','总共','的','和','航班','明细','信息','情况','数量','条','记录']:
         text = text.replace(token, '')
+    if sequence:
+        for token in ('是哪个', '是哪一个', '是哪班', '哪一个', '哪班', '哪个', '实际', '执飞', '执行', '已', '班'):
+            text = text.replace(token, '')
+        plan['conditions'].append({'col': 'execution_time', 'op': 'notnull', 'value': None})
     if text:
         raise ValueError('离线本体尚不能完整解析这些条件：' + text + '；不会忽略条件执行查询')
     return plan

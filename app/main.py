@@ -42,12 +42,13 @@ async def lifespan(_app):
     yield
 
 
-app = FastAPI(title='hbairport 图谱问答', lifespan=lifespan,
+app = FastAPI(title='知航 · ACDM 智能问询', lifespan=lifespan,
               docs_url=None, redoc_url=None)
 app.include_router(admin_router)
 
 # Next.js static export; business APIs stay same-origin on the existing FastAPI port.
 app.mount('/_next', StaticFiles(directory=settings.page_path.parent / '_next', check_dir=False), name='next-assets')
+app.mount('/brand', StaticFiles(directory=settings.page_path.parent / 'brand', check_dir=False), name='brand-assets')
 
 
 @app.exception_handler(HTTPException)
@@ -123,12 +124,24 @@ def prepare_question(request, data):
     conversation_id = data.get('conversation_id')
     if conversation_id is not None and (not isinstance(conversation_id, str) or len(conversation_id) != 32):
         raise HTTPException(400, '会话标识无效')
+    clarification_of, choice_id = data.get('clarification_of'), data.get('choice_id')
+    if clarification_of is not None and (not isinstance(clarification_of,str) or len(clarification_of) != 32 or not conversation_id):
+        raise HTTPException(400, '澄清消息标识无效')
+    if choice_id is not None and (not isinstance(choice_id,str) or not 1 <= len(choice_id) <= 40 or not clarification_of):
+        raise HTTPException(400, '澄清选项无效')
     value = business_access.query_identity(request)
     store = admin_service.get_store()
     model = store.model()
+    clarification = store.clarification(conversation_id,value['owner'],clarification_of) if clarification_of else None
     conversation_id, message_id = store.begin_question(value['owner'], question.strip(), model['model'], conversation_id)
-    return {'question': question.strip(), 'model': model, 'conversation_id': conversation_id, 'message_id': message_id,
-            'business_user_id': value['user']['id'], 'owner': value['owner']}
+    day_mode = str(data.get('day_mode') or data.get('dayMode') or 'AUTO').strip().upper()
+    if day_mode not in ('AUTO', 'OPERATIONAL', 'CALENDAR', 'NATURAL'):
+        day_mode = 'AUTO'
+    prepared = {'question': question.strip(), 'model': model, 'conversation_id': conversation_id, 'message_id': message_id,
+                'business_user_id': value['user']['id'], 'owner': value['owner'], 'day_mode': day_mode}
+    if clarification:
+        prepared.update(clarification=clarification,choice_id=choice_id)
+    return prepared
 
 
 def run_question(prepared, on_event=None):
@@ -153,10 +166,14 @@ def run_question(prepared, on_event=None):
                     access = business_access.load_access(conn, prepared['business_user_id']) if prepared.get('business_user_id') else None
                 previous_plan = store.latest_completed_plan(prepared.get('conversation_id'), prepared.get('owner'))
                 options = {}
+                if prepared.get('day_mode') and prepared['day_mode'] != 'AUTO':
+                    options['day_mode'] = prepared['day_mode']
                 if access:
                     options['access'] = access
                 if previous_plan is not None:
                     options['previous_plan'] = previous_plan
+                if prepared.get('clarification'):
+                    options.update(clarification=prepared['clarification'],choice_id=prepared.get('choice_id'))
                 result = core.do_ask(conn, prepared['question'], on_event=on_event, trace=trace, **options)
                 if access and business_access.load_access(conn,access.user_id).revision != access.revision:
                     raise ValueError('业务权限已变化，请重新提问')
@@ -164,6 +181,7 @@ def run_question(prepared, on_event=None):
                 conn.close()
         result.update({'conversation_id': prepared['conversation_id'], 'message_id': prepared['message_id'],
                        'execution_trace': trace.snapshot()})
+        result = core.json_safe(result)
         store.complete_question(prepared['message_id'], result, token_ttl=settings.drill_ttl_seconds)
         return result
     except Exception as exc:
@@ -195,7 +213,7 @@ def stream_question(prepared):
         event = events.get()
         if event is sentinel:
             break
-        yield (json.dumps(event, ensure_ascii=False) + '\n').encode('utf-8')
+        yield (json.dumps(core.json_safe(event), ensure_ascii=False) + '\n').encode('utf-8')
 
 
 @app.post('/api/ask/stream')
@@ -341,3 +359,46 @@ async def relation_validation(request: Request):
     result = await run_in_threadpool(check)
     admin_service.get_store().audit(user['id'], 'ontology.validate_relations')
     return result
+
+
+@app.get('/api/acdm/reports/general')
+async def acdm_report_general(request: Request):
+    require_role(request, 'admin')
+    from datetime import date as _date, timedelta as _td
+    from app.acdm_reports import build_general_report
+    qp = request.query_params
+    p_type = str(qp.get('period_type') or 'day').strip().lower()
+    default_d = (_date.today() - _td(days=1)).isoformat()
+    s_date = _date.fromisoformat(str(qp.get('start_date') or default_d))
+    e_date = _date.fromisoformat(str(qp.get('end_date') or s_date.isoformat()))
+    data = await run_in_threadpool(
+        with_connection, lambda c: build_general_report(c, start_date=s_date, end_date=e_date, period_type=p_type)
+    )
+    return {'ok': True, 'report': core.json_safe(data)}
+
+
+@app.get('/api/acdm/reports/ground-briefing')
+async def acdm_report_ground_briefing(request: Request):
+    require_role(request, 'admin')
+    from datetime import date as _date
+    from app.acdm_reports import build_ground_briefing
+    qp = request.query_params
+    t_date = _date.fromisoformat(str(qp.get('target_date') or _date.today().isoformat()))
+    data = await run_in_threadpool(with_connection, lambda c: build_ground_briefing(c, target_date=t_date))
+    return {'ok': True, 'report': core.json_safe(data)}
+
+
+@app.get('/api/acdm/reports/safeguard-board')
+async def acdm_report_safeguard_board(request: Request):
+    require_role(request, 'admin')
+    from datetime import date as _date, timedelta as _td
+    from app.acdm_reports import build_safeguard_and_resource_board
+    qp = request.query_params
+    default_end = (_date.today() - _td(days=1)).isoformat()
+    default_start = (_date.today() - _td(days=7)).isoformat()
+    s_date = _date.fromisoformat(str(qp.get('start_date') or default_start))
+    e_date = _date.fromisoformat(str(qp.get('end_date') or default_end))
+    data = await run_in_threadpool(
+        with_connection, lambda c: build_safeguard_and_resource_board(c, start_date=s_date, end_date=e_date)
+    )
+    return {'ok': True, 'report': core.json_safe(data)}

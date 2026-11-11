@@ -1,13 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, BookOpen, Check, ChevronRight, Database, FileJson2, GitBranch, History, LockKeyhole, Pencil, RefreshCw, Save, Search, Settings2, ShieldCheck, Table2 } from "lucide-react";
+import { ArrowUpRight, BookOpen, Check, ChevronRight, Database, FileJson2, GitBranch, History, LockKeyhole, Pencil, Plus, RefreshCw, Save, Search, Settings2, ShieldCheck, Table2, Trash2 } from "lucide-react";
 import { request } from "@/lib/api";
 import type { Entity, Field, Ontology, Status } from "@/lib/types";
 import { Badge, Button, Card, Modal, Notice, Shell, Spinner } from "./ui";
 
 const ROLES = { name: "名称字段", company: "所属企业字段", code: "业务编号字段", time: "业务时间字段" };
-type Draft = Record<string, unknown> & { entities: Record<string, Record<string, unknown>> };
+type Draft = Record<string, any> & {
+  entities: Record<string, Record<string, any>>;
+  metrics?: Record<string, any>;
+  dimensions?: Record<string, any>;
+  scenarios?: Record<string, any>;
+};
 type EditingEntity = { name: string; aliases: string; bindings: Record<string, string> };
 
 export function OntologyManager() {
@@ -18,6 +23,7 @@ export function OntologyManager() {
   const [pending, setPending] = useState(""), [message, setMessage] = useState(""), [error, setError] = useState(false);
   const [entityForm, setEntityForm] = useState<EditingEntity | null>(null);
   const [fieldForm, setFieldForm] = useState<{ key: string; label: string; description: string; unit: string; json: boolean } | null>(null);
+  const [metricForm, setMetricForm] = useState<{ isNew: boolean; origCode: string; code: string; name: string; domain: string; formula_desc: string; base_table: string; aggregate_expression: string; unit: string; aliases: string; default_filters: string } | null>(null);
   const [confirmation, setConfirmation] = useState<{ title: string; text: string; action: () => void } | null>(null);
   const [showEditor, setShowEditor] = useState(false), [report, setReport] = useState<unknown>(null), [reportOpen, setReportOpen] = useState(false);
   const [diagnostics, setDiagnostics] = useState(false);
@@ -79,19 +85,108 @@ export function OntologyManager() {
       setEditor(JSON.stringify(draft, null, 2)); setFieldForm(null); notify("字段解释已写入草稿，不修改数据库原始注释。保存后生效。");
     } catch (e) { notify(e instanceof Error ? e.message : "草稿格式无效", true); }
   }
-  const closeEntity = useCallback(() => setEntityForm(null), []), closeField = useCallback(() => setFieldForm(null), []), closeConfirmation = useCallback(() => setConfirmation(null), []), closeReport = useCallback(() => setReportOpen(false), []), closeDiagnostics = useCallback(() => setDiagnostics(false), []);
+  function newMetric() {
+    setMetricForm({ isNew: true, origCode: "", code: "", name: "", domain: "民航运行", formula_desc: "", base_table: selected || "std_flight_core", aggregate_expression: "COUNT(*)", unit: "架次", aliases: "", default_filters: "" });
+  }
+  function editMetric(key: string, item: any) {
+    setMetricForm({ isNew: false, origCode: key, code: key, name: item.name || key, domain: item.domain || "民航运行", formula_desc: item.formula_desc || item.description || "", base_table: item.base_table || selected || "std_flight_core", aggregate_expression: item.aggregate_expression || "COUNT(*)", unit: item.unit || "架次", aliases: Array.isArray(item.aliases) ? item.aliases.join("、") : (item.aliases || ""), default_filters: item.default_filters && Object.keys(item.default_filters).length ? JSON.stringify(item.default_filters) : "" });
+  }
+  function removeMetric(key: string, item: any) {
+    setConfirmation({ title: "确认删除指标？", text: `将从草稿中移除指标【${item.name || key}】(${key})。需点击“校验并保存”后生效。`, action: () => {
+      try {
+        const draft = parseDraft();
+        const metricsMap = (draft.metrics as Record<string, any> | undefined);
+        if (metricsMap && metricsMap[key]) {
+          delete metricsMap[key];
+          setEditor(JSON.stringify(draft, null, 2));
+          notify("指标已从草稿中删除，点击“校验并保存”后生效。");
+        }
+      } catch (e) { notify(e instanceof Error ? e.message : "操作失败", true); }
+    } });
+  }
+  function applyMetric() {
+    if (!metricForm?.code.trim()) { notify("请填写指标英文编码", true); return; }
+    if (!metricForm.name.trim()) { notify("请填写指标中文名称", true); return; }
+    if (!metricForm.aggregate_expression.trim()) { notify("请填写聚合计算公式", true); return; }
+    try {
+      const draft = parseDraft();
+      draft.metrics = (draft.metrics as Record<string, any>) || {};
+      if (!metricForm.isNew && metricForm.origCode && metricForm.origCode !== metricForm.code.trim()) {
+        delete draft.metrics[metricForm.origCode];
+      }
+      let filters: Record<string, unknown> = {};
+      if (metricForm.default_filters.trim()) {
+        try { filters = JSON.parse(metricForm.default_filters.trim()); } catch { notify("默认过滤条件必须是合法 JSON 对象", true); return; }
+      }
+      const existing = (draft.metrics[metricForm.code.trim()] as Record<string, any>) || {};
+      draft.metrics[metricForm.code.trim()] = {
+        ...existing,
+        code: metricForm.code.trim(),
+        name: metricForm.name.trim(),
+        domain: metricForm.domain.trim() || "民航运行",
+        formula_desc: metricForm.formula_desc.trim(),
+        description: metricForm.formula_desc.trim(),
+        aggregation: metricForm.aggregate_expression.toUpperCase().startsWith("ROUND") ? "rate" : (metricForm.aggregate_expression.toUpperCase().startsWith("SUM") ? "sum" : "count"),
+        unit: metricForm.unit.trim() || "架次",
+        base_table: metricForm.base_table.trim() || "std_flight_core",
+        aggregate_expression: metricForm.aggregate_expression.trim(),
+        value_alias: metricForm.code.trim(),
+        aliases: metricForm.aliases.split(/[,，、\n]/).map(s => s.trim()).filter(Boolean),
+        default_filters: filters,
+        joins_json: existing.joins_json || [],
+        status: "PUBLISHED"
+      };
+      setEditor(JSON.stringify(draft, null, 2));
+      setMetricForm(null);
+      notify("指标定义已写入草稿，点击“校验并保存”后生效。");
+    } catch (e) { notify(e instanceof Error ? e.message : "草稿格式无效", true); }
+  }
+  const closeEntity = useCallback(() => setEntityForm(null), []), closeField = useCallback(() => setFieldForm(null), []), closeMetric = useCallback(() => setMetricForm(null), []), closeConfirmation = useCallback(() => setConfirmation(null), []), closeReport = useCallback(() => setReportOpen(false), []), closeDiagnostics = useCallback(() => setDiagnostics(false), []);
   const edges = state?.catalog.graph.links_all.filter(edge => edge.from_table === selected || edge.to_table === selected) || [];
+  const globalMetrics = (state?.catalog?.metrics || (state?.document?.metrics as Record<string, any> | undefined) || {});
+  const globalDimensions = (state?.catalog?.dimensions || (state?.document?.dimensions as Record<string, any> | undefined) || {});
+  const tableMetrics: Record<string, any> = { ...(entity?.metrics || {}) };
+  for (const [mCode, mItem] of Object.entries(globalMetrics)) {
+    if (mItem.base_table === selected || !mItem.base_table || selected === "std_flight_core" || selected === "ops_ask_views.flight_execution") {
+      tableMetrics[mCode] = mItem;
+    }
+  }
+  const displayMetrics = Object.keys(tableMetrics).length ? tableMetrics : globalMetrics;
 
   return <Shell active="ontology" statusLabel={!state ? "正在读取权限" : editable ? "授权维护 · 可编辑" : "未授权编辑 · 只读"}>
     <div className="heading-row"><div><div className="eyebrow"><span className="eyebrow-line" />BUSINESS ONTOLOGY.</div><h1>让数据关系，有清晰的定义。</h1><p className="heading-description">查看数据库结构，管理业务名称、字段解释、关联关系与统计口径；编辑需要原填报系统的 admin 角色。</p></div><a href="/admin" className="btn btn-secondary"><Settings2 size={12} />{editable ? "进入管理后台" : "登录管理后台"}</a></div>
     <div className="manager-tools"><Button disabled={!!pending} onClick={() => guard(() => perform("load", load, "已重新加载当前版本。"))}><RefreshCw size={12} />重新加载</Button><Button disabled={!editable || !!pending} onClick={() => guard(() => perform("refresh", async () => { await request("/api/metadata/refresh", { method: "POST" }); await load(); }, "结构已重新采集，未修改业务数据。"))}>{pending === "refresh" ? <Spinner /> : <Database size={12} />}刷新数据库结构</Button><Button disabled={!editable || !!pending} onClick={() => perform("validate", async () => { const data = await request<{ report: unknown }>("/api/ontology/validate-relations", { method: "POST" }); setReport(data.report); setReportOpen(true); }, "抽样检查已完成，不代表关系已获得业务确认。")}>{pending === "validate" ? <Spinner /> : <ShieldCheck size={12} />}抽样检查关系</Button><Button onClick={() => setDiagnostics(true)} disabled={!state}><FileJson2 size={12} />结构变化</Button></div>
     {message && <Notice error={error}>{message}</Notice>}
     {!state ? <Card className="card-pad"><div className="empty-panel">{pending ? <><Spinner /><span>正在读取业务目录…</span></> : <><Database size={22} /><span>目录读取失败，请重新加载。</span></>}</div></Card> : <>
-      <div className="manager-summary" style={{ marginTop: 22 }}>{[["业务数据库", state.catalog.database], ["业务对象", Object.keys(state.catalog.entities).length], ["关联关系", state.catalog.graph.links_all.length], ["数据库字段", status?.fields ?? "—"]].map(([label, value]) => <Card className="manager-stat" key={label}><strong style={typeof value === "string" ? { fontSize: 17, lineHeight: "33px" } : undefined}>{typeof value === "number" ? value.toLocaleString() : value}</strong><span>{label}</span></Card>)}</div>
+      <div className="manager-summary" style={{ marginTop: 22 }}>{[["业务数据库", state.catalog.database], ["业务对象", Object.keys(state.catalog.entities).length], ["运行指标", Object.keys(globalMetrics).length], ["统计维度", Object.keys(globalDimensions).length], ["关联关系", state.catalog.graph.links_all.length]].map(([label, value]) => <Card className="manager-stat" key={label}><strong style={typeof value === "string" ? { fontSize: 17, lineHeight: "33px" } : undefined}>{typeof value === "number" ? value.toLocaleString() : value}</strong><span>{label}</span></Card>)}</div>
       <div className="manager-grid"><Card className="card-pad"><div className="card-head" style={{ marginBottom: 14 }}><h2 className="section-title"><LayersIcon />业务对象</h2><Badge>{items.length}</Badge></div><div className="entity-search"><Search size={13} /><input className="search-input" aria-label="搜索业务对象" placeholder="搜索名称、别名或表名" value={search} onChange={e => setSearch(e.target.value)} /></div><div className="entity-list">{items.map(([key, value]) => <button key={key} className={`entity-item ${selected === key ? "selected" : ""}`} onClick={() => { setSelected(key); setTab("attributes"); }}><span>{value.name}</span><small>{key}</small></button>)}{!items.length && <div className="empty-panel">没有匹配的业务对象</div>}</div></Card>
-        <Card>{entity && <><div className="card-pad" style={{ paddingBottom: 0 }}><div className="card-head" style={{ marginBottom: 8 }}><div><h2 className="entity-title">{entity.name}</h2><p className="entity-table-name">{selected}</p></div><Button disabled={!editable || !!pending} onClick={editEntity}><Pencil size={12} />编辑定义</Button></div><div className="alias-list">{entity.aliases.slice(0, 12).map(alias => <Badge key={alias}>{alias}</Badge>)}</div><div className="binding-grid">{Object.entries(ROLES).map(([role, label]) => <div className="binding" key={role}><span>{label}</span><code>{entity.bindings[role] || "未配置"}</code></div>)}</div></div><div className="result-tabs" role="tablist" aria-label="业务定义详情">{[{ id: "attributes", name: "属性字段", icon: Table2, count: Object.keys(entity.attributes).length }, { id: "metrics", name: "统计指标", icon: BookOpen, count: Object.keys(entity.metrics).length }, { id: "relations", name: "关联定义", icon: GitBranch, count: edges.length }].map(item => <button className={`result-tab ${tab === item.id ? "selected" : ""}`} key={item.id} role="tab" aria-selected={tab === item.id} onClick={() => setTab(item.id)}><item.icon size={13} />{item.name}<Badge>{item.count}</Badge></button>)}</div><div className="result-content">
+        <Card>{entity && <><div className="card-pad" style={{ paddingBottom: 0 }}><div className="card-head" style={{ marginBottom: 8 }}><div><h2 className="entity-title">{entity.name}</h2><p className="entity-table-name">{selected}</p></div><Button disabled={!editable || !!pending} onClick={editEntity}><Pencil size={12} />编辑定义</Button></div><div className="alias-list">{entity.aliases.slice(0, 12).map(alias => <Badge key={alias}>{alias}</Badge>)}</div><div className="binding-grid">{Object.entries(ROLES).map(([role, label]) => <div className="binding" key={role}><span>{label}</span><code>{entity.bindings[role] || "未配置"}</code></div>)}</div></div><div className="result-tabs" role="tablist" aria-label="业务定义详情">{[{ id: "attributes", name: "属性字段", icon: Table2, count: Object.keys(entity.attributes).length }, { id: "metrics", name: "统计指标", icon: BookOpen, count: Object.keys(displayMetrics).length }, { id: "relations", name: "关联定义", icon: GitBranch, count: edges.length }].map(item => <button className={`result-tab ${tab === item.id ? "selected" : ""}`} key={item.id} role="tab" aria-selected={tab === item.id} onClick={() => setTab(item.id)}><item.icon size={13} />{item.name}<Badge>{item.count}</Badge></button>)}</div><div className="result-content">
           {tab === "attributes" && <div className="table-wrap"><table className="data-table attribute-table"><thead><tr><th>中文属性 / 字段</th><th>业务解释 / 原注释</th><th>类型 / 单位</th>{editable && <th>管理</th>}</tr></thead><tbody>{Object.entries(entity.attributes).map(([key, attr]) => <tr key={key}><td><strong>{attr.label || key}</strong><small>{key}{attr.column ? ` ← ${attr.column}.${attr.path?.join(".")}` : ""}</small></td><td>{attr.description || attr.comment || "暂无业务解释"}{attr.comment && attr.comment !== attr.description && <div className="helper">原注释：{attr.comment}</div>}</td><td><Badge>{attr.type || "text"}</Badge><div className="helper" style={{ marginTop: 5 }}>{attr.unit || "单位未定义"}</div></td>{editable && <td><Button variant="ghost" aria-label={`编辑 ${attr.label || key}`} disabled={!!pending} onClick={() => editField(key, attr)}><Pencil size={12} /></Button></td>}</tr>)}</tbody></table></div>}
-          {tab === "metrics" && (Object.keys(entity.metrics).length ? <div className="record-cards">{Object.entries(entity.metrics).map(([key, metric]) => <div className="record-card card-pad" key={key}><div className="card-head"><h3 className="section-title">{metric.name || key}</h3><Badge tone="green">{metric.unit || "单位未定义"}</Badge></div><p className="entity-table-name">字段 {metric.field} · 指标 {key}</p><p className="long-description" style={{ marginTop: 10 }}>{metric.description || "未补充业务口径说明，请通过规则编辑维护。"}</p></div>)}</div> : <div className="empty-panel"><BookOpen size={22} /><span>尚未配置可用统计指标</span><p>明确金额字段、单位、分组与业务含义后，再通过规则编辑配置。不会猜测统计口径。</p></div>)}
+          {tab === "metrics" && <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div className="helper">支持无限指标自由扩展；大模型仅填槽位，由 SQL 编译引擎直接执行</div>
+              <Button disabled={!editable || !!pending} onClick={newMetric} variant="primary"><Plus size={12} />新增运行指标</Button>
+            </div>
+            {Object.keys(displayMetrics).length ? <div className="record-cards">{Object.entries(displayMetrics).map(([key, metric]) => <div className="record-card card-pad" key={key}>
+              <div className="card-head">
+                <div>
+                  <h3 className="section-title">{metric.name || key}</h3>
+                  <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                    <Badge tone="green">{metric.unit || "指标"}</Badge>
+                    {metric.domain && <Badge>{metric.domain}</Badge>}
+                  </div>
+                </div>
+                {editable && <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <Button variant="ghost" aria-label={`编辑指标 ${metric.name || key}`} disabled={!!pending} onClick={() => editMetric(key, metric)}><Pencil size={12} /></Button>
+                  <Button variant="ghost" aria-label={`删除指标 ${metric.name || key}`} disabled={!!pending} onClick={() => removeMetric(key, metric)}><Trash2 size={12} style={{ color: "#ef4444" }} /></Button>
+                </div>}
+              </div>
+              <p className="entity-table-name" style={{ marginTop: 6 }}>{metric.base_table ? "底表 " + metric.base_table + " · " : ""}指标编码 {key}{metric.aggregation ? " · 聚合 " + metric.aggregation : ""}</p>
+              <p className="long-description" style={{ marginTop: 8 }}>{metric.formula_desc || metric.description || "暂无口径说明"}</p>
+              {Array.isArray(metric.aliases) && metric.aliases.length > 0 && <div className="helper" style={{ marginTop: 6 }}><b>触发别名：</b>{metric.aliases.join("、")}</div>}
+              {metric.aggregate_expression && <div className="helper" style={{ marginTop: 6 }}><b>计算公式：</b><code>{metric.aggregate_expression}</code></div>}
+            </div>)}</div> : <div className="empty-panel"><BookOpen size={22} /><span>尚未配置可用统计指标</span><p>明确指标公式与口径后，可通过下方业务规则维护扩展。</p></div>}
+          </>}
           {tab === "relations" && (edges.length ? <div className="record-cards">{edges.map((edge, i) => <div className="edge-card" key={i}><div style={{ display: "flex", gap: 8, marginBottom: 8 }}><Badge tone={edge.status === "confirmed" ? "green" : "neutral"}>{edge.status}</Badge><Badge>{edge.cardinality}</Badge></div>{edge.source}<ArrowUpRight size={11} style={{ margin: "0 6px", display: "inline", color: "#6ee7b7" }} />{edge.target}<small>{edge.note || "未补充关系解释"} · {edge.validation}</small></div>)}</div> : <div className="empty-panel"><GitBranch size={22} /><span>当前对象未配置关联关系</span></div>)}
         </div></>}</Card>
       </div>
@@ -103,7 +198,18 @@ export function OntologyManager() {
     {fieldForm && <Modal title="维护字段解释" subtitle={`${selected}.${fieldForm.key} · 原始数据库注释不会被覆盖`} onClose={closeField}><div className="form-grid management-form"><label className="form-field form-span">中文显示名称<input value={fieldForm.label} onChange={e => setFieldForm({ ...fieldForm, label: e.target.value })} /></label><label className="form-field form-span">业务解释<textarea rows={3} value={fieldForm.description} onChange={e => setFieldForm({ ...fieldForm, description: e.target.value })} /></label><label className="form-field form-span">单位 · 无单位可留空<input placeholder="例如：元、万元；请按真实字段口径填写" value={fieldForm.unit} onChange={e => setFieldForm({ ...fieldForm, unit: e.target.value })} /></label></div><Notice>显示单位不会自动换算数据库数值。仅填写已确认的业务解释与真实单位。</Notice><div className="modal-actions"><Button onClick={closeField}>取消</Button><Button enterConfirm variant="primary" onClick={applyField}><Check size={12} />写入草稿</Button></div></Modal>}
     {confirmation && <Modal title={confirmation.title} onClose={closeConfirmation}><p className="long-description">{confirmation.text}</p><div className="modal-actions"><Button onClick={closeConfirmation}>取消</Button><Button enterConfirm variant="primary" onClick={() => { const action = confirmation.action; setConfirmation(null); action(); }}>确认继续</Button></div></Modal>}
     {reportOpen && <Modal title="关联数据抽样报告" subtitle="只读抽样，不自动确认业务关系" wide onClose={closeReport}><pre className="code-block">{JSON.stringify(report, null, 2)}</pre><Notice>最多抽样 100 个非空键，抽样匹配不代表全量唯一，也不能证明业务语义。</Notice></Modal>}
-    {diagnostics && <Modal title="结构变化与失效提示" subtitle="当前数据库结构、版本与本体警告" wide onClose={closeDiagnostics}><pre className="code-block">{JSON.stringify({ version: state?.catalog.version, refreshed_at: state?.catalog.refreshed_at, metadata_diff: status?.metadata_diff, warnings: state?.catalog.warnings }, null, 2)}</pre></Modal>}
+    {metricForm && <Modal title={metricForm.isNew ? "新增运行指标" : "编辑运行指标"} subtitle="录入指标公式与口径，SQL 编译引擎确定性计算，不依赖大模型裸写 SQL" wide onClose={closeMetric}><div className="form-grid management-form">
+      <label className="form-field">指标编码 (英文字符)<input value={metricForm.code} onChange={e => setMetricForm({ ...metricForm, code: e.target.value })} placeholder="例如：arr_delay_count" readOnly={!metricForm.isNew} /></label>
+      <label className="form-field">指标中文名称<input value={metricForm.name} onChange={e => setMetricForm({ ...metricForm, name: e.target.value })} placeholder="例如：进港延误架次" /></label>
+      <label className="form-field">业务领域<input value={metricForm.domain} onChange={e => setMetricForm({ ...metricForm, domain: e.target.value })} placeholder="例如：民航运行 / 机位资源 / 生产指标" /></label>
+      <label className="form-field">计量单位<input value={metricForm.unit} onChange={e => setMetricForm({ ...metricForm, unit: e.target.value })} placeholder="例如：架次 / % / 人次 / kg" /></label>
+      <label className="form-field form-span">统计底表 (Base Table)<select value={metricForm.base_table} onChange={e => setMetricForm({ ...metricForm, base_table: e.target.value })}>{Object.keys(state?.catalog.entities || {}).map(tbl => <option key={tbl} value={tbl}>{state?.catalog.entities[tbl].name} · {tbl}</option>)}</select></label>
+      <label className="form-field form-span">聚合计算公式 (Aggregate Expression)<textarea rows={2} value={metricForm.aggregate_expression} onChange={e => setMetricForm({ ...metricForm, aggregate_expression: e.target.value })} placeholder="例如：COUNT(*) 或 ROUND(100.0 * COUNT(*) FILTER (...) / NULLIF(COUNT(*), 0), 2)" /></label>
+      <label className="form-field form-span">自然语言触发别名 (用逗号或顿号分隔)<input value={metricForm.aliases} onChange={e => setMetricForm({ ...metricForm, aliases: e.target.value })} placeholder="例如：进港延误、到达延误、进港延误架次" /></label>
+      <label className="form-field form-span">业务口径说明 (Formula Description)<textarea rows={2} value={metricForm.formula_desc} onChange={e => setMetricForm({ ...metricForm, formula_desc: e.target.value })} placeholder="简述该指标的业务计算逻辑" /></label>
+      <label className="form-field form-span">默认过滤条件 JSON (可选)<input value={metricForm.default_filters} onChange={e => setMetricForm({ ...metricForm, default_filters: e.target.value })} placeholder='例如：{"direction": "ARR"}' /></label>
+    </div><Notice>指标录入后自动注册到本体目录，支持自然语言即时提问与维度切片下钻。写入草稿后点击“校验并保存”即可生效。</Notice><div className="modal-actions"><Button onClick={closeMetric}>取消</Button><Button enterConfirm variant="primary" onClick={applyMetric}><Check size={12} />写入草稿</Button></div></Modal>}
+    {diagnostics && <Modal title="结构变化与失效提示"  subtitle="当前数据库结构、版本与本体警告" wide onClose={closeDiagnostics}><pre className="code-block">{JSON.stringify({ version: state?.catalog.version, refreshed_at: state?.catalog.refreshed_at, metadata_diff: status?.metadata_diff, warnings: state?.catalog.warnings }, null, 2)}</pre></Modal>}
   </Shell>;
 }
 

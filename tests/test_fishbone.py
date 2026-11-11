@@ -99,6 +99,67 @@ class FishboneBuilderTests(unittest.TestCase):
             'enterprise_name': '信科公司'
         }
         self.assertFalse(is_flight_row(contract_row))
+        self.assertFalse(is_flight_row({'flight_id': 123, 'cargo_weight': 42}))
+
+    def test_complete_flow_keeps_missing_nodes_and_all_existing_departure_nodes(self):
+        meta = build_fishbone_meta({'flight_no': 'MU2613', 'direction': 'DEP', 'flight_date': '2026-10-10'})
+        nodes = {node['key']: node for node in meta['nodes']}
+        for key in ['origin_dep', 'inbound_landing', 'aibt', 'door_open', 'boarding_start', 'boarding_end',
+                    'door_close', 'cargo_close', 'aobt', 'pushback', 'atot', 'checkin_start', 'checkin_end',
+                    'ground_service', 'urge_boarding', 'bridge_off', 'tobt', 'aldt']:
+            self.assertIn(key, nodes)
+        self.assertTrue(all(node['status'] == 'pending' for node in nodes.values()))
+        self.assertTrue(all(not node['actual_time'] for node in nodes.values()))
+
+    def test_estimates_and_target_times_never_become_actual_completions(self):
+        meta = build_fishbone_meta({'flight_no': 'MU2613', 'direction': 'DEP', 'flight_date': '2026-10-10',
+            'ALTERATE_TAKEOFF_TIME': '2026-10-10 15:05:00', 'ALTERATE_LANDIN_TIME': '2026-10-10 19:37:18',
+            'TARGT_BLOCK_OFF_TIME': '2026-10-10 15:05:00', 'tsat': '2026-10-10 14:55:00',
+            'REAL_TAKEOFF_TIME': 'invalid'})
+        nodes = {node['key']: node for node in meta['nodes']}
+        for key in ['atot', 'aldt', 'tobt', 'tsat']:
+            self.assertEqual(nodes[key]['actual_time'], '')
+            self.assertNotEqual(nodes[key]['status'], 'completed')
+        self.assertEqual(nodes['atot']['estimated_time'], '15:05')
+        self.assertEqual(nodes['aldt']['estimated_time'], '19:37')
+        self.assertEqual(nodes['tobt']['plan_time'], '15:05')
+        self.assertEqual(nodes['tsat']['plan_time'], '14:55')
+
+    def test_previous_and_next_flights_are_not_inferred_from_this_flights_takeoff(self):
+        dep = build_fishbone_meta({'flight_no': 'MU2613', 'direction': 'DEP', 'REAL_TAKEOFF_TIME': '2026-10-10 15:08:00'})
+        nodes = {node['key']: node for node in dep['nodes']}
+        self.assertEqual(nodes['origin_dep']['actual_time'], '')
+        self.assertEqual(nodes['inbound_landing']['actual_time'], '')
+        self.assertEqual(nodes['atot']['actual_time'], '15:08')
+        arr = build_fishbone_meta({'flight_no': 'MU2612', 'direction': 'ARR', 'REAL_TAKEOFF_TIME': '2026-10-10 12:08:00', 'REAL_LANDIN_TIME': '2026-10-10 13:28:00'})
+        nodes = {node['key']: node for node in arr['nodes']}
+        self.assertEqual(nodes['origin_dep']['actual_time'], '12:08')
+        self.assertEqual(nodes['aldt']['actual_time'], '13:28')
+        self.assertEqual(nodes['atot']['actual_time'], '')
+
+    def test_cross_day_nodes_keep_dates_and_convert_utc_to_business_time(self):
+        meta = build_fishbone_meta({'flight_no': 'MU2613', 'direction': 'DEP', 'flight_date': '2026-10-10',
+            'prev_actual_departure': '2026-10-09T15:55:00Z', 'actual_departure': '2026-10-10T07:08:00Z'})
+        nodes = {node['key']: node for node in meta['nodes']}
+        self.assertEqual(nodes['origin_dep']['actual_time'], '10-09 23:55')
+        self.assertEqual(nodes['atot']['actual_time'], '15:08')
+        self.assertEqual(nodes['atot']['actual_at'], '2026-10-10T15:08:00+08:00')
+
+    def test_standard_flight_nodes_use_only_its_matching_returned_process(self):
+        row = {'id': 7, 'flight_no': 'MU2613', 'direction': 'DEP', 'flight_date': '2026-10-10'}
+        visual = build_visual_meta({'intent': 'detail', 'subject': 'std_flight_core'}, [row], 1,
+            related=[{'table': 'std_flight_process', 'rows': [
+                {'flight_id': 8, 'boarding_start': '2026-10-10 09:00:00'},
+                {'flight_id': 7, 'boarding_start': '2026-10-10 14:24:07', 'ext_json': {'REAL_CLOSE_CABIN_TIME': '2026-10-10 14:46:00'}}]}])
+        nodes = {node['key']: node for node in visual['nodes']}
+        self.assertEqual(nodes['boarding_start']['actual_time'], '14:24')
+        self.assertEqual(nodes['boarding_start']['plan_time'], '')
+        self.assertEqual(nodes['door_close']['actual_time'], '14:46')
+
+    def test_flight_number_aggregates_still_render_statistics_instead_of_empty_milestones(self):
+        result = build_visual_meta({'intent': 'count', 'subject': 'std_flight_core'},
+            [{'flight_no': 'MU2613', 'n': 2}, {'flight_no': 'MU2614', 'n': 3}], 5)
+        self.assertEqual(result['kind'], 'donut')
 
 
 if __name__ == '__main__':

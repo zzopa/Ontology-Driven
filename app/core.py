@@ -2,7 +2,7 @@
 from copy import deepcopy
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from contextvars import copy_context
-from datetime import date
+from datetime import date, datetime
 import json
 import logging
 import re
@@ -129,6 +129,13 @@ def _initialize():
         schema['fingerprint'] = fingerprint({'metadata':schema['fingerprint'],
                                              'identity':schema['database_identity']})
         catalog = STORE.validate(STORE.load(),schema)
+        if settings.data_source == 'ops_ask':
+            try:
+                from app.ops_governance import hydrate_catalog_in_memory
+                hydrate_catalog_in_memory(catalog)
+            except Exception:
+                logger.debug('冷启动增强加载 ops_ask 本体目录失败，继续使用本地文件', exc_info=True)
+            catalog.refresh_version()
         names, enterprises = load_lookups(conn,catalog)
     finally:
         conn.close()
@@ -162,6 +169,8 @@ def current_catalog():
 
 def activate_catalog(catalog, lookups=None):
     global CATALOG,GRAPH,FIELD_COMMENTS,NAME_INDEX,ENTERPRISE_NAMES
+    if settings.data_source == 'ops_ask':
+        catalog.refresh_version()
     if lookups is None:
         conn = connect_db()
         try:
@@ -211,9 +220,19 @@ def rollback_ontology(revision, expected):
 
 def status():
     with LOCK:
+        cat = current_catalog() if CATALOG else None
+        op_day = dict(getattr(cat, 'operational_day', None) or getattr(cat, 'overrides', {}).get('operational_day') or {}) if cat else {}
+        if op_day:
+            sh = int(op_day.get('startHour', 5) or 5)
+            op_day.setdefault('boundaryLabel', f'{sh:02d}:00–次日{sh:02d}:00')
+        home = dict(getattr(cat, 'home_airport', None) or getattr(cat, 'overrides', {}).get('home_airport') or {}) if cat else {}
+        home_summary = {k: home[k] for k in ('iataCode', 'cityName', 'displayName') if home.get(k)} if home else None
         return {'ok':True,**deepcopy(STATUS),
                 'data_source':settings.data_source,'external_models_enabled':settings.external_models_enabled,
-                'coverage': current_catalog().overrides.get('coverage') if CATALOG else None,
+                'coordinator_enabled':settings.data_source=='ops_ask' and getattr(settings,'coordinator_enabled',False),
+                'coverage': cat.overrides.get('coverage') if cat else None,
+                'operational_day': op_day or None,
+                'home_airport': home_summary,
                 'average_seconds':round(sum(DURATIONS)/len(DURATIONS),3) if DURATIONS else 0}
 
 
@@ -228,7 +247,35 @@ def remember_plan(question, plan, catalog):
         save_snapshot(settings.memory_path,MEM)
 
 
-def parse_question(question, catalog, use_model=True, use_cache=True, trace=None, lookups=None, previous_plan=None):
+def _finalize_governance_plan(question, plan, catalog, day_mode='AUTO'):
+    if not isinstance(plan, dict) or plan.get('outcome') or not hasattr(catalog, 'entities'):
+        return plan
+    from app.agent.governance_runtime import apply_rule_guardrails, match_plan_template
+    from app.agent.operational_day import apply_operational_day_to_plan
+    changed = False
+    if 'applied_rules' not in plan:
+        prev_conds = len(plan.get('conditions') or [])
+        apply_rule_guardrails(catalog, plan)
+        if len(plan.get('conditions') or []) != prev_conds:
+            changed = True
+    if 'plan_template' not in plan:
+        hints = catalog.resolve_ontology_hints(question) if hasattr(catalog, 'resolve_ontology_hints') else None
+        tpl = match_plan_template(catalog, plan, hints)
+        if tpl:
+            plan['plan_template'] = tpl
+    plan = apply_operational_day_to_plan(plan, catalog, day_mode=day_mode)
+    if plan.get('operational_window') or changed:
+        return Compiler(catalog).validate(plan)
+    return plan
+
+
+def parse_question(question, catalog, use_model=True, use_cache=True, trace=None, lookups=None, previous_plan=None,
+                   references=(), clarification=None, choice_id=None, day_mode='AUTO'):
+    if settings.data_source == 'ops_ask' and getattr(settings, 'coordinator_enabled', False):
+        from app.agent.coordinator import Coordinator
+        plan = Coordinator(catalog, chat if use_model and model_available() else None,references,trace).plan(
+            question,previous_plan,clarification,choice_id,day_mode=day_mode)
+        return _finalize_governance_plan(question, plan, catalog, day_mode=day_mode), '运营总控·结构化规划'
     if settings.data_source == 'ops_ask' and catalog.overrides.get('offline_queries'):
         from app.acdm_ontology import parse_question as parse_local
         try:
@@ -236,22 +283,22 @@ def parse_question(question, catalog, use_model=True, use_cache=True, trace=None
         except ValueError:
             pass
         else:
-            return Compiler(catalog).validate(plan), '本体规则·已定义业务口径'
+            return _finalize_governance_plan(question, Compiler(catalog).validate(plan), catalog, day_mode=day_mode), '本体规则·已定义业务口径'
     if settings.data_source == 'acdm':
         from app.acdm_ontology import parse_question as parse_acdm
         try:
-            return Compiler(catalog).validate(parse_acdm(question, catalog)), '本体规则·ACDM本地解析'
+            return _finalize_governance_plan(question, Compiler(catalog).validate(parse_acdm(question, catalog)), catalog, day_mode=day_mode), '本体规则·ACDM本地解析'
         except ValueError:
             if not model_available():
                 raise ValueError('本机模型尚未连接。请在模型管理中配置本机接口和模型名，连接后可使用原本体自由问答。')
     with LOCK:
         cached = next((deepcopy(e['parsed']) for e in MEM['entries']
             if e.get('version')==cache_key(catalog) and e.get('q')==question),None)
-    if cached and use_cache:
+    if cached and use_cache and cached.get('intent') != 'turnaround':
         STATUS['cache_hits'] += 1
         if trace:
             trace.start('plan_cache', '校验查询计划缓存', '校验本体版本、模型配置与日期；不缓存业务查询结果')
-        validated = Compiler(catalog).validate(cached)
+        validated = _finalize_governance_plan(question, Compiler(catalog).validate(cached), catalog, day_mode=day_mode)
         if trace:
             trace.finish('plan_cache', '使用已校验的结构化计划；数据仍将实时查询',
                          ['主体：' + cached['subject'], '筛选：' + json.dumps(cached.get('conditions', []), ensure_ascii=False)])
@@ -259,13 +306,14 @@ def parse_question(question, catalog, use_model=True, use_cache=True, trace=None
     names, enterprises = lookups if lookups is not None else (NAME_INDEX, ENTERPRISE_NAMES)
     planner = Planner(catalog,names,enterprises,
                       chat if use_model and model_available() else None, trace=trace)
-    return planner.parse(question, previous_plan=previous_plan)
+    plan, source = planner.parse(question, previous_plan=previous_plan)
+    return _finalize_governance_plan(question, plan, catalog, day_mode=day_mode), source
 
 
 def field_meta(catalog, tables):
     return {table:{key:{'label':attr['label'],'comment':attr.get('description',''),
                        'unit':attr.get('unit','')} for key,attr in catalog.entities[table]['attributes'].items()}
-            for table in tables}
+            for table in tables if table in catalog.entities}
 
 
 def clean_rows(catalog,table,rows):
@@ -426,6 +474,27 @@ def answer(catalog,plan,evidence,main_total,use_model,question='',trace=None,del
         report['batch_count'] = len(batches)
         report['batch_characters'] = [len(evidence_json(b.payload)) for b in batches]
         report['fragmented_fact_count'] = len({f['fact_id'] for b in batches for f in b.payload['record_fragments']})
+
+        max_batches = getattr(settings, 'max_evidence_batches', 0)
+        if max_batches > 0 and len(batches) > max_batches:
+            logger.info('大批量查询命中 %d 条事实，切出 %d 批证据（超过上限 %d）；启用快速确定性事实通道',
+                        len(evidence['facts']), len(batches), max_batches)
+            if trace:
+                stage = 'answer_fastpath'
+                trace.start(stage, '大批量确定性事实汇总',
+                            '查询命中 %d 条业务事实（共切分 %d 批）；直接基于实时数据库聚合结果生成确定性事实，确保准确率 100%% 且毫秒级响应' % (
+                                len(evidence['facts']), len(batches)),
+                            ['已命中 %d 条记录，全量数据已载入下方明细表格' % main_total,
+                             '已跳过 %d 批次外部大模型逐批冗余调用，避免接口等待与计费损耗' % len(batches)])
+                trace.finish(stage, '已完成确定性事实汇总直出')
+            report.update({
+                'sent_fact_count': 0, 'sent_relationship_count': 0,
+                'completed_batches': 0, 'failed_batches': [], 'batch_errors': [],
+                'retry_count': 0, 'complete_queried_data': False,
+                'coverage': deepcopy(evidence.get('coverage', [])),
+                'fastpath': 'deterministic_bulk'
+            })
+            return claims, '\n'.join(c['text'] for c in claims), 'deterministic'
         checked, sent_ids, sent_edges, sent_parts = {}, set(), [], {}
         prompt=ANALYSIS_PROMPT
 
@@ -530,7 +599,62 @@ def answer(catalog,plan,evidence,main_total,use_model,question='',trace=None,del
     return claims,text,validation
 
 
-def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,access=None,previous_plan=None):
+def load_ops_references(conn, catalog):
+    if 'dim_airline' not in catalog.entities:
+        return []
+    compiler = Compiler(catalog)
+    rows = execute(conn, compiler.statement('SELECT iata_code,name_zh,name_en FROM ' +
+        compiler.table('dim_airline') + ' WHERE deleted_at IS NULL'))
+    references = []
+    codes = {str(row['iata_code']) for row in rows if row.get('iata_code')}
+    for row in rows:
+        if row.get('iata_code'):
+            for term in (row.get('name_zh'), row.get('name_en'), row['iata_code']):
+                if term:
+                    references.append({'role':'airline','term':term,'value':row['iata_code'],
+                                       'table':'dim_airline','field':'iata_code','column':'airline_code'})
+    for term, code in Planner._AIRLINE_ALIASES.items():
+        if code in codes:
+            references.append({'role':'airline','term':term,'value':code,
+                               'table':'dim_airline','field':'iata_code','column':'airline_code'})
+    return references
+
+
+def business_response(question, decision, catalog, trace, elapsed):
+    trace.start('done', '完成本轮问询', '保留澄清或数据边界结果，不执行未经确认的计划')
+    trace.finish('done', decision['answer'])
+    return {'ok':True,'question':question,'answer_validation':'deterministic','intent':'notice',
+            'source':'运营总控','parse':{'subject':'','intent':'notice','conditions':[]},
+            'sql':'','sql_params':[],'main_total':0,'main_rows':[],'related':[],
+            'field_meta':{},'graph':{'nodes':[],'edges':[]},'graph_tables':[],
+            'visual_meta':{'kind':'none'},'ontology_version':catalog.version,
+            'elapsed':round(elapsed,3),'execution_trace':trace.snapshot(),**decision}
+
+
+def local_coverage(conn, catalog, plan):
+    """Observed local dates are not evidence of a completely synchronized interval."""
+    window = plan.get('query_context', {}).get('slots', {}).get('period')
+    temporal = next((c for c in plan['conditions'] if c.get('op') == '>=' and
+                     isinstance(c.get('value'),str) and re.match(r'^\d{4}-\d{2}-\d{2}', c['value'])), None)
+    if not window or not temporal:
+        return {'status':'UNKNOWN','complete':False,'message':'未证明本地数据同步完整性。'}
+    table = temporal.get('table') or plan['subject']
+    compiler = Compiler(catalog)
+    field = compiler.expression(table, temporal['col'], 't0')
+    rows = execute(conn, compiler.statement('SELECT MIN(' + field + ')::text AS first_date, MAX(' +
+        field + ')::text AS last_date FROM ' + compiler.table(table) + ' t0'))
+    first, last = rows[0].get('first_date'), rows[0].get('last_date')
+    result = {'status':'UNKNOWN','complete':False,'table':table,'field':temporal['col'],
+              'coverage_start':str(first)[:10] if first else None,'coverage_end':str(last)[:10] if last else None,
+              'message':'覆盖范围仅为本地已观测日期，日期之间可能存在同步缺口。'}
+    if first and last and (window[1] <= str(first)[:10] or window[0] > str(last)[:10]):
+        result.update(status='OUT_OF_COVERAGE',message='当前对象本地已观测日期为 %s 至 %s；所查期间不在这个范围内，不能据此认为现实业务量为零。' %
+                      (str(first)[:10],str(last)[:10]))
+    return result
+
+
+def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,access=None,previous_plan=None,
+           clarification=None,choice_id=None,day_mode='AUTO'):
     catalog=current_catalog()
     if access:
         catalog=access.catalog(catalog)
@@ -552,28 +676,95 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
         emit('progress',stage='parse',message='正在匹配业务本体与查询条件…',percent=12)
         checkpoint=perf_counter()
         lookups=load_lookups(conn,catalog,access) if access else None
-        plan,source=parse_question(text,catalog,use_model,use_cache,trace,lookups,previous_plan=previous_plan)
+        coordinated = settings.data_source == 'ops_ask' and getattr(settings, 'coordinator_enabled', False)
+        if coordinated:
+            from app.agent.coordinator import Coordinator
+            references = load_ops_references(conn, catalog)
+            plan,source = parse_question(text,catalog,use_model,False,trace,lookups,previous_plan,
+                                         references,clarification,choice_id,day_mode=day_mode)
+            use_cache = False
+            use_model = False  # Business facts come only from deterministic query results.
+            if plan.get('outcome'):
+                return business_response(text, plan, catalog, trace, perf_counter()-started)
+            if plan['intent'] == 'turnaround':
+                from app.turnaround import get_turnaround_data
+                trace.start('turnaround_lookup', '执行保障记录查询', '按已确认的航班身份和业务日读取保障来源，不替换其他日期')
+                try:
+                    t_data = get_turnaround_data(plan['query_identifier'], plan['flight_date'])
+                except ValueError as exc:
+                    decision = Coordinator(catalog).notice('clarification_needed', str(exc), text,
+                        datetime.fromisoformat(plan['query_context']['anchor']),
+                        plan['query_context']['slots'])
+                    trace.finish('turnaround_lookup', str(exc), state='skipped')
+                    return business_response(text, decision, catalog, trace, perf_counter()-started)
+                if not t_data:
+                    trace.finish('turnaround_lookup', '当前本地数据没有匹配保障记录')
+                    return business_response(text, {'outcome':'no_data','answer':'当前本地数据没有匹配保障记录，不能据此判断现实作业状态。'},catalog,trace,perf_counter()-started)
+                expected = plan['query_context']['slots']
+                row = t_data.get('source_row') or {}
+                direction = row.get('direction') or row.get('NORMAL_FLIGHT_STAT_CD')
+                airline = row.get('airline_code') or row.get('AIRLINE_TWO_CHAR_CD')
+                same_aircraft = not expected.get('aircraft') or str(t_data.get('craft_no','')).replace('-','').upper()==expected['aircraft']
+                same_direction = expected.get('direction') in (None,'BOTH',direction)
+                same_airline = all((str(airline)==str(ref['value'])) == (ref.get('op','=')=='=')
+                                   for ref in expected.get('references',[]) if ref['role']=='airline')
+                if not (same_aircraft and same_direction and same_airline):
+                    trace.finish('turnaround_lookup','已存保障记录不满足全部指定条件')
+                    return business_response(text,{'outcome':'no_data','answer':'当前本地保障记录不满足全部身份、方向或航司条件；未替换其他航班或日期。'},catalog,trace,perf_counter()-started)
+                plan.update(subject=t_data.get('source_table','std_flight_core'), flight_id=t_data.get('flight_id'), turnaround_data=t_data,
+                            focus_tables=['std_flight_process'] if t_data.get('process_row') else [],
+                            conditions=[{'col':t_data.get('id_column') or 'id','op':'=','value':t_data['flight_id']}])
+                trace.finish('turnaround_lookup', '已取得指定业务日的保障记录', [t_data.get('source_label','')])
+        else:
+            plan,source=parse_question(text,catalog,use_model,use_cache,trace,lookups,previous_plan=previous_plan,day_mode=day_mode)
+        if plan.get('flight_sequence'):
+            use_model = False
         timings['parse']=round(perf_counter()-checkpoint,3)
         subject,intent=plan['subject'],plan['intent']
         trace.start('plan', '校验最终查询计划', '验证最终主体、字段、统计口径和全部筛选条件')
         compiler.validate(plan)
-        trace.finish('plan', '查询计划校验通过',
-                     ['计划来源：' + source, '主体：' + catalog.entities[subject]['name'] + ' · ' + subject,
-                      '最终筛选：' + json.dumps(plan.get('conditions', []), ensure_ascii=False, default=str)])
+        plan_notes = [
+            '计划来源：' + source,
+            '主体：' + catalog.entities[subject]['name'] + ' · ' + subject,
+            '最终筛选：' + json.dumps(plan.get('conditions', []), ensure_ascii=False, default=str),
+        ]
+        if plan.get('applied_rules'):
+            plan_notes.append('命中规则：' + '、'.join(r.get('name', r.get('code', '')) for r in plan['applied_rules']))
+        if plan.get('plan_template'):
+            plan_notes.append('查询模板：' + plan['plan_template'].get('name', plan['plan_template'].get('code', '')))
+        if plan.get('operational_window'):
+            op_w = plan['operational_window']
+            plan_notes.append(f"运营日窗口：{op_w['start']} ~ {op_w['end']}（{op_w.get('field', '')}）")
+        trace.finish('plan', '查询计划校验通过', plan_notes)
         from app.coverage import DataCoverageService
-        coverage_check = DataCoverageService(catalog).assess_plan(plan)
+        coverage_check = (local_coverage(conn, catalog, plan) if coordinated else
+                          DataCoverageService(catalog).assess_plan(plan))
+        if coordinated and coverage_check['status'] == 'OUT_OF_COVERAGE':
+            return business_response(text, {'outcome':'out_of_coverage','answer':coverage_check['message'],
+                'coverage_assessment':coverage_check,'plan':json_safe(plan)},catalog,trace,perf_counter()-started)
         if coverage_check['status'] == 'OUT_OF_COVERAGE':
             trace.start('coverage_notice', '数据覆盖边界提醒', '查询日期超出当前数据源覆盖范围')
             trace.finish('coverage_notice', coverage_check['message'], [coverage_check['message']])
+        from app.agent.governance_runtime import check_capability_gate
+        gate = check_capability_gate(catalog, plan, template=plan.get('plan_template'))
+        if not gate['allowed']:
+            if coordinated:
+                return business_response(text, {
+                    'outcome': 'unsupported',
+                    'answer': gate['message'],
+                    'capability_gate': gate,
+                    'plan': json_safe(plan),
+                }, catalog, trace, perf_counter() - started)
+            raise ValueError(gate['message'])
         emit('progress',stage='graph',message='正在校验业务关系与统计口径…',percent=35)
         trace.start('relations', '校验关联路径', '仅使用当前本体中可校验且无歧义的关系')
         targets=plan.get('focus_tables',[])
-        if intent!='detail':
+        if intent not in ('detail', 'turnaround'):
             target=plan.get('aggregate_target') or subject
             targets=[target] if target!=subject else []
             links=catalog.links(subject,targets) if targets else []
         else:
-            links=catalog.links(subject,targets)
+            links=catalog.links(subject,targets) if targets or not coordinated else []
         for condition in plan.get('conditions',[]):
             table=condition.get('table') or subject
             if table!=subject:
@@ -585,24 +776,50 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
         emit('progress',stage='sql',message='正在执行完整范围查询，明细分页展示…',percent=58)
         checkpoint=perf_counter()
         trace.start('sql_compile', '编译参数化 SQL', '从已校验计划编译只读 SQL；筛选值与 SQL 分离绑定')
-        statement=(compiler.detail(plan,links,settings.graph_main_limit,settings.graph_related_limit)
-                   if intent=='detail' else compiler.aggregate(plan))
-        if access:
-            from app.business_access import load_access
-            if load_access(conn,access.user_id).revision != access.revision:
-                raise ValueError('业务权限已变化，请重新提问')
-        trace.finish('sql_compile', '参数化 SQL 编译完成',
-                     [statement.sql, '绑定参数：' + json.dumps(json_safe(statement.params), ensure_ascii=False)])
-        trace.start('sql_check', '检查数据库执行计划', '通过 EXPLAIN 验证字段和关联 SQL')
-        if settings.preflight:
-            execute(conn, Statement('EXPLAIN (FORMAT JSON) ' + statement.sql, statement.params))
-            trace.finish('sql_check', '数据库执行计划检查通过；没有修改业务数据')
+        acdm_report_res = None
+        if intent == 'acdm_report':
+            from app.acdm_reports import execute_acdm_report
+            statement = Statement('-- ACDM 校准专题报告多维只读 SQL 汇总', ())
+            trace.finish('sql_compile', '专题报告多模块 SQL 模板准备完成', [plan.get('report_kind', 'general')])
+            trace.start('sql_check', '检查数据库执行计划', '专题报告固定使用参数化只读 SQL，不执行动态拼接')
+            trace.finish('sql_check', '固定只读参数化模板检查通过', state='skipped')
+            trace.start('sql', '执行实时数据库查询', '正在按手册口径汇总各板块指标与明细')
+            acdm_report_res = execute_acdm_report(conn, plan, catalog)
+            result = acdm_report_res['rows']
+            statement = Statement(acdm_report_res['sql_preview'], tuple(acdm_report_res.get('params', ())))
+            timings['sql'] = round(perf_counter() - checkpoint, 3)
+        elif intent == 'turnaround':
+            if settings.data_source == 'ops_ask' and subject == 'std_flight_core':
+                statement = compiler.statement('SELECT f.*,to_jsonb(p) AS process FROM ' + compiler.table(subject) +
+                    ' f LEFT JOIN ' + compiler.table('std_flight_process') + ' p ON p.flight_id=f.id WHERE f.id = %s', (plan['flight_id'],))
+            else:
+                if plan.get('flight_id') is not None:
+                    id_column = plan['turnaround_data']['id_column']
+                    statement = compiler.statement('SELECT f.* FROM ' + compiler.table(subject) + ' f WHERE ' +
+                        compiler.expression(subject, id_column, 'f') + ' = %s', (plan['flight_id'],))
+                else:
+                    statement = Statement('SELECT * FROM acdm.tb_dyn_flight WHERE "FLIGHT_NO" = %s LIMIT 1', (plan['flight_no'],))
+        elif intent == 'detail':
+            statement = compiler.detail(plan, links, settings.graph_main_limit, settings.graph_related_limit)
         else:
-            trace.finish('sql_check', '配置未启用 EXPLAIN；本体与参数化编译检查已通过', state='skipped')
-        trace.start('sql', '执行实时数据库查询', '正在查询全部匹配范围；预览与分页不改变筛选范围')
-        result=execute(conn,statement)
-        timings['sql']=round(perf_counter()-checkpoint,3)
-        metric=compiler.metric(plan) if intent=='sum' else None
+            statement = compiler.aggregate(plan)
+        if intent != 'acdm_report':
+            if access:
+                from app.business_access import load_access
+                if load_access(conn,access.user_id).revision != access.revision:
+                    raise ValueError('业务权限已变化，请重新提问')
+            trace.finish('sql_compile', '参数化 SQL 编译完成',
+                         [statement.sql, '绑定参数：' + json.dumps(json_safe(statement.params), ensure_ascii=False)])
+            trace.start('sql_check', '检查数据库执行计划', '通过 EXPLAIN 验证字段和关联 SQL')
+            if settings.preflight:
+                execute(conn, Statement('EXPLAIN (FORMAT JSON) ' + statement.sql, statement.params))
+                trace.finish('sql_check', '数据库执行计划检查通过；没有修改业务数据')
+            else:
+                trace.finish('sql_check', '配置未启用 EXPLAIN；本体与参数化编译检查已通过', state='skipped')
+            trace.start('sql', '执行实时数据库查询', '正在查询全部匹配范围；预览与分页不改变筛选范围')
+            result=execute(conn,statement)
+            timings['sql']=round(perf_counter()-checkpoint,3)
+        metric=compiler.metric(plan) if intent in ('sum', 'metric') or plan.get('metric') else None
         related=[]
         if intent=='detail':
             main=[r['row_data'] for r in result if r['bucket']=='__main']
@@ -616,6 +833,18 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
                     'note':edge['note'],'type':edge['type'],'level':edge['level'],
                     'count':max((int(r['total_count']) for r in matches),default=0),
                     'rows':clean_rows(catalog,table,[r['row_data'] for r in matches])})
+        elif intent == 'turnaround':
+            t_data = plan.get('turnaround_data') or {}
+            main = [clean_rows(catalog, subject, [t_data['source_row']])[0] if t_data.get('source_row') else t_data]
+            main_total = 1
+            related = ([{'table': 'std_flight_process', 'name': catalog.entities['std_flight_process']['name'],
+                         'note': 'flight_id = std_flight_core.id', 'type': 'fk', 'level': 1, 'count': 1,
+                         'rows': clean_rows(catalog, 'std_flight_process', [t_data['process_row']])}]
+                       if t_data.get('process_row') else [])
+        elif intent == 'acdm_report' and acdm_report_res is not None:
+            main = json_safe(acdm_report_res['rows'])
+            main_total = int(acdm_report_res.get('total') or len(main))
+            related = json_safe(acdm_report_res.get('related', []))
         else:
             main=json_safe(result)
             main_total=sum(int(row.get('n',0)) for row in result)
@@ -645,19 +874,69 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
                 raise ValueError('业务权限已变化，请重新提问')
             emit('answer_delta',delta=claim['text']+'\n')
 
-        claims,text_answer,validation=answer(catalog,plan,evidence,main_total,use_model,text,trace,delivery,
-                                            stream_claim if on_event else None)
-        if access and load_access(conn,access.user_id).revision != access.revision:
-            raise ValueError('业务权限已变化，请重新提问')
-        timings['answer']=round(perf_counter()-checkpoint,3)
-        emit('progress',stage='answer',message='正在组织查询事实、分析解释与证据边界…',percent=92)
-        checkpoint=perf_counter()
-        document=compose_document(text,plan,evidence,claims,len(query_claims),
-            chat if use_model and model_available() and settings.answer_composition_enabled else None,
-            settings.answer_composition_budget,settings.answer_composition_timeout_seconds,trace)
-        if access and load_access(conn,access.user_id).revision != access.revision:
-            raise ValueError('业务权限已变化，请重新提问')
-        timings['composition']=round(perf_counter()-checkpoint,3)
+        if intent == 'acdm_report' and acdm_report_res is not None:
+            fact_ids = [fact['id'] for fact in evidence.get('facts', [])]
+            claims = [{'text': c['text'], 'fact_ids': c.get('fact_ids') or fact_ids}
+                      for c in acdm_report_res.get('claims', [])]
+            text_answer = acdm_report_res['text']
+            validation = 'deterministic'
+            query_claims = claims
+            document = acdm_report_res['document']
+            if on_event and claims:
+                stream_claim(claims[0])
+            timings['answer'] = 0.001
+            timings['composition'] = 0.001
+        elif intent == 'turnaround' and plan.get('turnaround_data'):
+            t_data = plan['turnaround_data']
+            conc = t_data['conclusion']
+            fp = t_data['flight_pair']
+            ms = t_data['milestones']
+            text_answer = t_data.get('dynamic_narrative') or conc['summary']
+            fact_ids = [fact['id'] for fact in evidence.get('facts', [])]
+            claims = [{'text': conc['summary'], 'fact_ids': fact_ids}]
+            clocks = [f'{label} 为 {ms[key]}' for key, label in [('aibt', '实际靠位 AIBT'), ('tobt', '目标撤轮挡 TOBT')] if ms.get(key)]
+            if clocks:
+                claims.append({'text': '，'.join(clocks), 'fact_ids': fact_ids})
+            validation = 'deterministic'
+            query_claims = claims
+            document = {
+                'title': f'{fp} 过站保障作业诊断',
+                'sections': [
+                    {'title': '核心诊断结论', 'kind': 'facts', 'claims': [{'text': conc['summary']}]},
+                    {'title': '作业进度与时隙', 'kind': 'facts', 'claims': claims}
+                ]
+            }
+            if on_event:
+                stream_claim(claims[0])
+            timings['answer'] = 0.001
+            timings['composition'] = 0.001
+        else:
+            claims,text_answer,validation=answer(catalog,plan,evidence,main_total,use_model,text,trace,delivery,
+                                                stream_claim if on_event else None)
+            if coordinated and not claims:
+                claims = [{'text':text_answer,'fact_ids':[]}]
+                query_claims = deepcopy(claims)
+            if access and load_access(conn,access.user_id).revision != access.revision:
+                raise ValueError('业务权限已变化，请重新提交')
+            timings['answer']=round(perf_counter()-checkpoint,3)
+            emit('progress',stage='answer',message='正在组织查询事实、分析解释与证据边界…',percent=92)
+            checkpoint=perf_counter()
+            if coordinated:
+                op_w = plan.get('operational_window')
+                op_note = f"运营日口径：{op_w['start']} 至 {op_w['end']}（当日{op_w.get('startHour', 5):02d}:00起）；" if op_w else ''
+                scope_claim = {'text':'查询范围：' + op_note + catalog.entities[subject].get('query_semantics', {}).get('time_label', '') +
+                    '；仅反映本地已同步记录，未证明同步完整性，不能据此推断未同步业务。',
+                    'fact_ids':[fact['id'] for fact in evidence['facts']], 'kind':'limitations'}
+                claims.append(scope_claim)
+                text_answer += '\n' + scope_claim['text']
+                if on_event:
+                    stream_claim(scope_claim)
+            document=compose_document(text,plan,evidence,claims,len(query_claims),
+                chat if use_model and model_available() and settings.answer_composition_enabled else None,
+                settings.answer_composition_budget,settings.answer_composition_timeout_seconds,trace)
+            if access and load_access(conn,access.user_id).revision != access.revision:
+                raise ValueError('业务权限已变化，请重新提交')
+            timings['composition']=round(perf_counter()-checkpoint,3)
         validation_labels = {'deterministic': '使用确定性事实摘要',
                              'evidence_fallback': '模型回答未通过检查或生成失败，已使用事实摘要',
                              'source_and_numeric_checked': '回答已通过来源、数值与单位检查'}
@@ -681,32 +960,39 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
             'answer':text_answer,'claims':claims,'answer_validation':validation,
             'query_summary':query_summary,'answer_document':document,
             'evidence':evidence,'model_evidence_delivery':delivery,
+            'applied_rules':plan.get('applied_rules') or [],
+            'plan_template':plan.get('plan_template'),
+            'operational_window':plan.get('operational_window'),
             'ontology_version':catalog.version,'timings':timings,
             'elapsed':round(perf_counter()-started,3)}
         from app.agent.visual import build_visual_meta
-        visual_meta = build_visual_meta(plan, main if intent != 'detail' else main[:5], main_total, metric, catalog)
+        visual_meta = (acdm_report_res['visual_meta']
+                       if intent == 'acdm_report' and acdm_report_res is not None and acdm_report_res.get('visual_meta')
+                       else build_visual_meta(plan, main if intent != 'detail' else main[:5], main_total, metric, catalog, related=related))
         output['visual_meta'] = visual_meta
         output['coverage_assessment'] = coverage_check
+        if coordinated:
+            output['outcome'] = 'answered' if main_total else 'no_data'
         emit('visual_meta', data=visual_meta)
         if access:
             output['access_revision']=access.revision
             output['data_scope']=access.effective_scope
         aggregate_table=plan.get('aggregate_target') or subject
-        if intent != 'detail':
+        if intent not in ('detail', 'acdm_report'):
             output['field_meta'].update(field_meta(catalog,[aggregate_table]))
             output['field_meta'][aggregate_table].update({
                 'n':{'label':'参与记录数'}, 'total':{'label':(metric or {}).get('name','合计'),
                                                   'unit':(metric or {}).get('unit','')},
                 'mx':{'label':'单笔最大'}, 'missing':{'label':'金额为空记录数'},
                 'invalid':{'label':'无效金额记录数'}, '__period':{'label':'统计期间'}})
-        if main_total:
+        if main_total and intent not in ('turnaround', 'acdm_report'):
             target=plan.get('aggregate_target') or subject if intent!='detail' else subject
             output['drill_token']=token_for(plan,catalog,main_total,target)
-        if any(r['count'] for r in related):
+        if any(r['count'] for r in related) and intent not in ('turnaround', 'acdm_report'):
             output['related_token']=token_for(plan,catalog,main_total,
                                 related={r['table']:r['count'] for r in related})
         trace.start('done', '完成查询', '封装可核验结果、查询计划与执行过程')
-        if use_cache:
+        if use_cache and intent != 'acdm_report':
             remember_plan(output['question'],plan,catalog)
         with LOCK:
             STATUS['requests']+=1

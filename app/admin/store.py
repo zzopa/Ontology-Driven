@@ -1,6 +1,6 @@
 """SQLite management data, transactional access control and audit trail."""
 from contextlib import closing, contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -12,8 +12,27 @@ from urllib.parse import urlsplit
 
 from app.admin.security import Vault, digest
 
+SHANGHAI_TZ = timezone(timedelta(hours=8))
+
+
 def now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def utc_iso(value):
+    """Normalize an ISO timestamp or datetime object to canonical UTC ISO string."""
+    if value is None or value == '':
+        return None
+    if isinstance(value, datetime):
+        dt = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc).isoformat()
+    text_value = str(value).strip()
+    if not text_value:
+        return None
+    dt = datetime.fromisoformat(text_value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).isoformat()
 
 
 def text(value, label, maximum=200, required=True):
@@ -63,8 +82,50 @@ class AdminStore:
                   scope TEXT PRIMARY KEY, failures INTEGER NOT NULL, window REAL NOT NULL);
                 CREATE TABLE IF NOT EXISTS business_credentials (
                   token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires REAL NOT NULL);
+                CREATE TABLE IF NOT EXISTS sync_runs (
+                  id TEXT PRIMARY KEY,
+                  job_key TEXT NOT NULL,
+                  title TEXT NOT NULL,
+                  source_origin TEXT NOT NULL,
+                  mode TEXT NOT NULL,
+                  status TEXT NOT NULL,
+                  started_at TEXT NOT NULL,
+                  finished_at TEXT,
+                  elapsed_ms INTEGER NOT NULL DEFAULT 0,
+                  fetched INTEGER NOT NULL DEFAULT 0,
+                  inserted INTEGER NOT NULL DEFAULT 0,
+                  updated INTEGER NOT NULL DEFAULT 0,
+                  skipped INTEGER NOT NULL DEFAULT 0,
+                  failed INTEGER NOT NULL DEFAULT 0,
+                  watermark_before TEXT,
+                  watermark_after TEXT,
+                  actor TEXT NOT NULL,
+                  actor_name TEXT NOT NULL,
+                  params_json TEXT,
+                  detail_json TEXT,
+                  message TEXT,
+                  backup_file TEXT,
+                  external_key TEXT UNIQUE);
+                CREATE TABLE IF NOT EXISTS ask_feedback (
+                  id TEXT PRIMARY KEY,
+                  conversation_id TEXT,
+                  message_id TEXT UNIQUE,
+                  user_id TEXT NOT NULL,
+                  username TEXT NOT NULL DEFAULT '',
+                  display_name TEXT NOT NULL DEFAULT '',
+                  question_text TEXT NOT NULL,
+                  answer_text TEXT NOT NULL,
+                  response_summary TEXT,
+                  reason_codes TEXT NOT NULL,
+                  comment_text TEXT NOT NULL DEFAULT '',
+                  status TEXT NOT NULL DEFAULT 'OPEN',
+                  admin_note TEXT NOT NULL DEFAULT '',
+                  created_at TEXT NOT NULL,
+                  updated_at TEXT NOT NULL);
                 CREATE INDEX IF NOT EXISTS conversation_owner ON conversations(owner, updated_at);
                 CREATE INDEX IF NOT EXISTS message_conversation ON messages(conversation_id, created_at);
+                CREATE INDEX IF NOT EXISTS sync_runs_started ON sync_runs(started_at DESC);
+                CREATE INDEX IF NOT EXISTS ask_feedback_status ON ask_feedback(status, updated_at DESC);
             ''')
             # executescript ends the outer transaction; start one for the migration and seed.
             db.execute('BEGIN IMMEDIATE')
@@ -83,9 +144,10 @@ class AdminStore:
                                initial['url'], initial['model'], self.vault.seal(initial.get('key', '')), 1, now()))
                     db.execute('INSERT OR IGNORE INTO preferences VALUES (?,?)', ('active_model', '"default"'))
             db.execute("UPDATE messages SET status='interrupted', error='服务重启，查询未完成' WHERE status='running'")
+            db.execute("UPDATE sync_runs SET status='interrupted', message='服务重启，同步状态未回传', finished_at=COALESCE(finished_at,?) WHERE status='running'", (now(),))
             db.execute('DELETE FROM business_credentials WHERE expires < ?', (time(),))
             db.execute('DELETE FROM token_grants WHERE expires < ?', (time(),))
-            db.execute('PRAGMA user_version=2')
+            db.execute('PRAGMA user_version=4')
 
     def backup_legacy_accounts(self):
         if not self.path.exists():
@@ -266,19 +328,32 @@ class AdminStore:
         if not conversation_id:
             return None
         with self.db() as db:
-            row = db.execute(
+            rows = db.execute(
                 "SELECT m.result FROM messages m JOIN conversations c ON c.id=m.conversation_id "
                 "WHERE m.conversation_id=? AND c.owner=? AND m.status='completed' AND m.result IS NOT NULL "
-                "ORDER BY m.created_at DESC LIMIT 1",
+                "ORDER BY m.created_at DESC",
                 (conversation_id, owner)
-            ).fetchone()
-            if not row or not row['result']:
-                return None
-            try:
-                result = json.loads(self.vault.open(row['result']))
-                return result.get('plan')
-            except Exception:
-                return None
+            ).fetchall()
+            for row in rows:
+                try:
+                    result = json.loads(self.vault.open(row['result']))
+                except (ValueError, TypeError):
+                    continue
+                if result.get('outcome', 'answered') in ('answered','no_data','out_of_coverage') and result.get('plan'):
+                    return result['plan']
+            return None
+
+    def clarification(self, conversation_id, owner, message_id):
+        with self.db() as db:
+            self.check_conversation(db, conversation_id, owner)
+            row = db.execute('SELECT id,result FROM messages WHERE conversation_id=? ORDER BY created_at DESC LIMIT 1',
+                             (conversation_id,)).fetchone()
+            if not row or row['id'] != message_id or not row['result']:
+                raise ValueError('澄清已结束或不属于本会话，请重新提问')
+            result = json.loads(self.vault.open(row['result']))
+            if result.get('outcome') != 'clarification_needed' or not result.get('clarification'):
+                raise ValueError('此消息没有待确认的查询条件')
+            return result['clarification']
 
     def edit_conversation(self, conversation_id, owner, data, all_access=False):
         with self.db() as db:
@@ -334,3 +409,359 @@ class AdminStore:
             db.execute('DELETE FROM token_grants WHERE expires<?', (time(),))
             self.log(db, actor, 'retention.purge', detail=f'已清理 {count} 个超过 {days} 天的会话')
             return count
+
+    @staticmethod
+    def _sync_run_dict(row):
+        data = dict(row)
+        for src, dst in (('params_json', 'params'), ('detail_json', 'detail')):
+            raw = data.pop(src, None)
+            try:
+                data[dst] = json.loads(raw) if raw else None
+            except ValueError:
+                data[dst] = None
+        return data
+
+    def active_sync_run(self):
+        with self.db() as db:
+            row = db.execute("SELECT * FROM sync_runs WHERE status='running' ORDER BY started_at DESC LIMIT 1").fetchone()
+            return self._sync_run_dict(row) if row else None
+
+    def sync_run(self, run_id):
+        with self.db() as db:
+            row = db.execute('SELECT * FROM sync_runs WHERE id=?', (run_id,)).fetchone()
+            if not row:
+                raise ValueError('同步记录不存在')
+            return self._sync_run_dict(row)
+
+    def begin_sync_run(self, job_key, title, source_origin, mode, actor, actor_name, params=None):
+        run_id = secrets.token_hex(12)
+        started = now()
+        with self.db() as db:
+            if db.execute("SELECT 1 FROM sync_runs WHERE status='running' LIMIT 1").fetchone():
+                raise ValueError('已有同步任务正在执行，请等待当前任务完成')
+            db.execute(
+                'INSERT INTO sync_runs(id,job_key,title,source_origin,mode,status,started_at,'
+                'elapsed_ms,fetched,inserted,updated,skipped,failed,actor,actor_name,params_json,message) '
+                'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                (run_id, job_key, title, source_origin, mode, 'running', started,
+                 0, 0, 0, 0, 0, 0, actor, actor_name,
+                 json.dumps(params or {}, ensure_ascii=False), '任务正在执行…'),
+            )
+            row = db.execute('SELECT * FROM sync_runs WHERE id=?', (run_id,)).fetchone()
+            return self._sync_run_dict(row)
+
+    def complete_sync_run(self, run_id, *, status, elapsed_ms=0, fetched=0, inserted=0, updated=0,
+                          skipped=0, failed=0, watermark_before=None, watermark_after=None,
+                          detail=None, message='', backup_file='', finished_at=None):
+        completed = utc_iso(finished_at) or now()
+        with self.db() as db:
+            updated_rows = db.execute(
+                'UPDATE sync_runs SET status=?,finished_at=?,elapsed_ms=?,fetched=?,inserted=?,updated=?,'
+                'skipped=?,failed=?,watermark_before=?,watermark_after=?,detail_json=?,message=?,backup_file=? '
+                'WHERE id=?',
+                (status, completed, max(0, int(elapsed_ms)), max(0, int(fetched)), max(0, int(inserted)),
+                 max(0, int(updated)), max(0, int(skipped)), max(0, int(failed)),
+                 watermark_before or '', watermark_after or '',
+                 json.dumps(detail, ensure_ascii=False) if detail is not None else None,
+                 (message or '')[:500], backup_file or '', run_id),
+            ).rowcount
+            if not updated_rows:
+                raise ValueError('同步记录不存在')
+            return self._sync_run_dict(db.execute('SELECT * FROM sync_runs WHERE id=?', (run_id,)).fetchone())
+
+    def update_sync_run_progress(self, run_id, *, elapsed_ms=0, fetched=0, inserted=0, updated=0,
+                                 skipped=0, failed=0, detail=None, message='', backup_file=''):
+        """Persist intermediate step totals and live status message while a sync run is executing."""
+        with self.db() as db:
+            db.execute(
+                'UPDATE sync_runs SET elapsed_ms=?,fetched=?,inserted=?,updated=?,'
+                'skipped=?,failed=?,detail_json=?,message=?,backup_file=? '
+                "WHERE id=? AND status='running'",
+                (max(0, int(elapsed_ms)), max(0, int(fetched)), max(0, int(inserted)),
+                 max(0, int(updated)), max(0, int(skipped)), max(0, int(failed)),
+                 json.dumps(detail, ensure_ascii=False) if detail is not None else None,
+                 (message or '')[:500], backup_file or '', run_id),
+            )
+
+    def sync_runs_count(self):
+        with self.db() as db:
+            return db.execute('SELECT COUNT(*) FROM sync_runs').fetchone()[0]
+
+    def reconcile_external_sync_runs(self, entries):
+        """Record external/scheduled runs seen in sync_job_state without duplicating UI-initiated runs."""
+        if not entries:
+            return 0
+        added = 0
+        covering_jobs = {
+            'flights_fims': ('flights_fims', 'flights_scheduled', 'full_pipeline', 'full_sync'),
+            'flights_acdm': ('flights_acdm', 'flights_scheduled', 'full_pipeline', 'full_sync'),
+            'codeshares': ('codeshares', 'flights_fims', 'flights_scheduled', 'full_pipeline', 'full_sync'),
+            'production': ('production', 'full_pipeline', 'full_sync'),
+            'master_data': ('master_data', 'full_pipeline', 'full_sync'),
+            'flights_scheduled': ('flights_scheduled', 'full_pipeline', 'full_sync'),
+        }
+        with self.db() as db:
+            for item in entries:
+                external_key = item.get('external_key')
+                finished = utc_iso(item.get('finished_at'))
+                if not external_key or not finished:
+                    continue
+                if db.execute('SELECT 1 FROM sync_runs WHERE external_key=?', (external_key,)).fetchone():
+                    continue
+                finished_dt = datetime.fromisoformat(finished)
+                parents = covering_jobs.get(item['job_key'], (item['job_key'],))
+                placeholders = ','.join('?' for _ in parents)
+                candidates = db.execute(
+                    f"SELECT started_at, finished_at FROM sync_runs WHERE source_origin != 'external' AND job_key IN ({placeholders})",
+                    parents,
+                ).fetchall()
+                overlapped = False
+                for cand in candidates:
+                    try:
+                        s_dt = datetime.fromisoformat(utc_iso(cand['started_at']) or now())
+                        f_dt = datetime.fromisoformat(utc_iso(cand['finished_at']) or now())
+                        if (s_dt.timestamp() - 15) <= finished_dt.timestamp() <= (f_dt.timestamp() + 30):
+                            overlapped = True
+                            break
+                    except ValueError:
+                        continue
+                if overlapped:
+                    continue
+                started = utc_iso(item.get('started_at')) or finished
+                failed = max(0, int(item.get('failed') or 0))
+                status = 'partial' if failed > 0 else 'completed'
+                db.execute(
+                    'INSERT OR IGNORE INTO sync_runs('
+                    'id,job_key,title,source_origin,mode,status,started_at,finished_at,elapsed_ms,'
+                    'fetched,inserted,updated,skipped,failed,watermark_before,watermark_after,'
+                    'actor,actor_name,params_json,detail_json,message,backup_file,external_key) '
+                    'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                    (secrets.token_hex(12), item['job_key'], item['title'], 'external',
+                     item.get('mode') or 'INCREMENTAL', status, started, finished,
+                     max(0, int(item.get('elapsed_ms') or 0)),
+                     max(0, int(item.get('fetched') or 0)),
+                     max(0, int(item.get('inserted') or 0)),
+                     max(0, int(item.get('updated') or 0)),
+                     max(0, int(item.get('skipped') or 0)),
+                     failed,
+                     item.get('watermark_before') or '',
+                     item.get('watermark_after') or '',
+                     'sync-service', '外部/定时同步',
+                     json.dumps({'origin': 'sync_job_state'}, ensure_ascii=False),
+                     json.dumps(item.get('detail'), ensure_ascii=False) if item.get('detail') is not None else None,
+                     (item.get('message') or '')[:500], '', external_key),
+                )
+                added += 1
+        return added
+
+    def _sync_summary(self, db):
+        row = db.execute(
+            "SELECT COUNT(*) AS total_runs, "
+            "SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS completed_runs, "
+            "SUM(CASE WHEN status IN ('failed','interrupted') THEN 1 ELSE 0 END) AS failed_runs, "
+            "SUM(CASE WHEN status='running' THEN 1 ELSE 0 END) AS running_runs, "
+            "COALESCE(SUM(fetched), 0) AS total_fetched, "
+            "COALESCE(SUM(inserted), 0) AS total_inserted, "
+            "COALESCE(SUM(updated), 0) AS total_updated, "
+            "COALESCE(SUM(failed), 0) AS total_failed, "
+            "MAX(CASE WHEN status IN ('completed','partial') THEN COALESCE(finished_at, started_at) END) AS latest_success_at "
+            "FROM sync_runs"
+        ).fetchone()
+        local_today = datetime.now(SHANGHAI_TZ).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).isoformat()
+        today_row = db.execute(
+            "SELECT COUNT(*) AS today_runs, COALESCE(SUM(fetched), 0) AS today_fetched "
+            "FROM sync_runs WHERE started_at >= ?",
+            (local_today,),
+        ).fetchone()
+        return {
+            'total_runs': row['total_runs'] or 0,
+            'completed_runs': row['completed_runs'] or 0,
+            'failed_runs': row['failed_runs'] or 0,
+            'running_runs': row['running_runs'] or 0,
+            'total_fetched': row['total_fetched'] or 0,
+            'total_inserted': row['total_inserted'] or 0,
+            'total_updated': row['total_updated'] or 0,
+            'total_failed': row['total_failed'] or 0,
+            'today_runs': today_row['today_runs'] or 0,
+            'today_fetched': today_row['today_fetched'] or 0,
+            'latest_success_at': row['latest_success_at'],
+        }
+
+    def sync_summary(self):
+        with self.db() as db:
+            return self._sync_summary(db)
+
+    def sync_runs(self, page=1, page_size=20, job_key='', status='', search=''):
+        page = max(1, int(page))
+        page_size = max(1, min(100, int(page_size)))
+        where, params = ['1=1'], []
+        if job_key:
+            where.append('job_key=?')
+            params.append(job_key[:60])
+        if status:
+            where.append('status=?')
+            params.append(status[:30])
+        if search:
+            escaped = '%' + search[:100].replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
+            where.append("(title LIKE ? ESCAPE '\\' OR COALESCE(message,'') LIKE ? ESCAPE '\\' OR actor_name LIKE ? ESCAPE '\\')")
+            params.extend([escaped, escaped, escaped])
+        clause = ' WHERE ' + ' AND '.join(where)
+        with self.db() as db:
+            total = db.execute('SELECT COUNT(*) FROM sync_runs' + clause, params).fetchone()[0]
+            rows = db.execute(
+                'SELECT * FROM sync_runs' + clause + ' ORDER BY started_at DESC LIMIT ? OFFSET ?',
+                [*params, page_size, (page - 1) * page_size],
+            ).fetchall()
+            return {
+                'ok': True,
+                'items': [self._sync_run_dict(row) for row in rows],
+                'total': total,
+                'page': page,
+                'page_size': page_size,
+                'summary': self._sync_summary(db),
+            }
+
+    _FEEDBACK_STATUSES = ('OPEN', 'INVESTIGATING', 'FIXED', 'WONT_FIX')
+    _FEEDBACK_REASONS = ('WRONG_INTENT', 'WRONG_DATA', 'WRONG_FILTER', 'NO_ANSWER', 'OTHER')
+    _HIGH_SEVERITY_REASONS = {'WRONG_DATA', 'WRONG_INTENT', 'NO_ANSWER'}
+
+    def _feedback_dict(self, row):
+        codes = json.loads(row['reason_codes'] or '[]')
+        summary = json.loads(row['response_summary']) if row['response_summary'] else None
+        severity = 'HIGH' if any(c in self._HIGH_SEVERITY_REASONS for c in codes) else 'NORMAL'
+        return {
+            'id': row['id'],
+            'conversation_id': row['conversation_id'] or '',
+            'message_id': row['message_id'] or '',
+            'user_id': row['user_id'],
+            'username': row['username'],
+            'display_name': row['display_name'],
+            'question_text': row['question_text'],
+            'answer_text': row['answer_text'],
+            'response_summary': summary,
+            'reason_codes': codes,
+            'comment': row['comment_text'],
+            'severity': severity,
+            'status': row['status'],
+            'admin_note': row['admin_note'],
+            'created_at': row['created_at'],
+            'updated_at': row['updated_at'],
+        }
+
+    def submit_feedback(self, user, payload):
+        question_text = text(payload.get('question_text'), '问题内容', 4000)
+        answer_text = str(payload.get('answer_text') or '').strip()[:8000]
+        raw_codes = payload.get('reason_codes')
+        if not isinstance(raw_codes, list) or not raw_codes:
+            raise ValueError('请至少选择一个反馈原因')
+        codes = [c for c in dict.fromkeys(str(x).strip().upper() for x in raw_codes) if c in self._FEEDBACK_REASONS]
+        if not codes:
+            raise ValueError('反馈原因编码无效')
+        comment = str(payload.get('comment') or '').strip()[:2000]
+        conv_id = str(payload.get('conversation_id') or '').strip()[:64]
+        msg_id = str(payload.get('message_id') or '').strip()[:64] or secrets.token_hex(12)
+        summary = payload.get('response_summary')
+        summary_json = json.dumps(summary, ensure_ascii=False, default=str)[:16000] if isinstance(summary, dict) else None
+        ts = now()
+        fid = secrets.token_hex(12)
+        with self.db() as db:
+            existing = db.execute('SELECT * FROM ask_feedback WHERE message_id=?', (msg_id,)).fetchone()
+            if existing:
+                db.execute(
+                    'UPDATE ask_feedback SET reason_codes=?, comment_text=?, response_summary=COALESCE(?,response_summary), updated_at=? WHERE id=?',
+                    (json.dumps(codes, ensure_ascii=False), comment, summary_json, ts, existing['id']),
+                )
+                row = db.execute('SELECT * FROM ask_feedback WHERE id=?', (existing['id'],)).fetchone()
+            else:
+                db.execute(
+                    'INSERT INTO ask_feedback(id,conversation_id,message_id,user_id,username,display_name,question_text,answer_text,response_summary,reason_codes,comment_text,status,admin_note,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                    (fid, conv_id, msg_id, user['id'], user.get('username', ''), user.get('display_name', ''),
+                     question_text, answer_text, summary_json, json.dumps(codes, ensure_ascii=False), comment,
+                     'OPEN', '', ts, ts),
+                )
+                row = db.execute('SELECT * FROM ask_feedback WHERE id=?', (fid,)).fetchone()
+            self.log(db, user['id'], 'ask.feedback', row['id'], ','.join(codes))
+            return self._feedback_dict(row)
+
+    def feedback_counts(self):
+        with self.db() as db:
+            counts = {k: 0 for k in self._FEEDBACK_STATUSES}
+            total = 0
+            for status, n in db.execute('SELECT status, COUNT(*) FROM ask_feedback GROUP BY status'):
+                counts[status] = n
+                total += n
+            counts['ALL'] = total
+            return counts
+
+    def feedback_list(self, status='', search='', reason='', severity='', start_date='', end_date='', page=1, page_size=20):
+        page = max(1, int(page))
+        page_size = max(1, min(100, int(page_size)))
+        where, params = ['1=1'], []
+        if status and status != 'ALL':
+            where.append('status=?')
+            params.append(status[:30])
+        if reason:
+            where.append('reason_codes LIKE ?')
+            params.append('%' + reason[:40] + '%')
+        sev = str(severity or '').strip().upper()
+        high_pats = ['%' + r + '%' for r in sorted(self._HIGH_SEVERITY_REASONS)]
+        if sev == 'HIGH':
+            where.append('(' + ' OR '.join('reason_codes LIKE ?' for _ in high_pats) + ')')
+            params.extend(high_pats)
+        elif sev == 'NORMAL':
+            where.append('(' + ' AND '.join('reason_codes NOT LIKE ?' for _ in high_pats) + ')')
+            params.extend(high_pats)
+        if start_date and re.match(r'^\d{4}-\d{2}-\d{2}$', start_date.strip()):
+            where.append('substr(created_at, 1, 10) >= ?')
+            params.append(start_date.strip())
+        if end_date and re.match(r'^\d{4}-\d{2}-\d{2}$', end_date.strip()):
+            where.append('substr(created_at, 1, 10) <= ?')
+            params.append(end_date.strip())
+        if search:
+            esc = '%' + search[:100].replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
+            where.append("(question_text LIKE ? ESCAPE '\\' OR username LIKE ? ESCAPE '\\' OR display_name LIKE ? ESCAPE '\\' OR admin_note LIKE ? ESCAPE '\\')")
+            params.extend([esc, esc, esc, esc])
+        clause = ' WHERE ' + ' AND '.join(where)
+        with self.db() as db:
+            total = db.execute('SELECT COUNT(*) FROM ask_feedback' + clause, params).fetchone()[0]
+            rows = db.execute(
+                'SELECT * FROM ask_feedback' + clause + ' ORDER BY updated_at DESC LIMIT ? OFFSET ?',
+                [*params, page_size, (page - 1) * page_size],
+            ).fetchall()
+            counts = {k: 0 for k in self._FEEDBACK_STATUSES}
+            all_total = 0
+            for st_key, n in db.execute('SELECT status, COUNT(*) FROM ask_feedback GROUP BY status'):
+                counts[st_key] = n
+                all_total += n
+            counts['ALL'] = all_total
+            return {
+                'ok': True,
+                'items': [self._feedback_dict(row) for row in rows],
+                'total': total,
+                'page': page,
+                'page_size': page_size,
+                'counts': counts,
+            }
+
+    def feedback_get(self, feedback_id):
+        with self.db() as db:
+            row = db.execute('SELECT * FROM ask_feedback WHERE id=?', (feedback_id,)).fetchone()
+            if not row:
+                raise ValueError('反馈记录不存在')
+            return self._feedback_dict(row)
+
+    def update_feedback(self, feedback_id, status, admin_note, actor):
+        st = str(status or '').strip().upper()
+        if st not in self._FEEDBACK_STATUSES:
+            raise ValueError('反馈状态无效')
+        note = str(admin_note or '').strip()[:1000]
+        ts = now()
+        with self.db() as db:
+            cur = db.execute(
+                'UPDATE ask_feedback SET status=?, admin_note=?, updated_at=? WHERE id=?',
+                (st, note, ts, feedback_id),
+            )
+            if cur.rowcount == 0:
+                raise ValueError('反馈记录不存在')
+            self.log(db, actor, 'feedback.update', feedback_id, f'status={st}')
+            return self._feedback_dict(db.execute('SELECT * FROM ask_feedback WHERE id=?', (feedback_id,)).fetchone())

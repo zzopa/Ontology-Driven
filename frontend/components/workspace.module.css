@@ -1,0 +1,52 @@
+.workspace{min-width:0}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
+.toolbar h1{font-size:20px;font-weight:600;letter-spacing:0}
+.title{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.actions,.controlActions{display:flex;align-items:center;gap:12px}
+.actions{gap:8px}
+.queryCard{padding:16px 18px;border-radius:10px;background:var(--paper,var(--panel));box-shadow:none}
+.queryLabel{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;font-size:13px;font-weight:600}
+.queryLabel small{font-weight:400}
+.composer{display:flex;align-items:center;padding-right:12px;border-radius:9px}
+.workspace .composer textarea{min-width:0;flex:1;min-height:60px;max-height:180px;padding:12px 14px;font-size:15px;line-height:1.7}
+.composer>button{flex-shrink:0}
+.controls{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px}
+.controls :global(.inline-button){min-height:32px}
+.quickStrip{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.quickLabel{font-size:11px;color:var(--muted);margin-right:4px}
+.quickChip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:12px;line-height:1.4;cursor:pointer;transition:border-color .15s ease,background-color .15s ease,color .15s ease}
+.quickChip:hover:not(:disabled){border-color:var(--accent);color:var(--accent-bright);background:color-mix(in srgb,var(--accent) 6%,var(--panel))}
+.quickChip:disabled{opacity:.55;cursor:not-allowed}
+.workspace .results{margin-top:20px;scroll-margin-top:16px}
+.telemetryGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:18px}
+.telemetryCard{display:flex;flex-direction:column;gap:6px;padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--panel);box-shadow:inset 0 1px 0 color-mix(in srgb,var(--text) 6%,transparent);min-width:0;text-align:left;color:var(--text);transition:border-color .15s ease,background-color .15s ease}
+.telemetryBtn{cursor:pointer}
+.telemetryBtn:hover{border-color:color-mix(in srgb,var(--accent) 40%,var(--line));background:color-mix(in srgb,var(--accent) 3%,var(--panel))}
+.telemetryBtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.telemetryHead{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted)}
+.telemetryHead svg{color:var(--accent-bright)}
+.telemetryValue{font-size:24px;line-height:1.25;font-weight:600;letter-spacing:-.5px;color:var(--text);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.telemetryValue[data-text=true]{font-size:18px;line-height:30px;font-family:Consolas,"Cascadia Code",monospace}
+.telemetryMeta{font-size:12px;color:var(--subtle);line-height:1.5;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:1150px){
+ .telemetryGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:720px){
+ .toolbar{flex-wrap:wrap;gap:10px}
+ .toolbar h1{font-size:18px}
+ .actions{margin-left:auto}
+ .actions>button{font-size:12px;padding-inline:10px}
+ .queryCard{padding:12px}
+ .queryLabel{align-items:flex-start}
+ .queryLabel small{font-size:11px}
+ .composer{flex-wrap:wrap;justify-content:flex-end;padding:0 10px 10px}
+ .workspace .composer textarea{flex-basis:100%;padding:12px 2px;min-height:76px;font-size:16px}
+ .composer>button{min-height:40px}
+ .controls{align-items:flex-start;flex-wrap:wrap;gap:4px}
+ .controlActions{flex:1;justify-content:flex-end;gap:12px}
+ .controls :global(.inline-button){min-height:40px;font-size:12px}
+ .workspace .results{margin-top:16px}
+}
+@media(max-width:540px){
+ .telemetryGrid{grid-template-columns:1fr;gap:10px}
+}

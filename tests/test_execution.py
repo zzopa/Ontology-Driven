@@ -1,14 +1,17 @@
 """Public milestones and failure retention, with no external model calls."""
 from copy import deepcopy
+from contextlib import nullcontext
+from datetime import datetime
+from decimal import Decimal
 import json
 from threading import Event
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from app import core
 from app.execution import ExecutionTrace
-from app.main import stream_question
+from app.main import run_question, stream_question
 from fixtures import fixture_catalog
 
 
@@ -139,6 +142,38 @@ class ExecutionTests(unittest.TestCase):
                 release.set()
             rest = [json.loads(chunk) for chunk in stream]
         self.assertEqual(rest[-1]['type'], 'result')
+
+    def test_stream_serializes_database_types_in_visual_and_final_events(self):
+        amount = Decimal('12345678901234567890.123456789')
+        visual = {'stand': Decimal('231'), 'records': [{'amount': amount, 'at': datetime(2026, 10, 10, 14, 24)}]}
+        def run(prepared, on_event):
+            on_event({'type': 'visual_meta', 'data': visual})
+            return {'ok': True, 'visual_meta': visual}
+        with patch('app.main.run_question', side_effect=run):
+            frames = [json.loads(chunk) for chunk in stream_question({'conversation_id': 'test-only'})]
+        self.assertEqual([frame['type'] for frame in frames], ['progress', 'visual_meta', 'result'])
+        for visual in [frames[1]['data'], frames[2]['data']['visual_meta']]:
+            self.assertEqual(visual['stand'], '231')
+            self.assertEqual(visual['records'][0]['amount'], str(amount))
+            self.assertEqual(visual['records'][0]['at'], '2026-10-10 14:24:00')
+
+    def test_completed_result_is_json_safe_before_storage_and_rest_response(self):
+        from fastapi.responses import JSONResponse
+        store, conn = Mock(), Mock()
+        store.latest_completed_plan.return_value = None
+        prepared = {'model': {}, 'question': '查询保障记录', 'business_user_id': 'test', 'owner': 'test',
+                    'conversation_id': 'c' * 32, 'message_id': 'm' * 32}
+        raw = {'ok': True, 'visual_meta': {'stand': Decimal('231'), 'nested': [Decimal('0.1234567890123456789')]}}
+        with patch('app.main.admin_service.get_store', return_value=store), \
+             patch('app.main.llm.model_context', return_value=nullcontext()), \
+             patch('app.main.core.connect_db', return_value=conn), \
+             patch('app.main.business_access.load_access', return_value=SimpleNamespace(roles=['admin'])), \
+             patch('app.main.settings', SimpleNamespace(data_source='ops_ask', db={'database': 'ops_ask'}, drill_ttl_seconds=1800)), \
+             patch('app.main.core.do_ask', return_value=raw):
+            result = run_question(prepared)
+        self.assertEqual(json.loads(JSONResponse(result).body)['visual_meta']['stand'], '231')
+        self.assertEqual(result['visual_meta']['nested'], ['0.1234567890123456789'])
+        self.assertEqual(store.complete_question.call_args.args[1], result)
 
     def test_unresolved_filters_preserve_a_failed_step_after_model_was_skipped(self):
         trace = ExecutionTrace()

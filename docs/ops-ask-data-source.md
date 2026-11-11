@@ -4,6 +4,11 @@
 `D:\project\airports-ops-ai\airport-ops-data-sync` 服务从 Oracle FIMS/ACDM 清洗同步。
 问数不直接连接 Oracle。
 
+`ops_ask` 同时保留已同步的 `acdm.tb_dyn_flight` 保障记录。过站甘特图可按机号、
+航班号和业务日期查询这张表；它的日期覆盖与 `std_flight_core` 不同。标准表未匹配
+或缺少作业时刻时，保留同库 ACDM 记录的查询能力，并明确标注实际业务日、来源及
+与最新标准航班的区别，不把不同日期的节点拼成一个过站过程。
+
 “执飞/执行航班”使用 `ops_ask_views.flight_execution` 实时视图，按出港实际起飞、
 进港实际落地确定执行时间，排除取消、逻辑删除和虚拟航班。它不要求两个时间同时存在，
 也不以计划日期代替实际发生日。视图随标准表同步结果实时变化，不复制另一份业务数据。
@@ -21,7 +26,7 @@
 密钥单独加密保存，不复制登录凭据或会话。
 
 本体复用 `meta_model_entity`、`meta_model_field`、`meta_model_relation` 的定义，
-仅开放已配置的 `std_*`、`dim_*` 表。profile 中空字符串排除前缀匹配所有表，
+仅开放已配置的 `std_*`、`dim_*` 表及 `acdm.tb_dyn_flight` 保障来源。profile 中空字符串排除前缀匹配所有表，
 由本体的 `queryable: true` 显式开放标准表，因此新系统表不会自动进入问数范围。
 机位、登机口关联同时匹配机场码与资源码；其他卫星表沿用数据库外键。
 共享关系存在两个航班外键，本体通过关系 `pairs` 明确选择所属航班，避免与关联航班混淆。

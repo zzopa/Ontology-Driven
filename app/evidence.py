@@ -1,5 +1,5 @@
 """Create traceable record facts and validate model claims against supplied evidence."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import re
@@ -47,15 +47,20 @@ def build_evidence(catalog, plan, main_rows, main_total, related, links, metric=
     hidden = set(catalog.overrides.get('sensitive_fields', []))
     tables = [(plan['subject'], main_rows, main_total)] + [
         (r['table'], r['rows'], r['count']) for r in related]
-    if plan['intent'] in ('count','sum'):
+    if plan['intent'] in ('count', 'sum', 'metric', 'acdm_report'):
         target = plan.get('aggregate_target') or plan['subject']
-        facts = [{'id': 'A%d' % (i+1), 'kind': 'aggregate', 'table': target,
+        facts = [{'id': 'A%d' % (i+1),
+                  'kind': 'report' if plan['intent'] == 'acdm_report' else 'aggregate',
+                  'table': target,
                   'name': catalog.entities[target]['name'], 'values': json_safe(row),
                   'metric': metric, 'source': {'database': catalog.schema['database'],
                     'table': target, 'queried_at': now, 'scope': '全部匹配记录'}}
                  for i, row in enumerate(main_rows)]
+        cov = [{'table': r['table'], 'name': r.get('name', r['table']), 'total': r['count'],
+                'provided': len(r.get('rows') or []), 'complete': len(r.get('rows') or []) == r['count']}
+               for r in related] if plan['intent'] == 'acdm_report' else []
         return {'version': catalog.version, 'queried_at': now, 'facts': facts,
-                'relationships': [], 'scope': {'complete_aggregate': True}, 'coverage': []}
+                'relationships': [], 'scope': {'complete_aggregate': True}, 'coverage': cov}
     for table, rows, total in tables:
         spec = catalog.entities[table]
         by_table[table] = []
@@ -175,10 +180,39 @@ def validate_claims(claims, evidence):
 
 def fallback_claims(catalog, plan, evidence, main_total):
     subject = catalog.entities[plan['subject']]['name']
+    if plan.get('flight_sequence'):
+        op_w = plan.get('operational_window')
+        day = (op_w['start'][:10] if op_w and op_w.get('start')
+               else next((str(c['value'])[:10] for c in plan['conditions'] if c['op'] == '>='), ''))
+        mode_label = f"运营日（{int(op_w.get('startHour', 5)):02d}:00起）" if op_w else '自然日'
+        direction = next((c['value'] for c in plan['conditions'] if c['col'] == 'direction'), None)
+        scope = {'DEP': '出港', 'ARR': '进港'}.get(direction, '进出港')
+        label = '最后一班' if plan['flight_sequence'] == 'last' else '第一班'
+        if not evidence['facts']:
+            return [], f'按北京时间{mode_label}及本场实际起降时间，未查到 {day} {scope}航班的实际执行记录，无法确定{label}。这只反映当前已同步数据，不表示当天没有航班。'
+        record = next(f for f in evidence['facts'] if f['table'] == plan['subject'])
+        props = record['properties']
+        number = props['flight_no']['value']
+        event = '实际起飞' if props.get('direction', {}).get('value') == 'DEP' else '实际落地'
+        value = datetime.fromisoformat(str(props['execution_time']['value']).replace('Z', '+00:00'))
+        value = value.replace(tzinfo=timezone(timedelta(hours=8))) if value.tzinfo is None else value.astimezone(timezone(timedelta(hours=8)))
+        text = f'{day} {scope}{label}航班是 {number}，{event}时间为 {value:%Y-%m-%d %H:%M:%S}（北京时间{mode_label}）。按本场实际起降时间排序，仅比较当前数据库已同步且有实际时刻的记录。'
+        return [{'text': text, 'fact_ids': [record['id']]}], text
     if not evidence['facts']:
         return [], '按当前数据库与查询条件，未命中%s记录。' % subject
     facts = evidence['facts']
-    if plan['intent'] in ('count','sum'):
+    if plan['intent'] == 'acdm_report':
+        title_txt = plan.get('disp') or subject
+        return [{'text': title_txt, 'fact_ids': [f['id'] for f in facts]}], title_txt
+    if plan.get('plan_template'):
+        from app.agent.governance_runtime import render_template_summary
+        rendered_tpl = render_template_summary(catalog, plan, evidence, main_total)
+        if rendered_tpl:
+            if plan['intent'] in ('count', 'sum', 'metric'):
+                return [{'text': rendered_tpl, 'fact_ids': [f['id'] for f in facts]}], rendered_tpl
+            primary_ids = [f['id'] for f in facts if f['table'] == plan['subject']] or [facts[0]['id']]
+            return [{'text': rendered_tpl, 'fact_ids': primary_ids}], rendered_tpl
+    if plan['intent'] in ('count','sum','metric'):
         if len(facts)>8:
             text='%s匹配 %d 条记录，共 %d 个统计分组。完整分组结果及口径见下方表格。' % (subject,main_total,len(facts))
             if plan['intent']=='sum':
@@ -189,19 +223,53 @@ def fallback_claims(catalog, plan, evidence, main_total):
             values = fact['values']
             if plan['intent'] == 'count':
                 groups = [key for key in values if key != 'n']
-                group_text = '、'.join('%s=%s' % ('统计期间' if k == '__period' else catalog.attribute(fact['table'],k)['label'],
-                                      values[k] if values[k] is not None else '未标注') for k in groups)
+                group_parts = []
+                for k in groups:
+                    if k == '__period':
+                        dim_lbl = '统计期间'
+                    elif hasattr(catalog, 'dimensions') and k in catalog.dimensions:
+                        dim_lbl = catalog.dimensions[k].get('name', k)
+                    elif fact['table'] in catalog.entities and k in catalog.entities[fact['table']]['attributes']:
+                        dim_lbl = catalog.attribute(fact['table'], k)['label']
+                    else:
+                        dim_lbl = k
+                    group_parts.append(f"{dim_lbl}={values[k] if values[k] is not None else '未标注'}")
+                group_text = '、'.join(group_parts)
                 text = '%s%s命中 %s 条记录。' % ((group_text+'：') if group_text else '', fact['name'], values['n'])
             else:
-                metric = fact['metric']
-                groups = [key for key in values if key not in ('total','mx','n','missing','invalid')]
-                group_text = '、'.join('%s=%s' % ('统计期间' if k == '__period' else catalog.attribute(fact['table'], k)['label'],
-                                      values[k] if values[k] is not None else '未标注') for k in groups)
-                text = '%s%s为 %s %s，参与 %s 条记录。' % (
-                    (group_text + '：') if group_text else '', metric['name'],
-                    values['total'], metric.get('unit',''), values['n'])
+                metric = fact.get('metric') or {}
+                val_alias = metric.get('value_alias') or metric.get('field') or 'total'
+                val = values.get(val_alias)
+                if val is None:
+                    for candidate in (metric.get('code'), metric.get('key'), 'total', 'mx'):
+                        if candidate and candidate in values and values[candidate] is not None:
+                            val = values[candidate]
+                            val_alias = candidate
+                            break
+                val_str = str(val) if val is not None else '未能计算（缺少有效值或分母为零）'
+                ignore_keys = {'total', 'mx', 'n', 'missing', 'invalid', val_alias,
+                               metric.get('value_alias'), metric.get('field'), metric.get('code'), metric.get('key')}
+                groups = [key for key in values if key not in ignore_keys]
+                group_parts = []
+                for k in groups:
+                    if k == '__period':
+                        dim_lbl = '统计期间'
+                    elif hasattr(catalog, 'dimensions') and k in catalog.dimensions:
+                        dim_lbl = catalog.dimensions[k].get('name', k)
+                    elif fact['table'] in catalog.entities and k in catalog.entities[fact['table']]['attributes']:
+                        dim_lbl = catalog.attribute(fact['table'], k)['label']
+                    else:
+                        dim_lbl = k
+                    group_parts.append(f"{dim_lbl}={values[k] if values[k] is not None else '未标注'}")
+                group_text = '、'.join(group_parts)
+                m_name = metric.get('name') or metric.get('code') or fact['name']
+                unit = (' ' + metric.get('unit')) if metric.get('unit') and val is not None else ''
+                n_str = ('，参与 %s 条记录' % values['n']) if 'n' in values else ''
+                text = '%s%s为 %s%s%s。' % (
+                    (group_text + '：') if group_text else '', m_name,
+                    val_str, unit, n_str)
                 if values.get('missing'):
-                    text += '其中 %s 条缺少金额值，合计仅包含有效非空金额。' % values['missing']
+                    text += '其中 %s 条缺少有效值。' % values['missing']
             claims.append({'text': text, 'fact_ids': [fact['id']]})
         return claims, '\n'.join(c['text'] for c in claims)
     primary = [f for f in facts if f['table'] == plan['subject']]

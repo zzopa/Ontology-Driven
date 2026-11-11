@@ -3,17 +3,17 @@ import { useCallback, useEffect, useState } from "react";
 import { Palette } from "lucide-react";
 import { Button, Modal } from "./ui";
 const themes = [
- ["曜石绿", "#0c0c0e", "#ededf0", "#10b981"],
- ["极简白", "#f4f6f8", "#202938", "#047857"],
- ["深海蓝", "#0b1425", "#e2edff", "#38bdf8"],
- ["星夜紫", "#181225", "#ede5ff", "#a78bfa"],
- ["森林绿", "#101e18", "#e0f2e7", "#4ade80"],
- ["樱花粉", "#fff1f4", "#4a2535", "#be185d"],
- ["暖沙金", "#f7f1e5", "#44382b", "#a16207"],
- ["雾灰蓝", "#eaf0f5", "#263748", "#0369a1"],
+ ["曜石绿", "#0c1118", "#e9eff5", "#34d399", "#052e24"],
+ ["极简白", "#f4f6f8", "#101c30", "#007a45", "#ffffff"],
+ ["深海蓝", "#0b1425", "#e2edff", "#38bdf8", "#082f49"],
+ ["星夜紫", "#181225", "#ede5ff", "#a78bfa", "#21183d"],
+ ["森林绿", "#101e18", "#e0f2e7", "#4ade80", "#052e16"],
+ ["樱花粉", "#fff1f4", "#4a2535", "#be185d", "#ffffff"],
+ ["暖沙金", "#f7f1e5", "#44382b", "#a16207", "#ffffff"],
+ ["雾灰蓝", "#eaf0f5", "#263748", "#0369a1", "#ffffff"],
 ];
 type Settings = { theme: number; bg: string; text: string };
-const initial: Settings = { theme: 0, bg: themes[0][1], text: themes[0][2] };
+const initial: Settings = { theme: 1, bg: themes[1][1], text: themes[1][2] };
 const key = "hbask-appearance-v1";
 const valid = (v: unknown): v is string => typeof v === "string" && /^#[a-f\d]{6}$/i.test(v);
 function mix(a: string, b: string, ratio: number) {
@@ -21,9 +21,10 @@ function mix(a: string, b: string, ratio: number) {
 }
 function apply(s: Settings) {
  const root=document.documentElement;
- root.style.colorScheme=[1,3,5].reduce((sum,i)=>sum+parseInt(s.bg.slice(i,i+2),16),0)>420?"light":"dark";
+ const light=[1,3,5].reduce((sum,i)=>sum+parseInt(s.bg.slice(i,i+2),16),0)>420;
+ root.style.colorScheme=light?"light":"dark";
  const accent=themes[s.theme][3];
- const tokens={bg:s.bg,text:s.text,panel:mix(s.bg,s.text,.035),surface:mix(s.bg,s.text,.07),line:mix(s.bg,s.text,.17),muted:mix(s.bg,s.text,.66),subtle:mix(s.bg,s.text,.49),accent,"accent-bright":accent};
+ const tokens={bg:s.bg,text:s.text,paper:light?mix(s.bg,"#ffffff",.85):mix(s.bg,s.text,.035),panel:light?mix(s.bg,"#ffffff",.85):mix(s.bg,s.text,.035),surface:mix(s.bg,s.text,.07),line:mix(s.bg,s.text,.17),muted:mix(s.bg,s.text,.9),subtle:mix(s.bg,s.text,.86),accent,"accent-bright":accent,"on-accent":themes[s.theme][4]};
  for(const [k,v] of Object.entries(tokens)) root.style.setProperty(`--${k}`,v);
 }
 export function ThemeSettings() {

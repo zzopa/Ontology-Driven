@@ -67,3 +67,95 @@ def build_operational_conditions(
         cond_start['table'] = table
         cond_end['table'] = table
     return [cond_start, cond_end]
+
+
+def resolve_operational_time_field(catalog: Any, table: str, current_col: str, plan: Dict[str, Any]) -> Tuple[str, bool]:
+    """Resolve a true timestamp column when translating a natural date filter to an operational window."""
+    attrs = (getattr(catalog, 'entities', {}).get(table) or {}).get('attributes', {})
+    cur_type = str((attrs.get(current_col) or {}).get('type') or '').lower()
+    if 'timestamp' in cur_type and current_col != 'flight_date':
+        return current_col, True
+
+    candidates_by_table = {
+        'mv_acdm_dyn_flight_detail': (
+            ['real_takeoff_landin_time', 'plan_time']
+            if current_col == 'exec_date' or plan.get('metric') not in ('flight_total_count', 'planned_flight_count')
+            else ['plan_time', 'real_takeoff_landin_time']
+        ),
+        'std_flight_core': ['flight_scheduled_datetime', 'plan_time'],
+        'ops_ask_views.flight_execution': ['execution_time'],
+        'ops_ask_views.flight_hourly_movements': ['flight_date'],
+    }
+    for cand in candidates_by_table.get(table, []):
+        ctype = str((attrs.get(cand) or {}).get('type') or '').lower()
+        if cand in attrs and 'timestamp' in ctype and cand != 'flight_date':
+            return cand, True
+    return current_col, False
+
+
+def apply_operational_day_to_plan(plan: Dict[str, Any], catalog: Any, day_mode: str = 'AUTO') -> Dict[str, Any]:
+    """Translate plan date conditions into an operational-day boundary window when enabled & active."""
+    if not isinstance(plan, dict) or plan.get('outcome') or plan.get('intent') in ('turnaround', 'acdm_report'):
+        return plan
+    op_cfg = getattr(catalog, 'operational_day', None) or {}
+    if not op_cfg.get('enabled'):
+        return plan
+    req_mode = str(day_mode or 'AUTO').strip().upper()
+    plan_mode = str(plan.get('day_mode') or '').strip().upper()
+    if req_mode in ('CALENDAR', 'NATURAL'):
+        return plan
+    if req_mode != 'OPERATIONAL' and plan_mode != 'OPERATIONAL':
+        return plan
+
+    start_hour = max(0, min(23, int(op_cfg.get('startHour', DEFAULT_START_HOUR))))
+    conditions = plan.get('conditions') or []
+    subject = plan.get('subject') or ''
+
+    date_conds = [
+        c for c in conditions
+        if isinstance(c, dict) and c.get('op') in ('>=', '<', 'prefix')
+        and isinstance(c.get('value'), str) and len(str(c['value'])) >= 10
+        and str(c['value'])[:4].isdigit() and str(c['value'])[4] == '-'
+    ]
+    if not date_conds:
+        return plan
+
+    target_table = date_conds[0].get('table') or subject
+    target_col = date_conds[0].get('col')
+    same_field = [c for c in date_conds if (c.get('table') or subject) == target_table and c.get('col') == target_col]
+
+    start_d: Optional[date] = None
+    end_d: Optional[date] = None
+    for c in same_field:
+        val_date = date.fromisoformat(str(c['value'])[:10])
+        if c['op'] == 'prefix':
+            start_d = end_d = val_date
+        elif c['op'] == '>=':
+            start_d = val_date
+        elif c['op'] == '<':
+            end_d = val_date - timedelta(days=1)
+
+    if start_d is None:
+        return plan
+    if end_d is None or end_d < start_d:
+        end_d = start_d
+
+    ts_col, is_ts = resolve_operational_time_field(catalog, target_table, target_col, plan)
+    if not is_ts:
+        return plan
+
+    win_start, win_end = get_operational_window(start_d, end_d, start_hour=start_hour)
+    kept = [c for c in conditions if c not in same_field]
+    kept.extend([
+        {'table': target_table, 'col': ts_col, 'op': '>=', 'value': win_start.strftime('%Y-%m-%dT%H:%M:%S+08:00')},
+        {'table': target_table, 'col': ts_col, 'op': '<', 'value': win_end.strftime('%Y-%m-%dT%H:%M:%S+08:00')},
+    ])
+    plan['conditions'] = kept
+    plan['day_mode'] = 'OPERATIONAL'
+    plan['operational_window'] = {
+        'start': win_start.strftime('%Y-%m-%d %H:%M:%S'),
+        'end': win_end.strftime('%Y-%m-%d %H:%M:%S'),
+        'startHour': start_hour,
+        'field': ts_col,
+    }
+    return plan

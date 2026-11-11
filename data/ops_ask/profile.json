@@ -17,14 +17,18 @@
   "metadata": {
     "schemas": [
       "public",
-      "ops_ask_views"
+      "ops_ask_views",
+      "acdm"
     ],
     "excluded_prefixes": [
       ""
     ],
     "excluded_suffixes": [],
     "views": [
-      "ops_ask_views.flight_execution"
+      "ops_ask_views.flight_execution",
+      "public.mv_acdm_dyn_flight_detail",
+      "public.mv_acdm_turnaround_pair",
+      "ops_ask_views.flight_hourly_movements"
     ]
   },
   "admin": {
@@ -34,5 +38,9 @@
     "permitted_origins": [
       "http://172.26.197.154:3000"
     ]
+  },
+  "query": {
+    "max_evidence_batches": 1,
+    "coordinator_enabled": true
   }
 }

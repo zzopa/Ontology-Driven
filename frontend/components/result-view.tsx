@@ -1,30 +1,41 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, ArrowUpRight, BarChart3, Braces, Check, ChevronLeft, ChevronRight, Clock3, Code2, Database, Expand, FileCheck2, GitBranch, Layers, List, PieChart, Plane, Search, ShieldCheck, Sparkles, Table2, TrendingUp } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BarChart3, Boxes, Check, ChevronLeft, ChevronRight, Code2, Database, Expand, FileCheck2, Flag, GitBranch, Layers, ListChecks, PieChart, RefreshCw, Search, ShieldCheck, Sparkles, Table2, TrendingUp, X } from "lucide-react";
 import { request } from "@/lib/api";
 import { formatValue } from "@/lib/query";
 import { answerCopyText, answerSections } from "@/lib/answer-document";
-import type { Edge, Fact, FieldMeta, PageData, QueryResult, Row, VisualMeta } from "@/lib/types";
+import type { Edge, ExecutionStep, Fact, FieldMeta, PageData, QueryResult, Row, VisualMeta } from "@/lib/types";
+import { liveAnswerState } from "@/lib/live-answer";
+import { turnaroundRecordSummary } from "@/lib/turnaround-layout";
+import { formatStepElapsed } from "@/lib/execution";
 import { Badge, Button, Card, CopyButton, Modal, Notice, Spinner } from "./ui";
 import { ExecutionProcess } from "./execution-process";
+import { TurnaroundGantt } from "./turnaround-gantt";
+import { FlightMilestones } from "./flight-milestones";
+import s from "./answer-layout.module.css";
+
 
 function RichText({ text }: { text: string }) {
   // React escapes every segment; never render model/database text as HTML.
   return <>{text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, index) => part.startsWith("**") && part.endsWith("**") ? <strong key={index}>{part.slice(2, -2)}</strong> : part.startsWith("`") && part.endsWith("`") ? <code key={index}>{part.slice(1, -1)}</code> : <span key={index}>{part}</span>)}</>;
 }
 
-function AnswerBody({ result }: { result: QueryResult }) {
+function AnswerBody({ result, onEvidence }: { result: QueryResult; onEvidence: () => void }) {
   const sections = answerSections(result);
-  if (!sections) return <div className="answer-text"><RichText text={result.answer || "当前未生成回答，请查看数据明细。"} /></div>;
-  return <>{sections.map(section => <section className="source-claim" key={section.kind} style={{ padding: 16 }}>
-    <h3 className="section-title">{section.title}{section.kind === "interpretation" && <Badge>模型解释</Badge>}</h3>
-    <div className="answer-text" style={{ marginTop: 10 }}>{section.claims.map((claim, i) => <div key={i} style={{ marginTop: i ? 10 : 0 }}><RichText text={claim.text} /></div>)}</div>
-  </section>)}<p className="helper">原始字段和统计口径保留在数据明细中；解释与建议不等于数据库已证实事实，来源检查也不是完整语义证明。</p></>;
+  if (!sections) return <section className={s.answerSection}><span className={s.sectionKicker}>问询结论</span><div className={s.answerText}><RichText text={result.answer || "当前未生成回答，请查看数据明细。"} /></div></section>;
+  return <>{sections.map(section => <section className={s.answerSection} data-kind={section.kind} key={section.kind}>
+    <h3>{section.kind === "query_facts" ? "问询结论" : section.title}{section.kind === "interpretation" && <span>模型解释</span>}</h3>
+    <div className={s.answerText}>{section.claims.map((claim, i) => <div className={s.claim} key={i}><RichText text={claim.text} />{claim.fact_ids.length > 0 && <button className={s.claimSource} onClick={onEvidence} aria-label={`查看${section.title}第 ${i + 1} 条的来源`}><FileCheck2 size={11} aria-hidden="true" />{claim.fact_ids.join(" · ")}</button>}</div>)}</div>
+  </section>)}</>;
 }
 
-function VisualView({ meta }: { meta?: VisualMeta }) {
+function VisualView({ meta, onQuestion }: { meta?: VisualMeta; onQuestion?: (question: string) => void }) {
   if (!meta || meta.kind === "none") return null;
+
+  if (meta.kind === "turnaround_gantt") {
+    return <TurnaroundGantt data={meta} onQuestion={onQuestion} />;
+  }
 
   if (meta.kind === "stats") {
     return (
@@ -58,7 +69,7 @@ function VisualView({ meta }: { meta?: VisualMeta }) {
           <Badge>合计: {meta.total.toLocaleString()} {meta.unit}</Badge>
         </div>
         <div className="visual-donut-wrap">
-          <svg className="visual-donut-svg" viewBox="0 0 100 100">
+          <svg className="visual-donut-svg" viewBox="0 0 100 100" aria-hidden="true">
             <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--line)" strokeWidth="14" />
             {meta.slices.map((slice, i) => {
               const dash = (slice.percent / 100) * C;
@@ -157,78 +168,7 @@ function VisualView({ meta }: { meta?: VisualMeta }) {
     );
   }
 
-  if (meta.kind === "fishbone") {
-    return (
-      <div className="visual-section fishbone-card">
-        <div className="visual-header">
-          <div className="fishbone-title-wrap">
-            <span className="fishbone-plane-icon"><Plane size={15} /></span>
-            <div>
-              <h4 className="visual-title">{meta.title}</h4>
-              <small className="fishbone-summary">{meta.summary}</small>
-            </div>
-          </div>
-          <div className="fishbone-badge-group">
-            <Badge tone="green">{meta.direction_label || "航班运行"}</Badge>
-            {meta.status && <Badge>{meta.status}</Badge>}
-          </div>
-        </div>
-
-        <div className="fishbone-scroll-wrap">
-          <div className="fishbone-diagram">
-            {/* Top Ribs */}
-            <div className="fishbone-row top-row">
-              {meta.nodes.map((node, i) => (
-                <div key={i} className={`fishbone-col ${node.position === "top" ? "has-node" : "is-empty"}`}>
-                  {node.position === "top" && (
-                    <div className={`fishbone-node-card tone-${node.status}`} title={node.note}>
-                      <div className="fishbone-node-top">
-                        <strong className="fishbone-node-name">{node.name}</strong>
-                        <span className="fishbone-node-code">{node.code}</span>
-                      </div>
-                      <div className="fishbone-node-time">{node.time_display || "--:--"}</div>
-                      <div className="fishbone-node-status">{node.status_label}</div>
-                      <div className="fishbone-stem stem-down" />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Central Spine Axis */}
-            <div className="fishbone-spine-row">
-              <div className="fishbone-spine-line" />
-              {meta.nodes.map((node, i) => (
-                <div key={i} className="fishbone-spine-node-col">
-                  <span className={`fishbone-spine-dot tone-${node.status}`} title={`${node.name} (${node.code}) · ${node.time_display} · ${node.status_label}`} />
-                </div>
-              ))}
-              <div className="fishbone-spine-arrow"><Plane size={13} /></div>
-            </div>
-
-            {/* Bottom Ribs */}
-            <div className="fishbone-row bottom-row">
-              {meta.nodes.map((node, i) => (
-                <div key={i} className={`fishbone-col ${node.position === "bottom" ? "has-node" : "is-empty"}`}>
-                  {node.position === "bottom" && (
-                    <div className={`fishbone-node-card tone-${node.status}`} title={node.note}>
-                      <div className="fishbone-stem stem-up" />
-                      <div className="fishbone-node-top">
-                        <strong className="fishbone-node-name">{node.name}</strong>
-                        <span className="fishbone-node-code">{node.code}</span>
-                      </div>
-                      <div className="fishbone-node-time">{node.time_display || "--:--"}</div>
-                      <div className="fishbone-node-status">{node.status_label}</div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (meta.kind === "fishbone") return <FlightMilestones data={meta} />;
 
   return null;
 }
@@ -274,7 +214,14 @@ function Graph({ result }: { result: QueryResult }) {
     const group = nodes.filter(n => n.level === node.level), index = group.findIndex(n => n.id === node.id);
     return [node.id, { x: 90 + node.level * 180, y: graphHeight * (index + 1) / (group.length + 1) }];
   })), [nodes, graphHeight]);
-  return <><div className="data-toolbar"><span>{nodes.length} 个数据表 · {edges.length} 条展开关系</span><Badge>结构关系，不等于事实已命中</Badge></div><div className="graph-layout"><div className="graph-canvas" style={{ maxHeight: 420 }}><svg viewBox={`0 0 ${graphWidth} ${graphHeight}`} style={{ height: graphHeight, minWidth: graphWidth }} role="img" aria-label="查询数据表关联图"><defs><marker id="graph-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#5c6b64" /></marker></defs>{edges.map((edge, i) => { const s = positions[edge.source], t = positions[edge.target]; return s && t ? <line key={i} x1={s.x} y1={s.y} x2={t.x} y2={t.y} className="graph-edge" markerEnd="url(#graph-arrow)" opacity={active && active !== edge.source && active !== edge.target ? .15 : 1} /> : null; })}{nodes.map(node => { const p = positions[node.id], name = node.id.split(".").pop() || node.id; return <g key={node.id} className={`graph-node ${node.main ? "main" : ""}`} transform={`translate(${p.x},${p.y})`} role="button" tabIndex={0} aria-label={node.id} onClick={() => setActive(active === node.id ? null : node.id)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setActive(active === node.id ? null : node.id); } }}><title>{node.id}</title><rect x="-70" y="-20" width="140" height="40" rx="8" /><text textAnchor="middle" y="3">{name.length > 22 ? name.slice(0, 21) + "…" : name}</text></g>; })}</svg></div><div className="edge-list">{edges.length ? edges.map((edge, i) => <button className={`edge-card ${active === edge.source || active === edge.target ? "active" : ""}`} key={i} onClick={() => setActive(edge.source)}><span>{edge.source}.{edge.fcol}</span><ArrowRight size={10} style={{ display: "block", margin: "3px 0", color: "#6ee7b7" }} /><span>{edge.target}.{edge.tcol}</span><small>{edge.note || "配置关联"} · {edge.type === "fk" ? "数据库外键" : "逻辑关系"}</small></button>) : <div className="empty-panel"><GitBranch size={20} /><span>本次查询未展开关联关系</span></div>}</div></div><Notice>这里展示本次查询使用的表级路径。记录之间的真实匹配与来源信息请到“回答依据”核验。</Notice></>;
+  const tableName = (table: string) => result.evidence?.facts?.find(fact => fact.table === table)?.name || result.related.find(item => item.table === table)?.name || table.split(".").pop() || "未提供表名";
+  if (!edges.length) return <>
+    <div className="data-toolbar"><span>{nodes.length} 个数据表 · 0 条展开关系</span><Badge>本次查询范围</Badge></div>
+    <section className={s.graphSummary}><Database size={24} aria-hidden="true" /><div><h3>{nodes.length === 1 ? "本次返回一张数据表" : "本次未返回表级关联路径"}</h3><p>{nodes.length === 1 ? "当前图谱未展开跨表关系，以下展示已返回的数据表。" : "记录来源可在数据明细和回答依据中核验。"}</p></div></section>
+    <div className={s.graphTables}>{nodes.map(node => <div className={s.graphTable} key={node.id}><Database size={17} aria-hidden="true" /><div><strong>{tableName(node.id)}</strong><code>{node.id || "未提供表名"}</code></div><Badge>{node.main ? "主表" : "关联表"}</Badge></div>)}</div>
+    <Notice>关联图谱展示本次返回的表级路径，记录来源可在回答依据中核验。</Notice>
+  </>;
+  return <><div className="data-toolbar"><span>{nodes.length} 个数据表 · {edges.length} 条展开关系</span><Badge>结构关系，不等于事实已命中</Badge></div><div className="graph-layout"><div className="graph-canvas" style={{ maxHeight: 420 }}><svg viewBox={`0 0 ${graphWidth} ${graphHeight}`} style={{ height: graphHeight, minWidth: graphWidth }} role="img" aria-label="查询数据表关联图"><defs><marker id="graph-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#5c6b64" /></marker></defs>{edges.map((edge, i) => { const s = positions[edge.source], t = positions[edge.target]; return s && t ? <line key={i} x1={s.x} y1={s.y} x2={t.x} y2={t.y} className="graph-edge" markerEnd="url(#graph-arrow)" opacity={active && active !== edge.source && active !== edge.target ? .15 : 1} /> : null; })}{nodes.map(node => { const p = positions[node.id], name = tableName(node.id); return <g key={node.id} className={`graph-node ${node.main ? "main" : ""}`} transform={`translate(${p.x},${p.y})`} role="button" tabIndex={0} aria-label={node.id} onClick={() => setActive(active === node.id ? null : node.id)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setActive(active === node.id ? null : node.id); } }}><title>{node.id}</title><rect x="-70" y="-20" width="140" height="40" rx="8" /><text textAnchor="middle" y="3">{name.length > 22 ? name.slice(0, 21) + "…" : name}</text></g>; })}</svg></div><div className="edge-list">{edges.length ? edges.map((edge, i) => <button className={`edge-card ${active === edge.source || active === edge.target ? "active" : ""}`} key={i} onClick={() => setActive(edge.source)}><span>{edge.source}.{edge.fcol}</span><ArrowRight size={10} style={{ display: "block", margin: "3px 0", color: "#6ee7b7" }} /><span>{edge.target}.{edge.tcol}</span><small>{edge.note || "配置关联"} · {edge.type === "fk" ? "数据库外键" : "逻辑关系"}</small></button>) : <div className="empty-panel"><GitBranch size={20} /><span>本次查询未展开关联关系</span></div>}</div></div><Notice>这里展示本次查询使用的表级路径。记录之间的真实匹配与来源信息请到“回答依据”核验。</Notice></>;
 }
 
 function Evidence({ result }: { result: QueryResult }) {
@@ -287,23 +234,124 @@ function Evidence({ result }: { result: QueryResult }) {
   </>;
 }
 
-export function ResultView({ result, showProcess = true }: { result: QueryResult; showProcess?: boolean }) {
-  const [tab, setTab] = useState("answer"), [records, setRecords] = useState(false), [related, setRelated] = useState<QueryResult["related"][number] | null>(null), [cards, setCards] = useState(true);
-  const closeRecords = useCallback(() => setRecords(false), []), closeRelated = useCallback(() => setRelated(null), []);
-  useEffect(() => { setTab("answer"); setRecords(false); setRelated(null); }, [result]);
-  const target = result.parse.aggregate_target || result.parse.subject;
-  const relatedHits = result.related.reduce((sum, item) => sum + item.count, 0);
-  const tabs = [{ id: "answer", label: "智能回答", icon: Sparkles }, { id: "data", label: "数据明细", icon: Table2 }, { id: "evidence", label: "回答依据", icon: ShieldCheck }, { id: "graph", label: "关联图谱", icon: GitBranch }, { id: "sql", label: "执行 SQL", icon: Code2 }];
-  return <>{showProcess && <ExecutionProcess steps={result.execution_trace || []} />}<div className="result-top"><div><h2>查询结果</h2><p>{result.question}</p></div><div className="result-top-actions"><Badge>{result.elapsed}s</Badge><CopyButton text={answerCopyText(result)} label="复制回答" /></div></div><Card className="result-card"><div className="result-tabs" role="tablist" aria-label="查询结果内容">{tabs.map(item => <button key={item.id} id={`tab-${item.id}`} className={`result-tab ${tab === item.id ? "selected" : ""}`} role="tab" aria-selected={tab === item.id} aria-controls="result-panel" onClick={() => setTab(item.id)}><item.icon size={13} />{item.label}{item.id === "evidence" && <Badge>{result.claims?.length || 0}</Badge>}</button>)}</div><div className="result-content" role="tabpanel" id="result-panel" aria-labelledby={`tab-${tab}`}>
-    {tab === "answer" && <><div className="answer-head"><span className="answer-mark"><Sparkles size={17} /></span><div><strong>智能数据助手</strong><small>基于实时查询与来源证据</small></div><Badge tone="green"><Check size={10} />已完成查询</Badge></div><AnswerBody result={result} />{result.visual_meta && <VisualView meta={result.visual_meta} />}<div className="result-meta"><span><Database size={11} />{result.parse.disp || result.parse.subject}</span><span><Clock3 size={11} />{result.elapsed}s</span><span><Code2 size={11} />{result.intent === "detail" ? "信息明细" : result.intent === "sum" ? "金额合计" : "记录统计"}</span><span><ShieldCheck size={11} />{result.answer_validation === "deterministic" ? "确定性统计" : result.answer_validation === "evidence_fallback" ? "事实摘要回退" : "来源及数值校验"}</span></div><div className="metrics"><button className="metric-card" disabled={!result.drill_token} onClick={() => setRecords(true)}><strong>{result.main_total.toLocaleString()}</strong><span className="metric-label">{result.intent === "sum" ? "参与记录数" : "命中记录数"}<ArrowUpRight size={13} /></span></button><div className="metric-card static"><strong>{relatedHits.toLocaleString()}</strong><span className="metric-label">关联记录数</span></div><button className="metric-card" onClick={() => setTab("graph")}><strong>{(result.graph?.nodes?.length || result.graph_tables.length + 1).toLocaleString()}</strong><span className="metric-label">查询涉及数据表<ArrowUpRight size={13} /></span></button></div>{result.metric?.description && <Notice>{result.metric.description}{result.metric.unit ? ` · 单位：${result.metric.unit}` : ""}</Notice>}{result.intent === "sum" && <div style={{ marginTop: 20 }}><DataRows rows={result.main_rows} table={target} meta={result.field_meta} /></div>}{result.main_total > 5 && result.intent === "detail" && <div className="quiet-note"><List size={12} /><span>统计和关联查询覆盖全部 {result.main_total.toLocaleString()} 条命中记录。模型依据已提供证据回答，完整明细可分页查看。</span></div>}</>}
-    {tab === "data" && <><div className="data-toolbar"><span>{result.intent === "detail" ? `主表预览 ${result.main_rows.length} / ${result.main_total.toLocaleString()} 条 · 展示全部允许字段` : `统计分组 ${result.main_rows.length} 组 · ${result.metric?.unit || "记录数"}`}</span><div className="manager-tools">{result.intent === "detail" && <Button onClick={() => setCards(v => !v)}><Table2 size={12} />{cards ? "表格视图" : "卡片视图"}</Button>}{result.drill_token && <Button onClick={() => setRecords(true)}><ArrowUpRight size={12} />全部明细</Button>}</div></div><DataRows rows={result.main_rows} table={result.intent === "detail" ? result.parse.subject : target} meta={result.field_meta} cards={cards && result.intent === "detail"} />
+type QueryRun = {
+  question: string; busy: boolean; steps: ExecutionStep[]; elapsed: number;
+  progress: { message: string; percent: number }; delta: string; error: string;
+  onStop: () => void; onRetry: () => void;
+};
+
+export function ResultView({ result, run, onQuestion, onClarify }: { result: QueryResult | null; run?: QueryRun; onQuestion?: (question: string) => void; onClarify?: (choice: { id: string; label: string }) => void }) {
+  const busy = run?.busy || false, delta = run?.delta || "";
+  const [tab, setTab] = useState(result ? "answer" : "process"), [records, setRecords] = useState(false), [related, setRelated] = useState<QueryResult["related"][number] | null>(null), [cards, setCards] = useState(true);
+  const [fbOpen, setFbOpen] = useState(false), [fbReasons, setFbReasons] = useState<string[]>(["WRONG_DATA"]), [fbComment, setFbComment] = useState(""), [fbBusy, setFbBusy] = useState(false), [fbStatus, setFbStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const closeRecords = useCallback(() => setRecords(false), []), closeRelated = useCallback(() => setRelated(null), []), closeFb = useCallback(() => setFbOpen(false), []);
+  useEffect(() => { setTab(result ? "answer" : "process"); setRecords(false); setRelated(null); setFbOpen(false); setFbStatus(null); }, [result, busy]);
+  const target = result?.parse.aggregate_target || result?.parse.subject || "";
+  const relatedHits = result?.related.reduce((sum, item) => sum + item.count, 0) || 0;
+  const visual = result?.visual_meta && result.visual_meta.kind !== "none" ? result.visual_meta : null;
+  const flight = visual?.kind === "fishbone";
+  const turnaround = visual?.kind === "turnaround_gantt" ? visual : null;
+  const turnaroundSummary = turnaround ? turnaroundRecordSummary(turnaround.operations) : null;
+  const sources = Array.from(new Map((result?.evidence?.facts || []).map(fact => [fact.table, { name: fact.name, table: fact.table }])).values());
+  const liveAnswer = liveAnswerState(delta, busy, Boolean(result));
+  const tabs = [{ id: "process", label: "执行过程", icon: ListChecks }, { id: "answer", label: "智能回答", icon: Sparkles }, { id: "data", label: "数据明细", icon: Table2 }, { id: "evidence", label: "回答依据", icon: ShieldCheck }, { id: "graph", label: "关联图谱", icon: GitBranch }, { id: "sql", label: "执行 SQL", icon: Code2 }];
+  const fbOptions: [string, string][] = [["WRONG_INTENT", "答非所问"], ["WRONG_DATA", "数据不对"], ["WRONG_FILTER", "条件搞错"], ["NO_ANSWER", "未答出"], ["OTHER", "其它问题"]];
+  async function submitFeedback(e: React.FormEvent) {
+    e.preventDefault();
+    if (!result || fbBusy || !fbReasons.length) return;
+    setFbBusy(true); setFbStatus(null);
+    try {
+      await request("/api/ask/feedback", {
+        method: "POST",
+        body: JSON.stringify({
+          conversation_id: result.conversation_id || "",
+          message_id: result.message_id || "",
+          question_text: result.question,
+          answer_text: result.answer,
+          reason_codes: fbReasons,
+          comment: fbComment,
+          response_summary: {
+            source: result.source,
+            intent: result.intent,
+            parse: result.parse,
+            sql: result.sql,
+            main_total: result.main_total,
+            ontology_version: result.ontology_version,
+          },
+        }),
+      });
+      setFbStatus({ ok: true, msg: "感谢反馈，已进入后台「不准反馈」处置列表" });
+      setFbOpen(false); setFbComment("");
+    } catch (err) {
+      setFbStatus({ ok: false, msg: err instanceof Error ? err.message : "反馈提交失败" });
+    } finally { setFbBusy(false); }
+  }
+  if (result && result.intent === "notice") return <Card className="card-pad">
+    <div className="card-head"><h2 className="section-title">{result.outcome === "clarification_needed" ? "请确认查询条件" : result.outcome === "out_of_coverage" ? "本地数据范围" : result.outcome === "unsupported" ? "当前查询能力" : "问询结果"}</h2><Badge>{formatStepElapsed(result.elapsed)}</Badge></div>
+    <p className="helper">{result.question}</p><div role="status" aria-live="polite"><p className="long-description">{result.answer}</p></div>
+    {!!result.clarification?.options.length && <div role="group" aria-label="待确认选项" style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBlock: 16 }}>{result.clarification.options.map(choice => <Button key={choice.id} style={{ minHeight: 44 }} disabled={!onClarify || busy} onClick={() => onClarify?.(choice)}>{choice.label}</Button>)}</div>}
+    {!!result.capability_gate?.alternatives?.length && <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBlock: 12 }}><span className="helper" style={{ alignSelf: "center" }}>可改查：</span>{result.capability_gate.alternatives.map(alt => onQuestion ? <Button key={alt} variant="ghost" disabled={busy} onClick={() => onQuestion(alt)}>{alt}</Button> : <Badge key={alt}>{alt}</Badge>)}</div>}
+    {result.outcome === "clarification_needed" && <p className="helper">{onClarify ? "请选择选项，或在输入框补充条件；也可以输入一个新的完整问题。" : "这是历史澄清记录，请回到问答页打开本会话继续确认。"}</p>}
+    <ExecutionProcess steps={result.execution_trace || []} inline />
+  </Card>;
+  return <><div className="result-top"><div><h2>查询结果</h2><p>{result?.question || run?.question}</p></div><div className="result-top-actions"><Badge>{formatStepElapsed(result?.elapsed ?? run?.elapsed ?? 0)}</Badge>{busy && run && <Button onClick={run.onStop} variant="ghost"><X size={12} aria-hidden="true" />停止等待</Button>}{result && <Button variant="ghost" onClick={() => setFbOpen(true)}><Flag size={12} aria-hidden="true" />反馈不准</Button>}{result && <CopyButton text={answerCopyText(result)} label="复制回答" />}</div></div>{fbStatus && <Notice error={!fbStatus.ok}>{fbStatus.msg}</Notice>}<Card className="result-card"><div className="result-tabs" role="tablist" aria-label="查询结果内容">{tabs.map(item => <button key={item.id} id={`tab-${item.id}`} className={`result-tab ${tab === item.id ? "selected" : ""}`} role="tab" aria-selected={tab === item.id} aria-controls="result-panel" disabled={!result && item.id !== "process" && !(item.id === "answer" && delta)} onClick={() => setTab(item.id)}><item.icon size={13} aria-hidden="true" />{item.label}{item.id === "process" && busy && <Spinner />}{item.id === "evidence" && <Badge>{result?.claims?.length || 0}</Badge>}</button>)}</div><div className="result-content" role="tabpanel" id="result-panel" aria-labelledby={`tab-${tab}`}>
+    {run?.error && <Notice error>{run.error} <button className="inline-button" onClick={run.onRetry} disabled={busy}>重新查询<RefreshCw size={11} aria-hidden="true" /></button></Notice>}
+    {tab === "process" && <div className={s.processPane}>
+      {busy && run && <div className="progress-card"><div className="progress-top"><Spinner /><span>{run.progress.message}</span><time>{run.elapsed.toFixed(1)} s</time></div><div className="progress-track" role="progressbar" aria-label="查询处理进度" aria-valuenow={run.progress.percent} aria-valuemin={0} aria-valuemax={100}><div className="progress-fill" style={{width:`${run.progress.percent}%`}} /></div></div>}
+      <ExecutionProcess steps={run?.steps || result?.execution_trace || []} busy={busy} elapsed={run?.elapsed || 0} inline />
+    </div>}
+    {tab === "answer" && !result && liveAnswer.visible && <div aria-live="polite" aria-atomic={false}><div className="answer-head"><span className="answer-mark"><Sparkles size={16} aria-hidden="true" /></span><strong>{liveAnswer.title}</strong><Badge tone={busy ? "green" : "amber"}>{busy ? "实时追加" : "未完整完成"}</Badge></div><div className={`answer-text${busy ? " live" : ""}`}>{delta}</div><p className="helper">{liveAnswer.note}</p></div>}
+    {tab === "answer" && result && <div className={s.resultAnswer}>
+      <div className={s.answerStatus}><span><Check size={13} aria-hidden="true" />查询已完成</span><span>{result.answer_validation === "deterministic" ? turnaround ? "规则归纳" : "确定性统计" : result.answer_validation === "evidence_fallback" ? "事实摘要回退" : "来源及数值校验"}<i />{formatStepElapsed(result.elapsed)}</span></div>
+      <div className={`${s.answerLayout} ${flight ? s.flightLayout : ""} ${turnaround ? s.turnaroundLayout : ""}`}>
+        {visual && <div className={s.visualPrimary}><VisualView meta={visual} onQuestion={onQuestion} /></div>}
+        <aside className={`${s.conclusionPanel} ${turnaround ? s.inspectionRail : ""}`}>
+          {turnaround && <section className={s.objectContext}><div className={s.railHeading}><Boxes size={15} aria-hidden="true" /><h3>对象上下文</h3><span>本次命中</span></div><dl>{[["航班", turnaround.flight_pair], ["航空器", turnaround.craft_no], ["机位", turnaround.stand], ["登机口", turnaround.gate]].map(([label, value])=><div key={label}><dt>{label}</dt><dd>{value || "未提供"}</dd></div>)}</dl><button className={s.relationLink} onClick={()=>setTab("graph")}><GitBranch size={13} aria-hidden="true" />查询关系路径<span>{result.graph?.edges.length || 0} 条展开</span><ArrowUpRight size={12} aria-hidden="true" /></button></section>}
+          <section className={turnaround ? s.answerRailCard : undefined}>
+          <div className={s.conclusionTitle}><Sparkles size={18} aria-hidden="true" /><strong>问询回答</strong><button onClick={()=>setTab("evidence")}><ShieldCheck size={13} aria-hidden="true" />依据</button></div><div className={s.conclusionGrid}><div><AnswerBody result={result} onEvidence={()=>setTab("evidence")} />{turnaroundSummary && turnaroundSummary.incomplete > 0 && <p className={s.recordAlert}>{turnaroundSummary.detail}</p>}</div>
+          {sources.length > 0 && <section className={s.sourceList}><span className={s.sectionKicker}>本次使用的来源</span>{sources.map(source=><button key={source.table} onClick={()=>setTab("evidence")}><Database size={13} aria-hidden="true" /><span>{source.name}<small>{source.table}</small></span><ArrowUpRight size={12} aria-hidden="true" /></button>)}</section>}
+        </div></section></aside>
+      </div>
+      {result.metric?.description && <p className={s.scopeNote}><ShieldCheck size={13} aria-hidden="true" />{result.metric.description}{result.metric.unit ? ` · 单位：${result.metric.unit}` : ""}</p>}
+      {(Boolean(result.applied_rules?.length) || result.operational_window || result.plan_template) && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 8 }}>
+          {result.operational_window && <Badge tone="green">运营日窗口：{result.operational_window.start} ~ {result.operational_window.end}</Badge>}
+          {result.plan_template && <Badge>规划模板：{result.plan_template.name || result.plan_template.code}</Badge>}
+          {result.applied_rules?.map(r => (
+            <span key={r.code} title={r.description || r.code}><Badge>规则校验：{r.name} (v{r.versionNo || 1})</Badge></span>
+          ))}
+        </div>
+      )}
+      <div className={s.answerActions}><button onClick={()=>result.drill_token?setRecords(true):setTab("data")}><Table2 size={15} aria-hidden="true" />查看数据明细<span>{result.main_total.toLocaleString()}</span><ArrowUpRight size={12} aria-hidden="true" /></button>{relatedHits>0&&<button onClick={()=>setTab("data")}><Layers size={15} aria-hidden="true" />关联记录<span>{relatedHits.toLocaleString()}</span></button>}<button onClick={()=>setTab("evidence")}><ShieldCheck size={15} aria-hidden="true" />来源与统计口径<ArrowUpRight size={12} aria-hidden="true" /></button></div>
+    </div>}
+    {tab === "data" && result && <><div className="data-toolbar"><span>{result.intent === "detail" ? `主表预览 ${result.main_rows.length} / ${result.main_total.toLocaleString()} 条 · 展示全部允许字段` : `统计分组 ${result.main_rows.length} 组 · ${result.metric?.unit || "记录数"}`}</span><div className="manager-tools">{result.intent === "detail" && <Button onClick={() => setCards(v => !v)}><Table2 size={12} />{cards ? "表格视图" : "卡片视图"}</Button>}{result.drill_token && <Button onClick={() => setRecords(true)}><ArrowUpRight size={12} />全部明细</Button>}</div></div><DataRows rows={result.main_rows} table={result.intent === "detail" ? result.parse.subject : target} meta={result.field_meta} cards={cards && result.intent === "detail"} />
       {!!result.related.length && <><div className="card-head" style={{ marginTop: 24, marginBottom: 13 }}><h3 className="section-title"><Layers size={13} />关联业务数据</h3><Badge>{result.related.length} 张关联表</Badge></div><div className="related-grid">{result.related.map(item => <button className="related-card" key={item.table} onClick={() => setRelated(item)}><span className="related-heading"><GitBranch size={13} /><strong>{item.name || item.table}</strong><Badge>{item.type === "fk" ? "外键" : "逻辑关联"}</Badge></span><small>{item.table}</small><p>{item.note || "依据已配置路径查询"}</p><span className="related-card-bottom"><span><b>{item.count.toLocaleString()}</b> 条关联记录</span><span>查看完整字段 <ArrowUpRight size={11} style={{ display: "inline" }} /></span></span></button>)}</div></>}
     </>}
-    {tab === "evidence" && <Evidence result={result} />}
-    {tab === "graph" && <Graph result={result} />}
-    {tab === "sql" && <><div className="sql-top"><h3 className="section-title"><Code2 size={14} />实际执行的参数化 SQL</h3><CopyButton text={result.sql} label="复制 SQL" /></div><pre className="code-block">{result.sql}</pre><h3 className="section-title" style={{ margin: "20px 0 12px" }}>绑定参数</h3><pre className="code-block">{JSON.stringify(result.sql_params || [], null, 2)}</pre><h3 className="section-title" style={{ margin: "20px 0 12px" }}>问题解析条件</h3><DataRows rows={result.parse.conditions.map(c => ({ 字段: c.col, 所属表: c.table || result.parse.subject, 运算符: c.op, 值: c.value }))} table="conditions" meta={{}} /><Notice>仅执行目录白名单内的只读查询。参数单独绑定，不拼接为可执行 SQL。</Notice></>}
+    {tab === "evidence" && result && <Evidence result={result} />}
+    {tab === "graph" && result && <Graph result={result} />}
+    {tab === "sql" && result && <><div className="sql-top"><h3 className="section-title"><Code2 size={14} />实际执行的参数化 SQL</h3><CopyButton text={result.sql} label="复制 SQL" /></div><pre className="code-block">{result.sql}</pre><h3 className="section-title" style={{ margin: "20px 0 12px" }}>绑定参数</h3><pre className="code-block">{JSON.stringify(result.sql_params || [], null, 2)}</pre><h3 className="section-title" style={{ margin: "20px 0 12px" }}>问题解析条件</h3><DataRows rows={result.parse.conditions.map(c => ({ 字段: c.col, 所属表: c.table || result.parse.subject, 运算符: c.op, 值: c.value }))} table="conditions" meta={{}} /><Notice>仅执行目录白名单内的只读查询。参数单独绑定，不拼接为可执行 SQL。</Notice></>}
   </div></Card>
-  {records && <RecordPage result={result} onClose={closeRecords} />}
-  {related && (related.count > 0 && result.related_token ? <RecordPage result={result} related={related} onClose={closeRelated} /> : <Modal title={related.name || related.table} subtitle={related.table} onClose={closeRelated}><DataRows rows={related.rows} table={related.table} meta={result.field_meta} cards /></Modal>)}
+  {records && result && <RecordPage result={result} onClose={closeRecords} />}
+  {related && result && (related.count > 0 && result.related_token ? <RecordPage result={result} related={related} onClose={closeRelated} /> : <Modal title={related.name || related.table} subtitle={related.table} onClose={closeRelated}><DataRows rows={related.rows} table={related.table} meta={result.field_meta} cards /></Modal>)}
+  {fbOpen && result && <Modal title="反馈回答不准确" subtitle="提交后将在管理后台「不准反馈」汇总并协助优化本体同义词与规则" onClose={closeFb}>
+    <form onSubmit={submitFeedback}>
+      <p className="helper" style={{ marginBottom: 8 }}>请选择问题原因（可多选）：</p>
+      <div className="gov-form-checks">
+        {fbOptions.map(([code, label]) => (
+          <label className="gov-check-pill" key={code}>
+            <input type="checkbox" checked={fbReasons.includes(code)} onChange={e => setFbReasons(prev => e.target.checked ? [...prev, code] : prev.filter(x => x !== code))} />
+            <span>{label}</span>
+          </label>
+        ))}
+      </div>
+      <label className="form-field" style={{ marginTop: 12 }}>补充说明（选填）
+        <textarea rows={3} maxLength={2000} value={fbComment} onChange={e => setFbComment(e.target.value)} placeholder="请描述期望口径或哪部分数值、筛选有误…" />
+      </label>
+      <div className="modal-actions">
+        <Button onClick={closeFb}>取消</Button>
+        <Button type="submit" variant="primary" disabled={fbBusy || !fbReasons.length}>{fbBusy ? "提交中…" : "提交反馈"}</Button>
+      </div>
+    </form>
+  </Modal>}
   </>;
 }

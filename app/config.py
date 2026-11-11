@@ -61,7 +61,11 @@ class Settings:
     answer_composition_enabled: bool = True
     answer_composition_budget: int = 18000
     answer_composition_timeout_seconds: int = 20
+    max_evidence_batches: int = 0
     metadata_views: tuple = ()
+    oracle: dict | None = None
+    sync_service: dict | None = None
+    coordinator_enabled: bool = False
 
 
 def load_settings():
@@ -88,6 +92,35 @@ def load_settings():
     query = config['query']
     database['password'] = os.environ.get('HBASK_DB_PASSWORD', database.get('password', ''))
     llm_key = os.environ.get('HBASK_LLM_API_KEY', llm.get('api_key', ''))
+    ora_cfg = config.get('oracle', {}).copy()
+    oracle_cfg = {
+        'host': os.environ.get('HBASK_ORACLE_HOST', ora_cfg.get('host', '172.26.78.133')),
+        'port': int(os.environ.get('HBASK_ORACLE_PORT', ora_cfg.get('port', 1521))),
+        'service_name': os.environ.get('HBASK_ORACLE_SERVICE', ora_cfg.get('service_name', 'datacache')),
+        'user': os.environ.get('HBASK_ORACLE_USER', ora_cfg.get('user', '')),
+        'password': os.environ.get('HBASK_ORACLE_PASSWORD', ora_cfg.get('password', '')),
+        'airport_code': os.environ.get('HBASK_SYNC_AIRPORT_CODE', ora_cfg.get('airport_code', 'WUH')),
+        'acdm_schema': ora_cfg.get('acdm_schema', 'ACDM'),
+        'acdm_table': ora_cfg.get('acdm_table', 'TB_DYN_FLIGHT'),
+        'fims_schema': ora_cfg.get('fims_schema', 'FIMS'),
+        'fims_table': ora_cfg.get('fims_table', 'TB_DYN_FLIGHT'),
+        'fims_share_table': ora_cfg.get('fims_share_table', 'TB_DYN_SHARE_FLIGHTS'),
+    }
+    sync_cfg = config.get('sync_service', {}).copy()
+    sync_service = {
+        'oracle_host': oracle_cfg['host'],
+        'oracle_port': oracle_cfg['port'],
+        'fetch_size': max(100, min(5000, int(sync_cfg.get('fetch_size', 1000)))),
+        'batch_size': max(50, min(5000, int(sync_cfg.get('batch_size', 500)))),
+        'lookback_minutes': max(1, min(1440, int(sync_cfg.get('lookback_minutes', 15)))),
+        'dep_off_in_values': sync_cfg.get('dep_off_in_values', '1,D,O,出'),
+        'arr_off_in_values': sync_cfg.get('arr_off_in_values', '0,A,I,进'),
+        'source_system_acdm': sync_cfg.get('source_system_acdm', 'ACDM_ORACLE'),
+        'source_system_fims': sync_cfg.get('source_system_fims', 'FIMS_ORACLE'),
+        'source_system_production': sync_cfg.get('source_system_production', 'FORMFILL_ORACLE'),
+        'backup_container': os.environ.get('HBASK_PG_BACKUP_CONTAINER', sync_cfg.get('backup_container', 'lightrag-pgvector')),
+        'backup_dir': str(ROOT / sync_cfg.get('backup_dir', 'artifacts/backups')),
+    }
 
     def file_path(name):
         return ROOT / paths[name]
@@ -132,6 +165,10 @@ def load_settings():
         answer_composition_enabled=bool(query.get('answer_composition_enabled',True)),
         answer_composition_budget=max(2048,min(100000,int(query.get('answer_composition_budget',18000)))),
         answer_composition_timeout_seconds=max(5,min(60,int(query.get('answer_composition_timeout_seconds',20)))),
+        max_evidence_batches=max(0, int(os.environ.get('HBASK_MAX_EVIDENCE_BATCHES', query.get('max_evidence_batches', 0)))),
+        oracle=oracle_cfg,
+        sync_service=sync_service,
+        coordinator_enabled=bool(query.get('coordinator_enabled', False)),
     )
 
 

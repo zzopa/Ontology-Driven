@@ -6,8 +6,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from app import core, llm
-from app.admin import service, glossary
+from app import core, llm, ops_governance
+from app.admin import data_sync, service, glossary
 from app.admin.auth import COOKIE, identity, require_role, same_origin, set_cookie
 from app.config import settings
 from app import business_access
@@ -264,3 +264,447 @@ async def schema_sync_diff(request: Request):
     finally:
         conn.close()
     return compare_schema_to_configs(db_schema)
+
+
+@router.get('/api/admin/sync/overview')
+async def sync_overview(request: Request):
+    require_role(request, 'admin')
+    return await run_in_threadpool(data_sync.get_sync_overview, service.get_store())
+
+
+@router.get('/api/admin/sync/runs')
+async def sync_runs(request: Request):
+    require_role(request, 'admin')
+    store = service.get_store()
+    page = page_number(request)
+    job_key = request.query_params.get('job_key', '')[:60]
+    status = request.query_params.get('status', '')[:30]
+    search = request.query_params.get('search', '')[:100]
+    if page == 1 and not job_key and not status and not search:
+        await run_in_threadpool(data_sync.ensure_reconciled, store)
+    return store.sync_runs(page=page, job_key=job_key, status=status, search=search)
+
+
+@router.post('/api/admin/sync/run')
+async def sync_run(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    data = await body(request)
+    run = await run_in_threadpool(data_sync.trigger_sync, service.get_store(), user, data)
+    return {'ok': True, 'run': run}
+
+
+@router.post('/api/admin/sync/backup')
+async def sync_backup(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    try:
+        backup = await run_in_threadpool(data_sync.create_backup, service.get_store(), user['id'], user['display_name'])
+        return {'ok': True, 'backup': backup}
+    except (RuntimeError, OSError) as exc:
+        raise HTTPException(500, str(exc)) from exc
+
+
+@router.post('/api/admin/sync/cancel')
+async def sync_cancel(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    return {'ok': True, **data_sync.cancel_active_sync(service.get_store(), user['id'], user['display_name'])}
+
+
+@router.post('/api/admin/sync/probe-source')
+async def sync_probe_source(request: Request):
+    same_origin(request)
+    require_role(request, 'admin')
+    try:
+        stats = await run_in_threadpool(data_sync.probe_source_counts)
+        return {'ok': True, 'source_stats': stats}
+    except (RuntimeError, OSError) as exc:
+        raise HTTPException(502, str(exc)) from exc
+
+
+# ---------------------------------------------------------------------------
+# Ops-Ask Governance: Ontology, Data Model, Metrics, Rules, Capabilities,
+# Planner Dry-Run, Ask Settings & Feedback Loop
+# ---------------------------------------------------------------------------
+
+@router.get('/api/admin/ontology-catalog')
+async def admin_ontology_catalog(request: Request):
+    require_role(request, 'admin')
+    return await run_in_threadpool(ops_governance.get_ontology_catalog)
+
+
+@router.get('/api/admin/ontology-catalog/capabilities')
+async def admin_ontology_capabilities(request: Request):
+    require_role(request, 'admin')
+    return await run_in_threadpool(ops_governance.get_capability_profile)
+
+
+@router.get('/api/admin/ontology-catalog/versions')
+async def admin_ontology_versions(request: Request):
+    require_role(request, 'admin')
+    return {'ok': True, 'items': await run_in_threadpool(ops_governance.list_catalog_versions)}
+
+
+@router.post('/api/admin/ontology-catalog/publish')
+async def admin_ontology_publish(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    data = await body(request)
+    result = await run_in_threadpool(
+        ops_governance.publish_catalog_to_ontology, user['display_name'], data.get('changeSummary', '')
+    )
+    service.get_store().audit(user['id'], 'ontology.publish', f"v{result.get('versionNo')}", result.get('changeSummary', ''))
+    return result
+
+
+@router.get('/api/admin/ontology/concepts')
+async def admin_concepts_list(request: Request):
+    require_role(request, 'admin')
+    return {'ok': True, 'items': await run_in_threadpool(ops_governance.list_concepts)}
+
+
+@router.post('/api/admin/ontology/concepts')
+async def admin_concepts_save(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    item = await run_in_threadpool(ops_governance.save_concept, await body(request))
+    service.get_store().audit(user['id'], 'ontology.concept.save', item.get('code', ''))
+    return {'ok': True, 'item': item}
+
+
+@router.delete('/api/admin/ontology/concepts/{concept_id}')
+async def admin_concepts_delete(concept_id: str, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    await run_in_threadpool(ops_governance.delete_concept, concept_id)
+    service.get_store().audit(user['id'], 'ontology.concept.delete', concept_id)
+    return {'ok': True}
+
+
+@router.get('/api/admin/ontology/synonyms')
+async def admin_synonyms_list(request: Request):
+    require_role(request, 'admin')
+    return {'ok': True, 'items': await run_in_threadpool(ops_governance.list_synonyms)}
+
+
+@router.post('/api/admin/ontology/synonyms')
+async def admin_synonyms_save(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    item = await run_in_threadpool(ops_governance.save_synonym, await body(request))
+    service.get_store().audit(user['id'], 'ontology.synonym.save', item.get('term', ''))
+    return {'ok': True, 'item': item}
+
+
+@router.delete('/api/admin/ontology/synonyms/{synonym_id}')
+async def admin_synonyms_delete(synonym_id: str, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    await run_in_threadpool(ops_governance.delete_synonym, synonym_id)
+    service.get_store().audit(user['id'], 'ontology.synonym.delete', synonym_id)
+    return {'ok': True}
+
+
+@router.get('/api/admin/ontology/attributes')
+async def admin_attributes_list(request: Request):
+    require_role(request, 'admin')
+    return {'ok': True, 'items': await run_in_threadpool(ops_governance.list_attributes)}
+
+
+@router.post('/api/admin/ontology/attributes')
+async def admin_attributes_save(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    item = await run_in_threadpool(ops_governance.save_attribute, await body(request))
+    service.get_store().audit(user['id'], 'ontology.attribute.save', item.get('code', ''))
+    return {'ok': True, 'item': item}
+
+
+@router.delete('/api/admin/ontology/attributes/{attr_id}')
+async def admin_attributes_delete(attr_id: str, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    await run_in_threadpool(ops_governance.delete_attribute, attr_id)
+    service.get_store().audit(user['id'], 'ontology.attribute.delete', attr_id)
+    return {'ok': True}
+
+
+@router.get('/api/admin/ontology/scenarios')
+async def admin_scenarios_list(request: Request):
+    require_role(request, 'admin')
+    return {'ok': True, 'items': await run_in_threadpool(ops_governance.list_scenarios)}
+
+
+@router.post('/api/admin/ontology/scenarios')
+async def admin_scenarios_save(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    item = await run_in_threadpool(ops_governance.save_scenario, await body(request))
+    service.get_store().audit(user['id'], 'ontology.scenario.save', item.get('code', ''))
+    return {'ok': True, 'item': item}
+
+
+@router.delete('/api/admin/ontology/scenarios/{code}')
+async def admin_scenarios_delete(code: str, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    await run_in_threadpool(ops_governance.delete_scenario, code)
+    service.get_store().audit(user['id'], 'ontology.scenario.delete', code)
+    return {'ok': True}
+
+
+@router.get('/api/admin/model/overview')
+async def admin_model_overview(request: Request):
+    require_role(request, 'admin')
+    return await run_in_threadpool(ops_governance.get_model_overview)
+
+
+@router.get('/api/admin/model/objects/{code}')
+async def admin_model_object_detail(code: str, request: Request):
+    require_role(request, 'admin')
+    return await run_in_threadpool(ops_governance.get_model_object_detail, code)
+
+
+@router.get('/api/admin/model/physical')
+async def admin_model_physical(request: Request):
+    require_role(request, 'admin')
+    return await run_in_threadpool(ops_governance.get_physical_model)
+
+
+@router.get('/api/admin/metrics')
+async def admin_metrics_list(request: Request):
+    require_role(request, 'admin')
+    return {'ok': True, 'items': await run_in_threadpool(ops_governance.list_metrics)}
+
+
+@router.post('/api/admin/metrics')
+async def admin_metrics_save(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    item = await run_in_threadpool(ops_governance.save_metric, await body(request))
+    service.get_store().audit(user['id'], 'metrics.save', item.get('code', ''))
+    return {'ok': True, 'item': item}
+
+
+@router.delete('/api/admin/metrics/{code}')
+async def admin_metrics_delete(code: str, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    await run_in_threadpool(ops_governance.delete_metric, code)
+    service.get_store().audit(user['id'], 'metrics.delete', code)
+    return {'ok': True}
+
+
+@router.get('/api/admin/dimensions')
+async def admin_dimensions_list(request: Request):
+    require_role(request, 'admin')
+    return {'ok': True, 'items': await run_in_threadpool(ops_governance.list_dimensions)}
+
+
+@router.post('/api/admin/dimensions')
+async def admin_dimensions_save(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    item = await run_in_threadpool(ops_governance.save_dimension, await body(request))
+    service.get_store().audit(user['id'], 'dimensions.save', item.get('code', ''))
+    return {'ok': True, 'item': item}
+
+
+@router.delete('/api/admin/dimensions/{code}')
+async def admin_dimensions_delete(code: str, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    await run_in_threadpool(ops_governance.delete_dimension, code)
+    service.get_store().audit(user['id'], 'dimensions.delete', code)
+    return {'ok': True}
+
+
+@router.get('/api/admin/filters')
+async def admin_filters_list(request: Request):
+    require_role(request, 'admin')
+    return {'ok': True, 'items': await run_in_threadpool(ops_governance.list_filters)}
+
+
+@router.post('/api/admin/filters')
+async def admin_filters_save(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    item = await run_in_threadpool(ops_governance.save_filter, await body(request))
+    service.get_store().audit(user['id'], 'filters.save', item.get('code', ''))
+    return {'ok': True, 'item': item}
+
+
+@router.delete('/api/admin/filters/{code}')
+async def admin_filters_delete(code: str, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    await run_in_threadpool(ops_governance.delete_filter, code)
+    service.get_store().audit(user['id'], 'filters.delete', code)
+    return {'ok': True}
+
+
+@router.get('/api/admin/rules')
+async def admin_rules_list(request: Request):
+    require_role(request, 'admin')
+    return {'ok': True, 'items': await run_in_threadpool(ops_governance.list_rules)}
+
+
+@router.post('/api/admin/rules')
+async def admin_rules_save(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    item = await run_in_threadpool(ops_governance.save_rule, await body(request))
+    service.get_store().audit(user['id'], 'rules.save', item.get('code', ''))
+    return {'ok': True, 'item': item}
+
+
+@router.delete('/api/admin/rules/{code}')
+async def admin_rules_delete(code: str, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    await run_in_threadpool(ops_governance.delete_rule, code)
+    service.get_store().audit(user['id'], 'rules.delete', code)
+    return {'ok': True}
+
+
+@router.get('/api/admin/capabilities')
+async def admin_capabilities_list(request: Request):
+    require_role(request, 'admin')
+    return {'ok': True, 'items': await run_in_threadpool(ops_governance.list_capabilities)}
+
+
+@router.post('/api/admin/capabilities')
+async def admin_capabilities_save(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    item = await run_in_threadpool(ops_governance.save_capability, await body(request))
+    service.get_store().audit(user['id'], 'capabilities.save', item.get('code', ''))
+    return {'ok': True, 'item': item}
+
+
+@router.delete('/api/admin/capabilities/{code}')
+async def admin_capabilities_delete(code: str, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    await run_in_threadpool(ops_governance.delete_capability, code)
+    service.get_store().audit(user['id'], 'capabilities.delete', code)
+    return {'ok': True}
+
+
+@router.get('/api/admin/planner/templates')
+async def admin_planner_templates(request: Request):
+    require_role(request, 'admin')
+    return {'ok': True, 'items': await run_in_threadpool(ops_governance.list_planner_templates)}
+
+
+@router.post('/api/admin/planner/templates')
+async def admin_planner_templates_save(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    item = await run_in_threadpool(ops_governance.save_planner_template, await body(request))
+    service.get_store().audit(user['id'], 'planner.template.save', item.get('code', ''))
+    return {'ok': True, 'item': item}
+
+
+@router.delete('/api/admin/planner/templates/{code}')
+async def admin_planner_templates_delete(code: str, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    await run_in_threadpool(ops_governance.delete_planner_template, code)
+    service.get_store().audit(user['id'], 'planner.template.delete', code)
+    return {'ok': True}
+
+
+@router.post('/api/admin/planner/dry-run')
+async def admin_planner_dry_run(request: Request):
+    same_origin(request)
+    require_role(request, 'admin')
+    data = await body(request)
+    return await run_in_threadpool(
+        ops_governance.dry_run_plan, data.get('question', ''), data.get('dayMode', 'AUTO')
+    )
+
+
+@router.get('/api/admin/ask-settings/home-airport')
+async def admin_home_airport_get(request: Request):
+    require_role(request, 'admin')
+    return {'ok': True, 'config': await run_in_threadpool(ops_governance.get_home_airport_config)}
+
+
+@router.put('/api/admin/ask-settings/home-airport')
+async def admin_home_airport_save(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    cfg = await run_in_threadpool(ops_governance.save_home_airport_config, await body(request))
+    service.get_store().audit(user['id'], 'ask_settings.home_airport', cfg.get('iataCode', ''))
+    return {'ok': True, 'config': cfg}
+
+
+@router.get('/api/admin/ask-settings/operational-day')
+async def admin_operational_day_get(request: Request):
+    require_role(request, 'admin')
+    return {'ok': True, 'config': await run_in_threadpool(ops_governance.get_operational_day_config)}
+
+
+@router.put('/api/admin/ask-settings/operational-day')
+async def admin_operational_day_save(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    cfg = await run_in_threadpool(ops_governance.save_operational_day_config, await body(request))
+    service.get_store().audit(user['id'], 'ask_settings.operational_day', str(cfg.get('startHour', '')))
+    return {'ok': True, 'config': cfg}
+
+
+@router.post('/api/ask/feedback')
+async def ask_feedback_submit(request: Request):
+    same_origin(request)
+    user = business_access.query_identity(request)['user']
+    data = await body(request)
+    item = service.get_store().submit_feedback(user, data)
+    return {'ok': True, 'item': item}
+
+
+@router.get('/api/admin/feedback')
+def admin_feedback_list(request: Request):
+    require_role(request, 'admin')
+    status = request.query_params.get('status', 'OPEN')[:30]
+    reason = request.query_params.get('reason', '')[:40]
+    search = request.query_params.get('search', '')[:100]
+    severity = request.query_params.get('severity', '')[:20]
+    start_date = request.query_params.get('start_date', '')[:20]
+    end_date = request.query_params.get('end_date', '')[:20]
+    return ops_governance.list_feedback_combined(
+        service.get_store(),
+        status=status, search=search, reason=reason,
+        severity=severity, start_date=start_date, end_date=end_date,
+        page=page_number(request),
+    )
+
+
+@router.patch('/api/admin/feedback/{feedback_id}')
+async def admin_feedback_update(feedback_id: str, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    data = await body(request)
+    item = service.get_store().update_feedback(
+        feedback_id, data.get('status', ''), data.get('adminNote') or data.get('admin_note') or '', user['id']
+    )
+    return {'ok': True, 'item': item}
+
+
+@router.post('/api/admin/feedback/{feedback_id}/promote-synonym')
+async def admin_feedback_promote(feedback_id: str, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    data = await body(request)
+    return await run_in_threadpool(
+        ops_governance.promote_feedback_to_synonym,
+        service.get_store(),
+        feedback_id,
+        data.get('conceptCode', ''),
+        data.get('term', ''),
+        user['id'],
+        user['display_name'],
+        data.get('adminNote', ''),
+    )

@@ -8,8 +8,17 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-export async function streamQuestion(question: string, signal: AbortSignal, onEvent: (event: StreamEvent) => void, conversation_id?: string) {
-  const response = await fetch("/api/ask/stream", { method: "POST", headers: { "Content-Type": "application/json", "X-Hbask-Request": "1" }, body: JSON.stringify({ question, conversation_id }), signal });
+export async function streamQuestion(
+  question: string,
+  signal: AbortSignal,
+  onEvent: (event: StreamEvent) => void,
+  conversation_id?: string,
+  clarification?: { clarification_of: string; choice_id?: string },
+  day_mode?: string,
+) {
+  const payload: Record<string, unknown> = { question, conversation_id, ...clarification };
+  if (day_mode && day_mode !== "AUTO") payload.day_mode = day_mode;
+  const response = await fetch("/api/ask/stream", { method: "POST", headers: { "Content-Type": "application/json", "X-Hbask-Request": "1" }, body: JSON.stringify(payload), signal });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
     throw new Error(data.error || `请求失败 (${response.status})`);

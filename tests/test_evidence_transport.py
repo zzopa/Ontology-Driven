@@ -307,6 +307,22 @@ class EvidenceTransportTests(unittest.TestCase):
                 if enabled:
                     self.assertIs(payload['enable_thinking'],False)
 
+    def test_max_evidence_batches_bulk_fastpath(self):
+        called = []
+        def fake(system, user, **kwargs):
+            called.append(user)
+            return '{"claims":[]}'
+        cfg = replace(core.settings, evidence_budget=6000, max_evidence_batches=1)
+        report, trace = {}, ExecutionTrace()
+        with patch.object(core, 'settings', cfg), patch.object(core, 'model_available', return_value=True), \
+                patch.object(core, 'chat', side_effect=fake):
+            _, text, validation = core.answer(self.catalog, self.plan, self.evidence, 10, True, '查找信科公司李姓员工情况', trace, report)
+        self.assertEqual(len(called), 0)
+        self.assertEqual(validation, 'deterministic')
+        self.assertEqual(report.get('fastpath'), 'deterministic_bulk')
+        self.assertIn('李康平', text)
+        self.assertIn('answer_fastpath', trace.steps)
+
 
 if __name__ == '__main__':
     unittest.main()

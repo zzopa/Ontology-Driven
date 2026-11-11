@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, ArrowUpRight, LogOut, ShieldCheck } from "lucide-react";
+import { ArrowRight, ArrowUpRight, LogOut } from "lucide-react";
 import { request } from "@/lib/api";
 import { roleLabel, type Auth, type User } from "@/lib/admin";
 import { Button, Card, Spinner } from "../ui";
@@ -10,11 +10,11 @@ import { useAction } from "./shared";
 export function AuthForm({ onLogin }: { auth: Auth; onLogin: (user: User) => void }) {
   const [username, setUsername] = useState(""), [password, setPassword] = useState("");
   const action = useAction();
-  return <Card className="admin-auth"><span className="admin-auth-mark"><ShieldCheck size={25} /></span><div className="eyebrow">WORKSPACE.</div><h1>登录业务账号</h1><p>使用现有填报系统账号。问数和管理后台共用账号、角色与数据权限。</p>
+  return <Card className="admin-auth"><span className="admin-auth-mark"><img src="/brand/logo.svg" width={50} height={50} alt="知航 Logo" /></span><div className="eyebrow">知航 · ACDM 智能问询</div><h1>登录业务账号</h1><p>使用现有填报系统账号。问数和管理后台共用账号、角色与数据权限。</p>
     <form onSubmit={e => { e.preventDefault(); action.run(async () => {
       const value = await request<{ user: User }>("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
       setPassword(""); onLogin(value.user);
-    }); }}><label className="form-field">账号<input autoComplete="username" required maxLength={64} value={username} onChange={e => setUsername(e.target.value)} placeholder="输入填报系统账号" /></label><label className="form-field">密码<input type="password" autoComplete="current-password" required maxLength={128} value={password} onChange={e => setPassword(e.target.value)} placeholder="输入账号密码" /></label>{action.feedback}<Button type="submit" variant="primary" disabled={action.busy}>{action.busy ? <Spinner /> : <ArrowRight size={14} />}登录</Button></form><div className="helper">账号、密码和角色在原填报系统维护。</div><a className="inline-button" href="/">返回智能问数 <ArrowUpRight size={12} /></a></Card>;
+    }); }}><label className="form-field">账号<input autoComplete="username" required maxLength={64} value={username} onChange={e => setUsername(e.target.value)} placeholder="输入填报系统账号" /></label><label className="form-field">密码<input type="password" autoComplete="current-password" required maxLength={128} value={password} onChange={e => setPassword(e.target.value)} placeholder="输入账号密码" /></label>{action.feedback}<Button type="submit" variant="primary" disabled={action.busy}>{action.busy ? <Spinner /> : <ArrowRight size={14} />}登录</Button></form><div className="helper">账号、密码和角色在原填报系统维护。</div><a className="inline-button" href="/">返回知航问询 <ArrowUpRight size={12} /></a></Card>;
 }
 
 export function AccountMenu({ user, onLogout }: { user: User; onLogout?: () => void }) {

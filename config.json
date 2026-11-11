@@ -68,7 +68,8 @@
     "answer_composition_budget": 18000,
     "answer_composition_timeout_seconds": 20,
     "relation_probe_timeout_ms": 2000,
-    "relation_probe_budget_seconds": 30
+    "relation_probe_budget_seconds": 30,
+    "max_evidence_batches": 0
   },
-  "data_source": "hbairport"
+  "data_source": "ops_ask"
 }

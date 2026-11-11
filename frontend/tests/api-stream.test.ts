@@ -71,3 +71,13 @@ test("streamQuestion retains received partial callbacks but rejects EOF without 
   await assert.rejects(streamQuestion("测试", new AbortController().signal, event => events.push(event)), /未收到完整查询结果/);
   assert.deepEqual(events, [{ type: "answer_delta", delta: "已核验的部分正文" }]);
 });
+
+test("clarification is a successful terminal response and continuation sends identifiers only", async t => {
+  const result = { ok: true, outcome: "clarification_needed", answer: "计划还是实际？", clarification: { options: [{ id: "1", label: "实际" }] } };
+  const fetchMock = t.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ type: "result", data: result }) + "\n"));
+  const events: StreamEvent[] = [];
+  await streamQuestion("实际", new AbortController().signal, event => events.push(event), "conversation", { clarification_of: "message", choice_id: "1" });
+  assert.equal(events[0].data?.outcome, "clarification_needed");
+  const init = fetchMock.mock.calls[0].arguments[1];
+  assert.deepEqual(JSON.parse(String(init?.body)), { question: "实际", conversation_id: "conversation", clarification_of: "message", choice_id: "1" });
+});
