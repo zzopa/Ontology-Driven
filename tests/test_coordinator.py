@@ -1,7 +1,7 @@
 """Operations planning contracts: paraphrases, explicit scope, and safe continuation."""
 from copy import deepcopy
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -62,6 +62,36 @@ class CoordinatorTests(unittest.TestCase):
         plan = self.coordinator.plan('出港', clarification=result['clarification'], choice_id='1')
         self.assertEqual(plan['subject'], ACTUAL)
         self.assertEqual(plan['limit'], 1)
+
+    def test_attribute_followup_binds_the_returned_flight_without_model(self):
+        previous = self.coordinator.plan('2026-11-16最早出港实际执行航班是哪个')
+        previous['query_context']['result_identity'] = {'id': 54282, 'flight_no': 'TR121', 'direction': 'DEP'}
+        chat = Mock(side_effect=AssertionError('attribute follow-up must not call the model'))
+        coord = Coordinator(self.catalog, chat=chat)
+        for question, field in [('飞机目的地是哪', 'dest_airport'), ('它的目的机场是哪里？', 'dest_airport'),
+                                ('这班航班的登机口是几号', 'gate_code')]:
+            with self.subTest(question=question):
+                plan = coord.plan(question, previous_plan=previous)
+                self.assertEqual(plan.get('answer_field'), field)
+                self.assertTrue(plan['follow_up'])
+                self.assertNotIn('flight_sequence', plan)
+                self.assertNotIn('limit', plan)
+                self.assertIn({'table': ACTUAL, 'col': 'id', 'op': '=', 'value': 54282}, plan['conditions'])
+                self.assertEqual(plan['query_context']['slots']['flight'], 'TR121')
+                sql = Compiler(self.catalog).detail(plan, [], 50, 200)
+                self.assertIn(54282, sql.params)
+                self.assertIn('2026-11-16T00:00:00+08:00', sql.params)
+        chat.assert_not_called()
+        self.assertNotIn('flight', previous['query_context']['slots'])
+
+    def test_attribute_followup_requires_unique_result_and_keeps_new_queries_separate(self):
+        previous = self.coordinator.plan('2026-11-16最早出港实际执行航班是哪个')
+        result = self.coordinator.plan('飞机目的地是哪', previous_plan=previous)
+        self.assertEqual(result['outcome'], 'clarification_needed')
+        self.assertEqual(result['clarification']['slot'], 'identifier')
+        previous['query_context']['result_identity'] = {'id': 54282, 'flight_no': 'TR121', 'direction': 'DEP'}
+        for question in ['明天飞机目的地是哪', 'CZ3357目的地是哪', '目的地是北京吗', '今天最早出港实际执行航班是哪个']:
+            self.assertIsNone(self.coordinator._record_follow_up(question, previous, datetime.now(BEIJING)))
 
     def test_confirmation_can_be_free_text_and_preserves_relative_date(self):
         result = self.coordinator.plan('昨天最后一班航班是哪个')
@@ -204,6 +234,58 @@ class CoordinatorTests(unittest.TestCase):
         plan = self.coordinator.plan('今天进港实际执行多少班', previous_plan=previous)
         self.assertFalse(any(c['col']=='airline_code' for c in plan['conditions']))
 
+    def test_ground_service_node_wording_keeps_flight_date_and_extra_conditions(self):
+        for flight in ('CZ3357', 'CZ8318'):
+            for wording in ('地服保障节点甘特图', '地面保障节点', '保障流程', '保障时间轴'):
+                with self.subTest(flight=flight, wording=wording):
+                    plan = self.coordinator.plan(f'2026-11-10 {flight} 的{wording}')
+                    self.assertEqual(plan.get('intent'), 'turnaround', plan)
+                    self.assertEqual(plan['query_identifier'], flight)
+                    self.assertEqual(plan['flight_date'], '2026-11-10')
+        extra = self.coordinator.plan('2026-11-10 CZ3357 的地服保障节点甘特图，只看国际航班')
+        self.assertEqual(extra.get('outcome'), 'clarification_needed')
+
+    def test_followup_inherits_turnaround_date_airline_flight_and_pronoun(self):
+        # Turn 1: turnaround flight query
+        t1 = self.coordinator.plan('2026-11-10 CZ3357 的过站保障')
+        self.assertEqual(t1['intent'], 'turnaround')
+        self.assertEqual(t1['query_identifier'], 'CZ3357')
+        self.assertEqual(t1['flight_date'], '2026-11-10')
+
+        # Turn 2: date delta "11月9号的呢" & day-only "9号的呢" inherit CZ3357 & turnaround intent
+        t2 = self.coordinator.plan('11月9号的呢', previous_plan=t1)
+        self.assertEqual(t2['intent'], 'turnaround')
+        self.assertEqual(t2['query_identifier'], 'CZ3357')
+        self.assertTrue(t2['flight_date'].endswith('-11-09'))
+        self.assertTrue(t2.get('follow_up'))
+
+        t2_dom = self.coordinator.plan('9号的呢', previous_plan=t1)
+        self.assertEqual(t2_dom['intent'], 'turnaround')
+        self.assertEqual(t2_dom['query_identifier'], 'CZ3357')
+        self.assertEqual(t2_dom['flight_date'], '2026-11-09')
+
+        t2_prev_day = self.coordinator.plan('上一天呢', previous_plan=t2_dom)
+        self.assertEqual(t2_prev_day['flight_date'], '2026-11-08')
+
+        # Turn 3: switching tail number via elliptical follow-up clears previous flight slot
+        t3 = self.coordinator.plan('B20AE的呢', previous_plan=t2)
+        self.assertEqual(t3['intent'], 'turnaround')
+        self.assertEqual(t3['query_identifier'], 'B20AE')
+
+        # Pronoun follow-up reuses flight identifier
+        t4 = self.coordinator.plan('这班航班2026-11-08的过站保障', previous_plan=t1)
+        self.assertEqual(t4['intent'], 'turnaround')
+        self.assertEqual(t4['query_identifier'], 'CZ3357')
+        self.assertEqual(t4['flight_date'], '2026-11-08')
+
+        # Airline swap follow-up clears stale airline filter and runs deterministically
+        extra_refs = [*REFS, {'role': 'airline', 'term': '东航', 'value': 'MU', 'table': 'dim_airline', 'field': 'iata_code', 'column': 'airline_code'}]
+        coord = Coordinator(self.catalog, references=extra_refs)
+        m1 = coord.plan('昨天南航出港实际执行了多少班')
+        m2 = coord.plan('东航的呢', previous_plan=m1)
+        self.assertEqual(next(c['value'] for c in m2['conditions'] if c['col'] == 'airline_code'), 'MU')
+        self.assertEqual(next(c['value'] for c in m2['conditions'] if c['col'] == 'direction'), 'DEP')
+
     def test_model_unavailable_never_discards_unknown_conditions(self):
         result = self.coordinator.plan('昨天出港实际执行航班中尚未定义状态的明细')
         self.assertEqual(result['outcome'], 'clarification_needed')
@@ -249,6 +331,19 @@ class CoordinatorTests(unittest.TestCase):
         self.assertEqual(self.coordinator.plan('生成昨天南航ACDM通用报告')['outcome'], 'unsupported')
         self.assertEqual(self.coordinator.plan('生成近7天地服公司运行简报')['outcome'], 'clarification_needed')
 
+    def test_general_report_wording_does_not_collide_with_tongyong_airline_reference(self):
+        refs = [*REFS, {'role':'airline','term':'通用','value':'GP','table':'dim_airline','field':'iata_code','column':'airline_code'}]
+        coord = Coordinator(self.catalog, references=refs)
+        for q in ('生成昨天 A-CDM 通用报告', '生成昨天 A-CDM 通用报'):
+            plan = coord.plan(q)
+            self.assertEqual(plan['intent'], 'acdm_report')
+            self.assertEqual(plan['report_kind'], 'general')
+            self.assertEqual(plan['report_period_type'], 'day')
+            self.assertNotIn('references', plan['query_context']['slots'])
+        airline_plan = coord.plan('昨天通用出港实际执行了多少班')
+        self.assertEqual(airline_plan['intent'], 'count')
+        self.assertIn({'table':'ops_ask_views.flight_execution','col':'airline_code','op':'=','value':'GP'}, airline_plan['conditions'])
+
     def test_undeclared_actual_scope_cannot_count_all_raw_rows(self):
         plan = self.coordinator.validate({'subject':'acdm.tb_dyn_flight','intent':'count','conditions':[]},
             '昨天实际执行了多少架次', {'basis':'actual','period':['2026-11-09','2026-11-10']}, datetime.now(BEIJING))
@@ -287,6 +382,241 @@ class CoordinatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'选项无效'):
             self.coordinator.plan('实际',clarification=result['clarification'],choice_id='999')
 
+    def test_turnaround_phrasing_routes_directly_and_clarification_keeps_question_context(self):
+        for q, expected_flight in (
+            ('今天MU2472 过站保障情况如何', 'MU2472'),
+            ('今天MU2472 加油和保洁作业完成了吗？', 'MU2472'),
+        ):
+            plan = self.coordinator.plan(q)
+            self.assertEqual(plan['intent'], 'turnaround')
+            self.assertEqual(plan['query_identifier'], expected_flight)
+
+        pending = self.coordinator.plan('昨天CZ3357 航班情况如何')
+        self.assertEqual(pending['clarification']['slot'], 'basis')
+        resolved = self.coordinator.plan('实际执行（按实际起飞/落地）', clarification=pending['clarification'], choice_id='1')
+        self.assertEqual(resolved['subject'], ACTUAL)
+        self.assertEqual(resolved['intent'], 'detail')
+        self.assertEqual(resolved['query_context']['question'], '昨天CZ3357 航班情况如何')
+
+        dead_end = {**pending['clarification'], 'slot': None, 'options': []}
+        fresh = self.coordinator.plan('今天MU2472 过站保障情况如何', clarification=dead_end)
+        self.assertEqual(fresh['intent'], 'turnaround')
+        self.assertEqual(fresh['query_identifier'], 'MU2472')
+
+        # Duplicate identifier condition emitted with CORE table by model should deduplicate cleanly
+        anchor = datetime.now(BEIJING)
+        validated = self.coordinator.validate(
+            {'subject': ACTUAL, 'intent': 'detail',
+             'conditions': [{'table': CORE, 'col': 'flight_no', 'op': '=', 'value': 'MU2472'}],
+             'grounding': [{'table': CORE, 'col': 'flight_no', 'quote': 'MU2472'}]},
+            '昨天MU2472 实际航班情况如何',
+            {'period': ['2026-11-10', '2026-11-11'], 'flight': 'MU2472', 'basis': 'actual'},
+            anchor,
+        )
+        self.assertEqual(validated['subject'], ACTUAL)
+        self.assertTrue(any(c['table'] == ACTUAL and c['col'] == 'flight_no' and c['value'] == 'MU2472' for c in validated['conditions']))
+
+    def test_flight_detail_wording_resolves_actual_and_planned_without_model(self):
+        coord = Coordinator(self.catalog, chat=Mock(side_effect=AssertionError('detail query must not call model')))
+        pending = coord.plan('MU2593昨天航班详情')
+        self.assertEqual(pending['outcome'], 'clarification_needed')
+        self.assertEqual(pending['clarification']['slot'], 'basis')
+
+        actual_plan = coord.plan('实际执行（按实际起飞/落地）', clarification=pending['clarification'], choice_id='1')
+        self.assertEqual(actual_plan['subject'], ACTUAL)
+        self.assertEqual(actual_plan['intent'], 'detail')
+        self.assertTrue(any(c['table'] == ACTUAL and c['col'] == 'flight_no' and c['value'] == 'MU2593' for c in actual_plan['conditions']))
+        self.assertTrue(any(c['table'] == ACTUAL and c['col'] == 'execution_time' for c in actual_plan['conditions']))
+
+        planned_plan = coord.plan('计划航班（按计划业务日）', clarification=pending['clarification'], choice_id='2')
+        self.assertEqual(planned_plan['subject'], CORE)
+        self.assertEqual(planned_plan['intent'], 'detail')
+        self.assertTrue(any(c['table'] == CORE and c['col'] == 'flight_no' and c['value'] == 'MU2593' for c in planned_plan['conditions']))
+        self.assertTrue(any(c['table'] == CORE and c['col'] == 'flight_date' for c in planned_plan['conditions']))
+
+        dyn_plan = coord.plan('昨天MU2593实际航班动态')
+        self.assertEqual(dyn_plan['subject'], ACTUAL)
+        self.assertEqual(dyn_plan['intent'], 'detail')
+
+    def test_multi_turn_follow_up_preserves_prior_metric_and_topic(self):
+        first = self.coordinator.plan('昨天放行正常率是多少？')
+        self.assertEqual(first['metric'], 'release_on_time_rate')
+        changed_day = self.coordinator.plan('改查今天', previous_plan=first)
+        self.assertEqual(changed_day['metric'], 'release_on_time_rate')
+        today_str = datetime.now(BEIJING).date().isoformat()
+        self.assertTrue(any(c['op'] == '>=' and c['value'] == today_str for c in changed_day['conditions']))
+        dep_only = self.coordinator.plan('只看出港', previous_plan=first)
+        self.assertEqual(dep_only['metric'], 'release_on_time_rate')
+        self.assertTrue(any(c['col'] == 'direction' and c['value'] == 'DEP' for c in dep_only['conditions']))
+
+    def test_seven_turn_follow_up_chain_without_residual_leaks(self):
+        refs = [*REFS, {'role': 'airline', 'term': '东航', 'value': 'MU', 'table': 'dim_airline', 'field': 'iata_code', 'column': 'airline_code'}]
+        coord = Coordinator(self.catalog, references=refs)
+        anchor_today = datetime.now(BEIJING).date()
+        day_before = (anchor_today - timedelta(days=2)).isoformat()
+        p1 = coord.plan('昨天南航出港实际执行了多少班')
+        p2 = coord.plan('东航的呢', previous_plan=p1)
+        self.assertEqual(next(c['value'] for c in p2['conditions'] if c['col'] == 'airline_code'), 'MU')
+        self.assertNotIn('南航', p2['query_context']['question'])
+
+        p3 = coord.plan('进港呢', previous_plan=p2)
+        self.assertEqual(p3['subject'], ACTUAL)
+        self.assertEqual(p3['intent'], 'count')
+        self.assertEqual(next(c['value'] for c in p3['conditions'] if c['col'] == 'airline_code'), 'MU')
+        self.assertEqual(next(c['value'] for c in p3['conditions'] if c['col'] == 'direction'), 'ARR')
+
+        p4 = coord.plan('看明细', previous_plan=p3)
+        self.assertEqual(p4['subject'], ACTUAL)
+        self.assertEqual(p4['intent'], 'detail')
+        self.assertEqual(next(c['value'] for c in p4['conditions'] if c['col'] == 'airline_code'), 'MU')
+
+        p5 = coord.plan('前天呢', previous_plan=p4)
+        self.assertEqual(p5['intent'], 'detail')
+        self.assertTrue(any(c['op'] == '>=' and c['value'].startswith(day_before) for c in p5['conditions']))
+
+        p6 = coord.plan('有几班', previous_plan=p5)
+        self.assertEqual(p6['subject'], ACTUAL)
+        self.assertEqual(p6['intent'], 'count')
+
+        p7 = coord.plan('计划航班呢', previous_plan=p6)
+        self.assertEqual(p7['subject'], CORE)
+        self.assertEqual(p7['intent'], 'count')
+        self.assertEqual(next(c['value'] for c in p7['conditions'] if c['col'] == 'airline_code'), 'MU')
+        self.assertEqual(next(c['value'] for c in p7['conditions'] if c['col'] == 'direction'), 'ARR')
+
+    def test_metric_dimension_topn_swap_and_detail_follow_ups(self):
+        coord = Coordinator(self.catalog, chat=Mock(side_effect=AssertionError('metric follow-ups must not call model')), references=REFS)
+        first = coord.plan('昨天放行正常率是多少？')
+        self.assertEqual(first['metric'], 'release_on_time_rate')
+
+        by_airline = coord.plan('各航司前5名呢', previous_plan=first)
+        self.assertEqual(by_airline['metric'], 'release_on_time_rate')
+        self.assertEqual(by_airline.get('limit'), 5)
+        self.assertTrue(any('airline' in str(g) for g in by_airline.get('group_by', [])))
+
+        prev_day = (datetime.now(BEIJING).date() - timedelta(days=2)).isoformat()
+        shifted = coord.plan('前天呢', previous_plan=by_airline)
+        self.assertEqual(shifted['metric'], 'release_on_time_rate')
+        self.assertEqual(shifted.get('limit'), 5)
+        self.assertTrue(any(c['op'] == '>=' and prev_day in str(c['value']) for c in shifted['conditions']))
+
+        swapped = coord.plan('换成靠桥率', previous_plan=shifted)
+        self.assertEqual(swapped['metric'], 'bridge_stand_rate')
+        self.assertTrue(any(c['op'] == '>=' and prev_day in str(c['value']) for c in swapped['conditions']))
+
+        detail = coord.plan('看明细', previous_plan=first)
+        self.assertNotIn(detail.get('outcome'), ('clarification_needed', 'unsupported'))
+        self.assertEqual(detail['intent'], 'detail')
+        self.assertIsNone(detail.get('metric'))
+
+    def test_clarification_short_breakout_slotless_recovery_and_pronouns(self):
+        pending = self.coordinator.plan('CZ8318地服保障情况')
+        self.assertEqual(pending['clarification']['slot'], 'period')
+
+        for q, expected_intent, expected_subject in (
+            ('昨天南航多少班', 'clarification_needed', None),
+            ('昨天南航有多少航班', 'clarification_needed', 'basis'),
+            ('能问什么', 'answered', None),
+            ('列出航空公司', 'detail', 'dim_airline'),
+            ('昨天放行正常率', 'metric', 'mv_acdm_dyn_flight_detail'),
+        ):
+            out = self.coordinator.plan(q, clarification=pending['clarification'])
+            if expected_intent == 'clarification_needed':
+                self.assertEqual(out['outcome'], 'clarification_needed')
+                self.assertEqual(out['clarification']['original_question'], q)
+                self.assertEqual(out['clarification']['slot'], expected_subject)
+            elif expected_intent == 'answered':
+                self.assertEqual(out['outcome'], 'answered')
+            else:
+                self.assertEqual(out['intent'], expected_intent)
+                self.assertEqual(out['subject'], expected_subject)
+
+        # Free-text month-day / day-of-month / dot-date answers inside active or slotless clarification
+        month_day = f'{datetime.now(BEIJING).year:04d}-11-10'
+        for answer_text in ('11月10号', '11.10', '2026年11月10号'):
+            resolved = self.coordinator.plan(answer_text, clarification=pending['clarification'])
+            self.assertEqual(resolved['intent'], 'turnaround')
+            self.assertEqual(resolved['query_identifier'], 'CZ8318')
+            self.assertTrue(resolved['flight_date'].endswith('-11-10'))
+
+        slotless = {**pending['clarification'], 'slot': None, 'options': []}
+        recovered = self.coordinator.plan('11月10号', clarification=slotless)
+        self.assertEqual(recovered['intent'], 'turnaround')
+        self.assertEqual(recovered['query_identifier'], 'CZ8318')
+        self.assertEqual(recovered['flight_date'], month_day)
+        self.assertNotIn('补充条件', recovered['query_context']['question'])
+
+        # Pronouns ("这班", "它") expand without gluing digits onto flight/aircraft IDs
+        by_pronoun = self.coordinator.plan('这班11月10号呢', previous_plan=recovered)
+        self.assertEqual(by_pronoun['intent'], 'turnaround')
+        self.assertEqual(by_pronoun['query_identifier'], 'CZ8318')
+        self.assertEqual(by_pronoun['flight_date'], month_day)
+
+        b_plan = self.coordinator.plan('今天B20AE过站保障情况')
+        b_pronoun = self.coordinator.plan('那它11月10号呢', previous_plan=b_plan)
+        self.assertEqual(b_pronoun['intent'], 'turnaround')
+        self.assertEqual(b_pronoun['query_identifier'], 'B20AE')
+        self.assertEqual(b_pronoun['flight_date'], month_day)
+
+        # Demonstrative flight switch ("这个CZ3357") inherits prior turnaround context cleanly,
+        # and standalone ("这个CZ3357" -> "实际执行" -> "昨天") plans deterministically without calling model.
+        switched = self.coordinator.plan('这个CZ3357', previous_plan=recovered)
+        self.assertEqual(switched['intent'], 'turnaround')
+        self.assertEqual(switched['query_identifier'], 'CZ3357')
+        self.assertEqual(switched['flight_date'], month_day)
+
+        no_model = Coordinator(self.catalog, chat=Mock(side_effect=AssertionError('must not invoke model')), references=REFS)
+        s1 = no_model.plan('这个CZ3357')
+        self.assertEqual(s1['clarification']['slot'], 'basis')
+        s2 = no_model.plan('实际执行（按实际起飞/落地）', clarification=s1['clarification'], choice_id='1')
+        self.assertEqual(s2['clarification']['slot'], 'period')
+        s3 = no_model.plan('昨天', clarification=s2['clarification'], choice_id='1')
+        self.assertEqual(s3['subject'], ACTUAL)
+        self.assertEqual(s3['intent'], 'detail')
+        self.assertTrue(any(c['col'] == 'flight_no' and c['value'] == 'CZ3357' for c in s3['conditions']))
+
+    def test_validate_normalizes_execution_time_calendar_day_variants(self):
+        anchor = datetime.now(BEIJING)
+        expected = {'period': ['2026-11-11', '2026-11-12'], 'basis': 'actual', 'flight': 'CZ3357'}
+        for conds in (
+            [{'table': ACTUAL, 'col': 'execution_time', 'op': '>=', 'value': '2026-11-11T00:00:00Z'}],
+            [{'table': ACTUAL, 'col': 'execution_time', 'op': '<=', 'value': '2026-11-11T23:59:59'}],
+            [{'table': ACTUAL, 'col': 'execution_time', 'op': '=', 'value': '2026-11-11'}],
+        ):
+            plan = self.coordinator.validate(
+                {'subject': ACTUAL, 'intent': 'detail', 'conditions': conds, 'grounding': []},
+                '2026-11-11 CZ3357实际执行',
+                expected,
+                anchor,
+            )
+            self.assertIn({'table': ACTUAL, 'col': 'execution_time', 'op': '>=', 'value': '2026-11-11T00:00:00+08:00'}, plan['conditions'])
+            self.assertIn({'table': ACTUAL, 'col': 'execution_time', 'op': '<', 'value': '2026-11-12T00:00:00+08:00'}, plan['conditions'])
+        with self.assertRaisesRegex(ValueError, '计划改变了明确条件：execution_time'):
+            self.coordinator.validate(
+                {'subject': ACTUAL, 'intent': 'detail',
+                 'conditions': [{'table': ACTUAL, 'col': 'execution_time', 'op': '>=', 'value': '2026-11-08T00:00:00+08:00'}],
+                 'grounding': []},
+                '2026-11-11 CZ3357实际执行',
+                expected,
+                anchor,
+            )
+
+    def test_model_receives_conversation_history(self):
+        captured = {}
+
+        def fake_chat(system_prompt, user_payload, **_kwargs):
+            captured['payload'] = json.loads(user_payload)
+            return json.dumps({'clarification': '请补充筛选条件'}, ensure_ascii=False)
+
+        coord = Coordinator(self.catalog, chat=fake_chat, references=REFS)
+        history = [
+            {'question': '昨天南航出港实际执行了多少班', 'outcome': 'answered', 'subject': ACTUAL, 'intent': 'count', 'metric': None, 'slots': {}},
+        ]
+        prev = coord.plan('昨天南航出港实际执行了多少班')
+        result = coord.plan('昨天出港实际执行航班中尚未定义状态的明细', previous_plan=prev, history=history)
+        self.assertEqual(result['outcome'], 'clarification_needed')
+        self.assertEqual(captured['payload']['conversation_history'], history)
+
     def test_coverage_is_object_specific_and_never_assumes_completeness(self):
         plan = self.coordinator.plan('昨天南航出港实际执行了多少班')
         with patch.object(core,'execute',return_value=[{'first_date':'2026-01-01','last_date':'2026-12-01'}]) as execute:
@@ -297,6 +627,23 @@ class CoordinatorTests(unittest.TestCase):
 
 
 class ClarificationStoreTests(unittest.TestCase):
+    def test_only_single_answered_flight_adds_record_identity(self):
+        with TemporaryDirectory() as directory:
+            store = AdminStore(Path(directory))
+            for outcome, total in [('answered', 1), ('answered', 2), ('no_data', 0)]:
+                with self.subTest(outcome=outcome, total=total):
+                    conversation, message = store.begin_question('u', '最早航班', 'test')
+                    store.complete_question(message, {
+                        'outcome': outcome, 'main_total': total,
+                        'main_rows': [{'id': 54282, 'flight_no': 'TR121', 'direction': 'DEP', 'dest_airport': 'SIN'}] if total else [],
+                        'plan': {'subject': ACTUAL, 'intent': 'detail', 'query_context': {'slots': {}, 'result_identity': {'id': 'stale'}}},
+                    })
+                    plan = store.latest_completed_plan(conversation, 'u')
+                    if total == 1:
+                        self.assertEqual(plan['query_context']['result_identity'], {'id': 54282, 'flight_no': 'TR121', 'direction': 'DEP'})
+                    else:
+                        self.assertNotIn('result_identity', plan['query_context'])
+
     def test_pending_and_unsupported_results_do_not_replace_successful_plan(self):
         with TemporaryDirectory() as directory:
             store = AdminStore(Path(directory))
@@ -313,12 +660,63 @@ class ClarificationStoreTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'澄清已结束'):
                 store.clarification(conversation,'u',pending)
 
+    def test_recent_conversation_turns_and_failed_retry_keep_clarification(self):
+        with TemporaryDirectory() as directory:
+            store = AdminStore(Path(directory))
+            conversation, m1 = store.begin_question('u', 'CZ8318地服保障情况', 'test')
+            store.complete_question(m1, {
+                'ok': True, 'outcome': 'clarification_needed',
+                'clarification': {'slot': 'period', 'question': '请确认日期', 'options': [{'id': '1', 'label': '昨天', 'value': ['2026-11-11', '2026-11-12']}]},
+            })
+            _, m_failed = store.begin_question('u', '昨天', 'test', conversation)
+            store.complete_question(m_failed, error='临时错误')
+            self.assertEqual(store.clarification(conversation, 'u', m1)['slot'], 'period')
+
+            _, m2 = store.begin_question('u', '昨天', 'test', conversation)
+            store.complete_question(m2, {
+                'ok': True, 'outcome': 'no_data',
+                'plan': {'subject': CORE, 'intent': 'turnaround', 'query_context': {'question': 'CZ8318地服保障情况', 'slots': {'flight': 'CZ8318'}}},
+            })
+            _, m3 = store.begin_question('u', '11月10号', 'test', conversation)
+            store.complete_question(m3, {
+                'ok': True, 'outcome': 'answered',
+                'plan': {'subject': CORE, 'intent': 'turnaround', 'query_context': {'question': 'CZ8318地服保障情况', 'slots': {'flight': 'CZ8318', 'period': ['2026-11-10', '2026-11-11']}}},
+            })
+            turns = store.recent_conversation_turns(conversation, 'u', limit=6)
+            self.assertEqual([t['question'] for t in turns], ['CZ8318地服保障情况', '昨天', '11月10号'])
+            self.assertEqual([t['outcome'] for t in turns], ['clarification_needed', 'no_data', 'answered'])
+
 
 class CoordinatorExecutionTests(unittest.TestCase):
     def setUp(self):
         from dataclasses import replace
         self.catalog = ops_catalog()
         self.settings = replace(self.catalog.settings,coordinator_enabled=True)
+
+    def test_screenshot_attribute_followup_roundtrips_through_store_and_database(self):
+        previous = Coordinator(self.catalog).plan('2026-11-16最早出港实际执行航班是哪个')
+        row = {'id': 54282, 'flight_no': 'TR121', 'direction': 'DEP', 'dest_airport': 'SIN'}
+        with TemporaryDirectory() as directory:
+            store = AdminStore(directory)
+            conversation, message = store.begin_question('u', '最早航班', 'test')
+            store.complete_question(message, {'outcome': 'answered', 'plan': previous, 'main_total': 1, 'main_rows': [row]})
+            previous = store.latest_completed_plan(conversation, 'u')
+        def execute(_conn, statement):
+            if statement.sql.startswith('SELECT MIN('):
+                return [{'first_date': '2026-11-16', 'last_date': '2026-11-16'}]
+            if statement.sql.startswith('EXPLAIN'):
+                return []
+            return [{'bucket': '__main', 'row_data': row, 'total_count': 1}]
+        with patch.object(core, 'settings', self.settings), patch.object(core, 'current_catalog', return_value=self.catalog), \
+             patch.object(core, 'load_ops_references', return_value=[]), patch.object(core, 'execute', side_effect=execute), \
+             patch.object(core, '_single_flight_visual_plan', side_effect=lambda plan, *_args: plan), \
+             patch.object(core, 'model_available', return_value=True), patch.object(core, 'chat') as model:
+            result = core.do_ask(None, '飞机目的地是哪', previous_plan=previous)
+        self.assertEqual(result['outcome'], 'answered')
+        self.assertIn('TR121 的目的机场是 SIN', result['answer'])
+        self.assertEqual(result['main_total'], 1)
+        self.assertIn(54282, result['sql_params'])
+        model.assert_not_called()
 
     def test_normal_clarification_does_not_execute_a_business_query(self):
         with patch.object(core,'settings',self.settings), patch.object(core,'current_catalog',return_value=self.catalog), \
@@ -363,6 +761,43 @@ class CoordinatorExecutionTests(unittest.TestCase):
         self.assertEqual(result['outcome'],'no_data')
         self.assertIn('本地已同步记录',result['answer'])
 
+    def test_single_flight_detail_upgrades_visual_meta_to_turnaround_gantt(self):
+        fake_row = {
+            'id': 51167, 'flight_no': 'MU2593', 'flight_date': '2026-11-10', 'direction': 'DEP',
+            'aircraft_reg': 'B5475', 'stand_code': '315', 'gate_code': '15',
+            'execution_time': '2026-11-10T17:30:00+08:00',
+        }
+        fake_td = {
+            'flight_id': 51167, 'flight_pair': 'MU2593', 'craft_no': 'B5475', 'stand': '315', 'gate': '15',
+            'flight_date': '2026-11-10', 'query_identifier': 'MU2593', 'selection_note': '指定业务日：2026-11-10',
+            'source_table': 'std_flight_core', 'id_column': 'id', 'source_label': 'ops_ask 标准数据',
+            'source_row': fake_row, 'process_row': {},
+            'operations': [{'id': 'boarding', 'name': '旅客登机', 'status': 'completed', 'icon': '',
+                            'actual_start': '17:00', 'actual_end': '17:20', 'plan_start': None, 'plan_end': None}],
+            'pipeline': [], 'flight_nodes': [{'key': 'atot', 'name': '实际起飞', 'status': 'completed'}],
+            'milestones': {}, 'timeline_range': '17:00 - 17:30', 'time_ticks': ['17:00', '17:10', '17:20', '17:30'],
+            'conclusion': {'summary': 'test', 'meta': {'has_delay': False, 'evidence': 'test'}},
+        }
+        def execute(_conn, statement):
+            sql = statement.sql
+            if sql.startswith('SELECT MIN('):
+                return [{'first_date': '2026-10-18', 'last_date': '2026-11-11'}]
+            if sql.startswith('EXPLAIN'):
+                return []
+            if 'flight_execution' in sql:
+                return [{'bucket': '__main', 'row_data': fake_row, 'total_count': 1}]
+            return []
+        with patch.object(core, 'settings', self.settings), patch.object(core, 'current_catalog', return_value=self.catalog), \
+             patch.object(core, 'load_ops_references', return_value=[]), patch.object(core, 'execute', side_effect=execute), \
+             patch('app.turnaround_standard.get_standard_turnaround_data', return_value=fake_td) as get_td:
+            result = core.do_ask(object(), '2026-11-10 MU2593 实际航班详情', use_model=False)
+        self.assertEqual(result['outcome'], 'answered')
+        self.assertEqual(result['visual_meta']['kind'], 'turnaround_gantt')
+        self.assertEqual(result['visual_meta']['flight_pair'], 'MU2593')
+        self.assertEqual(len(result['visual_meta']['operations']), 1)
+        self.assertNotIn('turnaround_data', result['plan'])
+        self.assertEqual(get_td.call_args.kwargs.get('flight_id'), 51167)
+
 
 class ClarificationApiTests(unittest.TestCase):
     def setUp(self):
@@ -404,3 +839,196 @@ class ClarificationApiTests(unittest.TestCase):
         self.assertEqual(events[-1]['type'],'result')
         self.assertEqual(events[-1]['data']['outcome'],'unsupported')
         self.assertFalse(any(e['type']=='error' for e in events))
+
+    def test_screenshot_turnaround_no_data_then_free_date_followup_and_switch_flight(self):
+        catalog = ops_catalog()
+        test_settings = replace(catalog.settings, coordinator_enabled=True)
+        yesterday_str = (datetime.now(BEIJING).date() - timedelta(days=1)).isoformat()
+        nov10_str = f'{datetime.now(BEIJING).year:04d}-11-10'
+
+        def fake_turnaround(query_identifier, flight_date, flight_id=None, **_kwargs):
+            if flight_date == yesterday_str:
+                raise ValueError(f'当前数据库的标准航班及 ACDM 保障记录中未找到 {query_identifier} 在 {flight_date} 的记录')
+            return {
+                'flight_id': 1001, 'flight_pair': query_identifier, 'craft_no': 'B20AE',
+                'stand': '101', 'gate': '10', 'flight_date': flight_date,
+                'query_identifier': query_identifier, 'selection_note': f'指定业务日：{flight_date}',
+                'source_table': 'std_flight_core', 'id_column': 'id', 'source_label': 'ops_ask 标准数据',
+                'source_row': {'id': 1001, 'flight_no': query_identifier, 'flight_date': flight_date},
+                'process_row': {}, 'operations': [], 'pipeline': [],
+                'flight_nodes': [], 'milestones': {}, 'timeline_range': '', 'time_ticks': [],
+                'conclusion': {'summary': f'{query_identifier} 保障正常', 'meta': {'has_delay': False, 'evidence': '正常'}},
+            }
+
+        with patch.object(core, 'settings', test_settings), patch.object(core, 'current_catalog', return_value=catalog), \
+             patch.object(core, 'load_ops_references', return_value=REFS), \
+             patch.object(core, 'execute', side_effect=lambda _conn, stmt: [{'first_date': '2026-10-01', 'last_date': '2026-11-12'}] if stmt.sql.startswith('SELECT MIN(') else []), \
+             patch('app.turnaround_standard.get_standard_turnaround_data', side_effect=fake_turnaround):
+            # Turn 1: initial turnaround query clarifies period
+            r1 = self.main.run_question(self.main.prepare_question(self.request, {'question': 'CZ8318地服保障情况'}))
+            self.assertEqual(r1['outcome'], 'clarification_needed')
+            self.assertEqual(r1['clarification']['slot'], 'period')
+
+            # Turn 2: select "昨天" -> no_data with preserved clean plan (never clarification_needed)
+            r2 = self.main.run_question(self.main.prepare_question(self.request, {
+                'question': '昨天', 'conversation_id': r1['conversation_id'],
+                'clarification_of': r1['message_id'], 'choice_id': '1',
+            }))
+            self.assertEqual(r2['outcome'], 'no_data')
+            self.assertIn('未找到 CZ8318', r2['answer'])
+            self.assertEqual(r2['plan']['intent'], 'turnaround')
+            self.assertEqual(r2['plan']['query_identifier'], 'CZ8318')
+            self.assertEqual(r2['plan']['query_context']['question'], 'CZ8318地服保障情况')
+
+            # Turn 3: free-text date "11月10号" -> inherits CZ8318 turnaround and finds data
+            r3 = self.main.run_question(self.main.prepare_question(self.request, {
+                'question': '11月10号', 'conversation_id': r1['conversation_id'],
+            }))
+            self.assertEqual(r3['outcome'], 'answered')
+            self.assertEqual(r3['plan']['query_identifier'], 'CZ8318')
+            self.assertEqual(r3['plan']['flight_date'], nov10_str)
+
+            # Turn 4: pronoun / flight swap follow-up on Turn 3
+            r4 = self.main.run_question(self.main.prepare_question(self.request, {
+                'question': 'MU2472呢', 'conversation_id': r1['conversation_id'],
+            }))
+            self.assertEqual(r4['outcome'], 'answered')
+            self.assertEqual(r4['plan']['query_identifier'], 'MU2472')
+            self.assertEqual(r4['plan']['flight_date'], nov10_str)
+
+            # Turn 5: "前天" follow-up switches date cleanly from Turn 4
+            r5 = self.main.run_question(self.main.prepare_question(self.request, {
+                'question': '这班11.10呢', 'conversation_id': r1['conversation_id'],
+            }))
+            self.assertEqual(r5['outcome'], 'answered')
+            self.assertEqual(r5['plan']['query_identifier'], 'MU2472')
+            self.assertEqual(r5['plan']['flight_date'], nov10_str)
+
+    def test_turnaround_multiple_flights_prompts_flight_selection_and_resolves(self):
+        catalog = ops_catalog()
+        test_settings = replace(catalog.settings, coordinator_enabled=True)
+
+        def fake_turnaround(query_identifier, flight_date, flight_id=None, **_kwargs):
+            if query_identifier == 'MU255':
+                raise ValueError('标准航班表中有多个航班（MU2554、MU2556），请改用具体航班号或机号查询')
+            return {
+                'flight_id': 2002, 'flight_pair': query_identifier, 'craft_no': 'B5475',
+                'stand': '202', 'gate': '12', 'flight_date': flight_date,
+                'query_identifier': query_identifier, 'selection_note': f'指定业务日：{flight_date}',
+                'source_table': 'std_flight_core', 'id_column': 'id', 'source_label': 'ops_ask 标准数据',
+                'source_row': {'id': 2002, 'flight_no': query_identifier, 'flight_date': flight_date},
+                'process_row': {}, 'operations': [], 'pipeline': [],
+                'flight_nodes': [], 'milestones': {}, 'timeline_range': '', 'time_ticks': [],
+                'conclusion': {'summary': f'{query_identifier} 保障正常', 'meta': {'has_delay': False, 'evidence': '正常'}},
+            }
+
+        with patch.object(core, 'settings', test_settings), patch.object(core, 'current_catalog', return_value=catalog), \
+             patch.object(core, 'load_ops_references', return_value=REFS), \
+             patch.object(core, 'execute', side_effect=lambda _conn, stmt: [{'first_date': '2026-10-01', 'last_date': '2026-11-12'}] if stmt.sql.startswith('SELECT MIN(') else []), \
+             patch('app.turnaround_standard.get_standard_turnaround_data', side_effect=fake_turnaround):
+            r1 = self.main.run_question(self.main.prepare_question(self.request, {'question': '2026-11-10 MU255地服保障情况'}))
+            self.assertEqual(r1['outcome'], 'clarification_needed')
+            self.assertEqual(r1['clarification']['slot'], 'flight')
+            self.assertEqual([o['value'] for o in r1['clarification']['options']], ['MU2554', 'MU2556'])
+            self.assertEqual(r1['clarification']['original_question'], '2026-11-10 MU255地服保障情况')
+
+            r2 = self.main.run_question(self.main.prepare_question(self.request, {
+                'question': 'MU2554', 'conversation_id': r1['conversation_id'],
+                'clarification_of': r1['message_id'], 'choice_id': '1',
+            }))
+            self.assertEqual(r2['outcome'], 'answered')
+            self.assertEqual(r2['plan']['query_identifier'], 'MU2554')
+            self.assertEqual(r2['plan']['flight_date'], '2026-11-10')
+
+
+class AdditionalMultiTurnMemoryTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from pathlib import Path
+        from unittest.mock import patch
+        from app.config import load_settings
+        from app.ontology import Catalog
+
+        with patch.dict('os.environ', {'HBASK_DATA_SOURCE': 'ops_ask'}):
+            settings = load_settings()
+        schema = json.loads(Path(settings.schema_path).read_text(encoding='utf-8'))
+        doc = json.loads(Path(settings.ontology_path).read_text(encoding='utf-8'))
+        cls.catalog = Catalog(schema, doc, settings)
+        cls.refs = [
+            {
+                'term': '东航',
+                'role': 'airline',
+                'table': 'dim_airline',
+                'field': 'iata_code',
+                'value': 'MU',
+                'binding': 'airline',
+                'column': 'airline_code',
+            }
+        ]
+
+    def setUp(self):
+        self.coord = Coordinator(self.catalog, references=self.refs)
+
+    def test_turnaround_and_flight_detail_roundtrip_preserves_id_and_period(self):
+        p1 = self.coord.plan('2026-11-10 CZ3357地服保障情况')
+        self.assertEqual(p1.get('intent'), 'turnaround')
+        self.assertEqual(p1.get('flight_date'), '2026-11-10')
+
+        p2 = self.coord.plan('这班实际航班动态', previous_plan=p1)
+        self.assertEqual(p2.get('subject'), ACTUAL)
+        self.assertEqual(p2.get('intent'), 'detail')
+        conds2 = json.dumps(p2.get('conditions', []), ensure_ascii=False)
+        self.assertIn('CZ3357', conds2)
+        self.assertIn('2026-11-10', conds2)
+
+        p3 = self.coord.plan('看保障情况', previous_plan=p2)
+        self.assertEqual(p3.get('intent'), 'turnaround')
+        self.assertEqual(p3.get('query_identifier'), 'CZ3357')
+        self.assertEqual(p3.get('flight_date'), '2026-11-10')
+
+        p4 = self.coord.plan('航班动态呢', previous_plan=p3)
+        self.assertEqual(p4.get('outcome'), 'clarification_needed')
+        self.assertEqual(p4['clarification']['slot'], 'basis')
+        p5 = self.coord.plan('实际执行', clarification=p4['clarification'], choice_id='1')
+        self.assertEqual(p5.get('subject'), ACTUAL)
+        self.assertEqual(p5.get('intent'), 'detail')
+        self.assertIn('2026-11-10', json.dumps(p5.get('conditions', []), ensure_ascii=False))
+
+    def test_sequence_followups_switch_earliest_and_keep_airline(self):
+        p1 = self.coord.plan('昨天最后一班出港实际执行航班是哪个')
+        self.assertEqual(p1.get('flight_sequence'), 'last')
+        p2 = self.coord.plan('进港呢', previous_plan=p1)
+        self.assertEqual(p2.get('flight_sequence'), 'last')
+        self.assertIn('ARR', json.dumps(p2.get('conditions', []), ensure_ascii=False))
+        p3 = self.coord.plan('最早一班呢', previous_plan=p2)
+        self.assertEqual(p3.get('flight_sequence'), 'first')
+        self.assertEqual(p3.get('limit'), 1)
+        self.assertIn('ARR', json.dumps(p3.get('conditions', []), ensure_ascii=False))
+        p4 = self.coord.plan('东航的呢', previous_plan=p3)
+        self.assertEqual(p4.get('flight_sequence'), 'first')
+        self.assertIn('MU', json.dumps(p4.get('conditions', []), ensure_ascii=False))
+
+    def test_metric_name_containing_takeoff_to_detail_followup(self):
+        p1 = self.coord.plan('2026-11-10地服起飞正常率是多少')
+        self.assertEqual(p1.get('metric'), 'ground_takeoff_on_time_rate')
+        self.assertNotIn('basis', p1['query_context']['slots'])
+        p2 = self.coord.plan('看明细', previous_plan=p1)
+        self.assertEqual(p2.get('intent'), 'detail')
+        self.assertEqual(p2.get('subject'), 'mv_acdm_dyn_flight_detail')
+        self.assertIsNone(p2.get('metric'))
+
+    def test_acdm_report_kind_followup_switches_kind_and_preserves_period(self):
+        p1 = self.coord.plan('2026-11-10 ACDM通用报告')
+        self.assertEqual(p1.get('intent'), 'acdm_report')
+        self.assertEqual(p1.get('report_kind'), 'general')
+        self.assertEqual(p1.get('report_start'), '2026-11-10')
+
+        p2 = self.coord.plan('换成地服运行简报', previous_plan=p1)
+        self.assertEqual(p2.get('intent'), 'acdm_report')
+        self.assertEqual(p2.get('report_kind'), 'ground_briefing')
+        self.assertEqual(p2.get('report_start'), '2026-11-10')
+
+        p3 = self.coord.plan('保障节点质量排行呢', previous_plan=p2)
+        self.assertEqual(p3.get('intent'), 'acdm_report')
+        self.assertEqual(p3.get('report_kind'), 'safeguard_board')
+        self.assertEqual(p3.get('report_start'), '2026-11-10')

@@ -287,6 +287,98 @@ class Catalog:
             'scenarios': matched_scenarios,
         }
 
+    def has_ontology_match(self, question, references=(), previous_plan=None, clarification=None):
+        """判断输入问题是否在当前业务本体范围内存在对照，用于在无匹配时快速拒绝并避免无效大模型与SQL轮询。"""
+        q = str(question or '').strip()
+        if not q:
+            return False
+        # 1. 多轮上下文（追问继承或澄清选择）
+        if clarification or previous_plan:
+            return True
+        # 2. 系统元问答与能力咨询
+        if re.search(r'能问什么|可以问什么|支持哪些|可查范围|能查什么|可以查什么|功能介绍|帮助', q):
+            return True
+        # 3. 航班号标识或机号标识
+        if re.search(r'(?<![A-Za-z0-9])(?:[A-Z]{2}|[A-Z]\d|\d[A-Z])\d{2,4}[A-Z]?(?![A-Za-z0-9])', q, re.I):
+            return True
+        if re.search(r'(?<![A-Za-z0-9])B-?[A-Z0-9]{4,5}(?![A-Za-z0-9])', q, re.I):
+            return True
+        # 4. ACDM 专题报告关键词
+        if re.search(
+            r'A-?CDM|通用报告?|完整运行报告|运行[日周月季年]报|地服(?:公司)?(?:运行)?简报|保障节点(?:与?保障)?质量|保障节点|保障质量|登机桥|单桥|录入|排行|周转|看板',
+            q, re.I
+        ):
+            return True
+        # 5. 航空运营、过站与保障领域核心词
+        if re.search(
+            r'航班|起飞|降落|落地|离地|执飞|执行|进港|出港|到港|离港|备降|返航|取消|客班|货班|客机|货机'
+            r'|延误|晚点|准点|放行|客座率|机位|登机口|跑道|机坪|停机位|廊桥|靠桥|单桥|双桥|开桥|撤桥'
+            r'|地服|过站|保障|配餐|保洁|加油|装卸|登机|时序|甘特|鱼骨图|时隙|aibt|sobt|tobt|tsat',
+            q, re.I
+        ):
+            return True
+        # 6. 参考词典匹配（航司名称/二字码、机场名称/三字码等）
+        for ref in references or ():
+            term = str(ref.get('term', '')).strip()
+            if not term:
+                continue
+            if re.fullmatch(r'[A-Za-z0-9]{1,3}', term):
+                if re.search(r'(?<![A-Za-z0-9])' + re.escape(term) + r'(?![A-Za-z0-9])', q, re.I):
+                    return True
+            elif len(term) >= 2 and term.lower() in q.lower():
+                return True
+        # 7. 静态常见航司别名
+        airline_aliases = (
+            '南方航空', '中国南方航空', '南航', '东方航空', '中国东方航空', '东航',
+            '中国国航', '国际航空', '国航', '海南航空', '海航', '厦门航空', '厦航',
+            '深圳航空', '深航', '四川航空', '川航', '山东航空', '山航', '春秋航空',
+            '春秋', '吉祥航空', '吉祥', '首都航空', '桂林航空', '长龙航空', '祥鹏航空',
+            '天津航空', '奥凯航空', '顺丰航空', '圆通航空', '邮政航空'
+        )
+        if any(a in q for a in airline_aliases):
+            return True
+        # 8. 业务实体检索及名称/别名/属性匹配
+        if self.retrieve(q):
+            return True
+        for spec in self.entities.values():
+            if spec.get('name') and spec['name'] in q:
+                return True
+            for a in spec.get('aliases', []):
+                if a and len(a) >= 2 and a.lower() in q.lower():
+                    return True
+            for attr in spec.get('attributes', {}).values():
+                lbl = attr.get('label')
+                if lbl and len(lbl) >= 2 and lbl in q:
+                    return True
+                for al in attr.get('aliases', []):
+                    if al and len(al) >= 2 and al.lower() in q.lower():
+                        return True
+        # 9. 指标库匹配
+        for key, cfg in self.metrics.items():
+            if key in q:
+                return True
+            if cfg.get('name') and cfg['name'] in q:
+                return True
+            for a in cfg.get('aliases', []):
+                if a and len(a) >= 2 and a in q:
+                    return True
+        # 10. 维度库匹配
+        for dim in getattr(self, 'dimensions', {}).values():
+            if dim.get('name') and dim['name'] in q:
+                return True
+            for a in dim.get('aliases', []):
+                if a and len(a) >= 2 and a in q:
+                    return True
+        # 11. 概念库、同义词与场景匹配
+        if hasattr(self, 'resolve_ontology_hints'):
+            hints = self.resolve_ontology_hints(q)
+            if hints.get('concepts') or hints.get('synonyms') or hints.get('scenarios'):
+                return True
+        # 12. 企业别名匹配（针对企业管理类本体）
+        if any(alias in q for alias in self.overrides.get('enterprise_aliases', {})):
+            return True
+        return False
+
     def public(self):
         return {'version': self.version, 'database': self.schema.get('database'),
                 'refreshed_at': self.schema.get('refreshed_at'),

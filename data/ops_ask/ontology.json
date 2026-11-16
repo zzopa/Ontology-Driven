@@ -7522,7 +7522,7 @@
    "requiredCaps": [
     "flight.dynamics"
    ],
-   "responseTemplate": "{{count}} 条航班记录",
+   "responseTemplate": "",
    "status": "PUBLISHED",
    "steps": []
   }

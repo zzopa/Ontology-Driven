@@ -178,8 +178,77 @@ def validate_claims(claims, evidence):
     return accepted
 
 
+def _prop_val(props, *keys):
+    for key in keys:
+        item = props.get(key)
+        if isinstance(item, dict) and item.get('value') not in (None, ''):
+            return item['value']
+    return None
+
+
+def _fmt_local_time(raw):
+    if raw in (None, ''):
+        return ''
+    try:
+        dt = datetime.fromisoformat(str(raw).replace('Z', '+00:00'))
+        bj = timezone(timedelta(hours=8))
+        dt = dt.replace(tzinfo=bj) if dt.tzinfo is None else dt.astimezone(bj)
+        return f'{dt:%H:%M}'
+    except ValueError:
+        text = str(raw).strip()
+        return text[11:16] if len(text) >= 16 and text[10] in ('T', ' ') else text
+
+
+def _single_flight_summary(props):
+    fno = _prop_val(props, 'flight_no', 'FLIGHT_NO')
+    if not fno:
+        return None
+    direction = str(_prop_val(props, 'direction', 'NORMAL_FLIGHT_STAT_CD', 'IS_OFF_IN') or '').upper()
+    dir_lbl = {'DEP': '出港', 'D': '出港', 'ARR': '进港', 'A': '进港'}.get(direction, '')
+    fdate = str(_prop_val(props, 'flight_date', 'EXEC_DATE') or '')[:10]
+    origin = _prop_val(props, 'origin_city', 'origin_airport', 'TAKEOFF_AIRPORT_IATA')
+    dest = _prop_val(props, 'dest_city', 'dest_airport', 'ARRIVAL_AIRPORT_IATA')
+    route = f'{origin} → {dest}' if origin and dest else ''
+    if direction in ('ARR', 'A'):
+        plan_t = _fmt_local_time(_prop_val(props, 'scheduled_arrival', 'SCHEME_LANDIN_TIME'))
+        act_t = _fmt_local_time(_prop_val(props, 'actual_arrival', 'REAL_LANDIN_TIME', 'execution_time'))
+    else:
+        plan_t = _fmt_local_time(_prop_val(props, 'scheduled_departure', 'SCHEME_TAKEOFF_TIME'))
+        act_t = _fmt_local_time(_prop_val(props, 'actual_departure', 'REAL_TAKEOFF_TIME', 'execution_time'))
+    stand = _prop_val(props, 'stand_code', 'CRAFT_SITE_CD')
+    gate = _prop_val(props, 'gate_code', 'GATE_CD')
+    status = _prop_val(props, 'flight_status', 'operation_status')
+    parts = [f'{fno}' + (f'（{dir_lbl}）' if dir_lbl else '')]
+    if fdate:
+        parts.append(f'业务日 {fdate}')
+    if route:
+        parts.append(f'航线 {route}')
+    if plan_t:
+        parts.append(f'计划 {plan_t}')
+    if act_t:
+        parts.append(f'实际 {act_t}')
+    if stand:
+        parts.append(f'机位 {stand}')
+    if gate:
+        parts.append(f'登机口 {gate}')
+    if status:
+        parts.append(f'状态 {status}')
+    return '；'.join(parts)
+
+
 def fallback_claims(catalog, plan, evidence, main_total):
     subject = catalog.entities[plan['subject']]['name']
+    if plan.get('answer_field') and main_total == 1:
+        record = next((f for f in evidence['facts'] if f['table'] == plan['subject']), None)
+        if record:
+            props = record['properties']
+            field = plan['answer_field']
+            label = catalog.attribute(plan['subject'], field)['label']
+            number = _prop_val(props, 'flight_no', 'FLIGHT_NO') or '该航班'
+            value = _prop_val(props, field)
+            text = (f'{number} 的{label}是 {value}。' if value is not None
+                    else f'{number} 的{label}在当前记录中未填写，无法确定。')
+            return [{'text': text, 'fact_ids': [record['id']]}], text
     if plan.get('flight_sequence'):
         op_w = plan.get('operational_window')
         day = (op_w['start'][:10] if op_w and op_w.get('start')
@@ -287,6 +356,8 @@ def fallback_claims(catalog, plan, evidence, main_total):
     if len(primary) > 1 and identities:
         text += '本次已查询到的%s：%s。' % (catalog.attribute(plan['subject'], identity_field)['label'],
                                              '、'.join(identities))
+    elif len(primary) == 1 and _single_flight_summary(record['properties']):
+        text += '当前航班：' + _single_flight_summary(record['properties']) + '。'
     elif selected:
         text += '当前提供记录：' + '；'.join('%s：%s' % item for item in selected[:5]) + '。'
     if len(primary) < main_total:
@@ -295,5 +366,8 @@ def fallback_claims(catalog, plan, evidence, main_total):
     if partial:
         text += '关联数据仅读取部分记录（%s），不能据此判断未读取记录或计算全量合计。' % '；'.join(
             '%s %d/%d 条' % (c['name'], c['provided'], c['total']) for c in partial)
-    text += '详细字段及关联记录可在下方查看；所示记录不能代表未展示记录的全部状态。'
+    if len(primary) > 1 and identity_field in ('flight_no', 'FLIGHT_NO'):
+        text += '明细列表已按航班展示时刻、航线、机位与状态；点击单条航班可查看节点详情。'
+    else:
+        text += '详细字段及关联记录可在下方查看；所示记录不能代表未展示记录的全部状态。'
     return [{'text': text, 'fact_ids': [f['id'] for f in primary] or [record['id']]}], text

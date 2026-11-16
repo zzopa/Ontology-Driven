@@ -39,6 +39,7 @@ data/runtime/*
 !data/runtime/.gitkeep
 data/*/runtime/
 data/ontology_history/
+data/*/ontology_history/
 data/ask_demo_memory.json
 data/*/memory.json
 data/acdm/snapshot-*/
@@ -60,6 +61,13 @@ artifacts/renderers/*
 !artifacts/renderers/.gitkeep
 artifacts/graphs/*
 !artifacts/graphs/.gitkeep
+artifacts/design/
+artifacts/swarm/
+artifacts/*.out
+artifacts/*.py
+test_results*.json
+_ref/
+swarm/
 
 # =============================================================================
 # 前端构建产物与依赖 (Next.js & Node)

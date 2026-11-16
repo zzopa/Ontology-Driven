@@ -1734,6 +1734,22 @@
    },
    "version": "ontology-flow-v2.4:ea01c5f560369a7bd8ff91de887ac7d1ebb254b6063b329e8845a0bef247c4c4:fe07f203ec94553c4bf3:2026-10-09",
    "hits": 1
+  },
+  {
+   "q": "湖北机场集团有多少员工？",
+   "parsed": {
+    "subject": "comp_employee",
+    "disp": "员工",
+    "intent": "count",
+    "conditions": [],
+    "focus_tables": [],
+    "aggregate_target": "comp_employee",
+    "metric": null,
+    "group_by": [],
+    "time_bucket": null
+   },
+   "version": "ontology-flow-v2.4:f973721774e031a93292f88c02f694eab89f95bdaf9f479f3ac56ec74f910f69:fe07f203ec94553c4bf3:2026-11-10",
+   "hits": 2
   }
  ]
 }

@@ -85,7 +85,7 @@ def match_acdm_report(question, catalog, bounds_fn=None, today_d=None):
     r_title = None
     if re.search(r'地服(?:公司)?(?:运行)?简报', question):
         r_kind, r_title = 'ground_briefing', '地服公司运行简报'
-    elif re.search(r'A-CDM\s*(?:通用)?报告|ACDM\s*(?:通用)?报告|通用报告|运行日报|运行周报|运行月报|完整运行报告', question, re.I):
+    elif re.search(r'A-?CDM\s*(?:通用)?报告?|通用报告?|运行[日周月季年]报|完整运行报告', question, re.I):
         r_kind, r_title = 'general', 'A-CDM 通用报告'
     elif re.search(r'保障(?:节点|质量).{0,6}(?:排行|榜|录入)|(?:单桥|登机桥).{0,4}周转', question):
         r_kind, r_title = 'safeguard_board', '保障节点质量与登机桥周转看板'
@@ -100,7 +100,7 @@ def match_acdm_report(question, catalog, bounds_fn=None, today_d=None):
         if b_kind == 'range':
             s_date = date.fromisoformat(s_val)
             e_date = date.fromisoformat(e_excl) - timedelta(days=1)
-            p_type = 'week' if (e_date - s_date).days == 6 else 'custom'
+            p_type = 'day' if s_date == e_date else ('week' if (e_date - s_date).days == 6 else 'custom')
         elif len(s_val) == 7:
             y, m = map(int, s_val.split('-'))
             s_date = date(y, m, 1)
@@ -178,41 +178,145 @@ def home_airport_terms(catalog):
     return [t for t in [home.get('cityName'), home.get('displayName'), *(home.get('aliases') or [])] if t]
 
 
+_DATE_WORDS_RE = re.compile(r'昨天|昨日|前天|今天|今日|明天|明日|后天|最近|近|\d+月|\d+日|\d+号|\d{4}-\d{2}-\d{2}')
+_ROUTE_STOP_SUBSTR = (
+    r'进港|出港|到港|离港|计划|实际|执飞|执行|航班|班次|飞机|航线|客机|货机|'
+    r'时序图|时序|甘特图|甘特|鱼骨图|多少|哪些|有哪些|有什么|有多少|一览|清单|列表|排名|排行|明细|详情|情况|状态|动态|延误|取消|正常'
+)
+_ROUTE_STOP_WORDS = {
+    '航班', '班次', '计划', '实际', '执飞', '执行', '飞机', '客机', '货机',
+    '时序图', '甘特图', '多少', '哪些', '明细', '详情', '情况', '状态', '动态',
+    '一览', '清单', '列表', '排名', '排行', '统计', '走势', '趋势', '本场'
+}
+
+
+def _clean_city_token(tok):
+    if not tok:
+        return ''
+    t = tok.strip()
+    changed = True
+    while changed:
+        old = t
+        t = re.sub(r'^(?:从|由|去|到|往|至|在|于|飞往|前往)+', '', t)
+        t = re.sub(r'^(?:昨天|昨日|前天|今天|今日|明天|明日|后天|[日号天])+', '', t)
+        t = re.sub(r'(?:的)?(?:计划|实际|执飞|执行)?(?:航班|班次|飞机|航线|客机|货机|时序图|甘特图)?$', '', t)
+        t = re.sub(r'(?:有哪些|有什么|有多少|怎么样|如何|怎样)$', '', t)
+        t = t.rstrip('的')
+        changed = (t != old)
+    return t.strip()
+
+
+def _is_valid_city(tok):
+    c = _clean_city_token(tok)
+    if len(c) < 2 or len(c) > 10:
+        return False
+    if c in _ROUTE_STOP_WORDS or _DATE_WORDS_RE.search(c):
+        return False
+    if any(w in c for w in ('航班', '计划', '实际', '执飞', '执行', '多少', '哪些', '明细', '时序', '出港', '进港', '起飞', '到港', '离港', '飞走', '降落')):
+        return False
+    return True
+
+
 def extract_home_airport_city_and_dir(question, catalog):
     """Extract arrival/departure disambiguation & non-home origin/dest city filters."""
     home_terms = home_airport_terms(catalog)
+    if '本场' not in home_terms:
+        home_terms.append('本场')
     explicit_dir = None
     consumed = []
+    origin_city, dest_city = None, None
+
     if any(w in question for w in ('出港', '离港', '起飞', '出发')):
         explicit_dir = 'DEP'
     elif any(w in question for w in ('进港', '到港', '抵达', '到达', '落地')):
         explicit_dir = 'ARR'
     else:
         for ht in home_terms:
-            m_arr = re.search(rf'(?:来|飞往|到){re.escape(ht)}', question)
+            m_arr = re.search(rf'(?:飞来|飞往|来|到|至){re.escape(ht)}', question)
             if m_arr:
                 explicit_dir = 'ARR'
                 consumed.append(m_arr.group(0))
                 break
-            m_dep = re.search(rf'从{re.escape(ht)}(?:飞|出发|起飞|离港|去|往)', question)
+            m_dep = re.search(rf'从{re.escape(ht)}(?:飞走|起飞|出发|离港|飞往|去|往|飞)', question)
             if m_dep:
                 explicit_dir = 'DEP'
                 consumed.append(m_dep.group(0))
                 break
 
-    origin_city, dest_city = None, None
-    m_from = re.search(r'从([^\s，,。?？]{2,8}?)(?:飞来|来|飞往|到|出港|出发)', question)
-    if m_from:
-        city_txt = m_from.group(1)
-        if not any(ht in city_txt or city_txt in ht for ht in home_terms):
-            origin_city = city_txt
-            consumed.append(m_from.group(0))
-    m_to = re.search(r'(?:飞往|前往|出港去|去)([^\s，,。?？]{2,8})', question)
-    if m_to:
-        city_txt = m_to.group(1)
-        if not any(ht in city_txt or city_txt in ht for ht in home_terms):
-            dest_city = city_txt
-            consumed.append(m_to.group(0))
+    tail_lookahead = rf'(?=(?:的|了)?(?:{_ROUTE_STOP_SUBSTR}|$|[\s，,。?？]))'
+
+    # 1. Two-point route pattern: e.g. 武汉到上海, 武汉至上海, 武汉飞上海, 从武汉飞往上海, 上海到武汉
+    m_route = re.search(
+        rf'(?:从|由)?\s*([^\s，,。?？\d]{{2,10}}?)\s*(?:到|至|飞往|前往|出港去|去|飞来|来|(?<![起已未])飞(?![机行班手客货])|-|—|~)\s*([^\s，,。?？\d]{{2,10}}?)(?:的)?{tail_lookahead}',
+        question,
+    )
+    if m_route:
+        raw_c1, raw_c2 = m_route.group(1), m_route.group(2)
+        c1, c2 = _clean_city_token(raw_c1), _clean_city_token(raw_c2)
+        if _is_valid_city(c1) and _is_valid_city(c2):
+            c1_home = any(ht == c1 or c1 in ht or ht in c1 for ht in home_terms)
+            c2_home = any(ht == c2 or c2 in ht or ht in c2 for ht in home_terms)
+            s_idx = question.find(c1)
+            pref = question.rfind('从', 0, s_idx) if s_idx != -1 else -1
+            if pref != -1 and s_idx - pref <= 2:
+                s_idx = pref
+            e_idx = question.find(c2, s_idx if s_idx != -1 else 0) + len(c2)
+            if question[e_idx:e_idx + 1] == '的':
+                e_idx += 1
+            matched = question[s_idx:e_idx] if s_idx != -1 and e_idx > s_idx else m_route.group(0)
+
+            if c1_home and not c2_home:
+                dest_city = c2
+                explicit_dir = explicit_dir or 'DEP'
+                consumed.append(matched)
+            elif c2_home and not c1_home:
+                origin_city = c1
+                explicit_dir = explicit_dir or 'ARR'
+                consumed.append(matched)
+            elif not c1_home and not c2_home:
+                origin_city = c1
+                dest_city = c2
+                consumed.append(matched)
+
+    # 2. Single destination pattern: e.g. 到上海, 飞往北京, 去广州, 飞成都
+    if not dest_city and not origin_city:
+        m_to = re.search(
+            rf'(?:飞往|前往|出港去|去|到|至|(?<![起已未])飞(?![机行班手客货]))\s*([^\s，,。?？\d]{{2,10}}?)(?:的)?{tail_lookahead}',
+            question,
+        )
+        if m_to:
+            c = _clean_city_token(m_to.group(1))
+            if _is_valid_city(c):
+                if any(ht in c or c in ht for ht in home_terms):
+                    explicit_dir = explicit_dir or 'ARR'
+                    consumed.append(m_to.group(0))
+                else:
+                    dest_city = c
+                    explicit_dir = explicit_dir or 'DEP'
+                    consumed.append(m_to.group(0))
+
+    # 3. Single origin pattern: e.g. 从上海飞来, 从北京来, 上海来的
+    if not dest_city and not origin_city:
+        m_from = re.search(
+            rf'(?:从|由)\s*([^\s，,。?？\d]{{2,10}}?)\s*(?:飞来|来的|来|出港|出发|起飞)(?:的)?{tail_lookahead}',
+            question,
+        )
+        if not m_from:
+            m_from = re.search(
+                rf'([^\s，,。?？\d]{{2,10}}?)\s*(?:飞来|来的)(?:的)?{tail_lookahead}',
+                question,
+            )
+        if m_from:
+            c = _clean_city_token(m_from.group(1))
+            if _is_valid_city(c):
+                if any(ht in c or c in ht for ht in home_terms):
+                    explicit_dir = explicit_dir or 'DEP'
+                    consumed.append(m_from.group(0))
+                else:
+                    origin_city = c
+                    explicit_dir = explicit_dir or 'ARR'
+                    consumed.append(m_from.group(0))
+
     return explicit_dir, origin_city, dest_city, home_terms, consumed
 
 
@@ -451,6 +555,7 @@ class Planner:
         '山东航空': 'SC', '山航': 'SC',
         '春秋航空': '9C', '春秋': '9C',
         '吉祥航空': 'HO', '吉祥': 'HO',
+        '上海航空': 'FM', '上航': 'FM',
         '首都航空': 'JD', '桂林航空': 'GT', '长龙航空': 'GJ',
         '祥鹏航空': '8L', '天津航空': 'GS', '奥凯航空': 'BK',
     }
@@ -900,6 +1005,32 @@ class Planner:
                                '最终条件：' + json.dumps(follow_up.get('conditions', []), ensure_ascii=False)]
                     self.trace.finish('follow_up', '已根据多轮追问上下文生成完整计划', details)
                 return self.compiler.validate(follow_up), '多轮追问·槽位继承'
+        if self._is_ops_catalog(self.catalog):
+            has_named_entity = False
+            try:
+                if callable(getattr(self, 'names', None)):
+                    has_named_entity = bool(self.names(question))
+                elif isinstance(getattr(self, 'names', None), dict):
+                    has_named_entity = any(
+                        isinstance(n, str) and len(n) >= 2 and n in question
+                        for names in self.names.values()
+                        if isinstance(names, (set, list, tuple))
+                        for n in names
+                    )
+            except Exception:
+                has_named_entity = False
+            if not has_named_entity and hasattr(self.catalog, 'has_ontology_match') and not self.catalog.has_ontology_match(question, previous_plan=previous_plan):
+                if self.trace:
+                    self.trace.start('ontology', '匹配业务本体', '检索当前数据库表注释、业务对象与管理别名')
+                    self.trace.finish('ontology', '未匹配到业务本体对照', ['问题不在当前授权业务本体范围内'])
+                return {
+                    'outcome': 'unsupported',
+                    'disp': '未匹配业务本体',
+                    'subject': '',
+                    'intent': 'notice',
+                    'conditions': [],
+                    'answer': '当前输入问题未匹配到业务本体对照，回复回复不了。请说明具体业务对象、指标或管理规则后提问。',
+                }, '本体规则·无匹配'
         local, local_error = None, None
         if self.trace:
             self.trace.start('ontology', '匹配业务本体', '检索当前数据库表注释、业务对象与管理别名')

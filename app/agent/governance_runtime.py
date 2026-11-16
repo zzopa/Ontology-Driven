@@ -264,6 +264,12 @@ def render_template_summary(catalog: Any, plan: dict[str, Any], evidence: dict[s
             rendered += '。'
         return rendered
 
+    if intent == 'detail':
+        # Detail queries must show concrete record identities/details, never collapse into a bare count sentence.
+        if '{count}' in raw_tpl or '{{count}}' in raw_tpl or '{total}' in raw_tpl or '{{total}}' in raw_tpl:
+            if not any(tok in raw_tpl for tok in ('{items}', '{{items}}', '{details}', '{{details}}')):
+                return None
+
     if intent in ('detail', 'count'):
         vars_map = {
             'count': str(main_total),

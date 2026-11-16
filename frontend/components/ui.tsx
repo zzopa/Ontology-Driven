@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode, type ButtonHTMLAttributes } from "react";
 import { motion, MotionConfig } from "framer-motion";
-import { ArrowUpRight, Check, Copy, Database, GitBranch, LayoutDashboard, LoaderCircle, Settings2, ShieldCheck, X } from "lucide-react";
+import { Check, Copy, Database, LayoutDashboard, LoaderCircle, Settings2, ShieldCheck, X } from "lucide-react";
 import { ThemeSettings } from "./theme-settings";
 import { trustedParentOrigin } from "@/lib/query";
 import { confirmOnEnter } from "@/lib/keyboard";
@@ -41,12 +41,11 @@ export function Shell({ children, active = "ask", embedded = false, sidebar, sta
     {!embedded && <aside className="sidebar">
       <a className="brand" href="/" aria-label="知航首页"><span className="brand-mark"><img src="/brand/logo.svg" width={44} height={44} alt="" /></span><span>知航<small>ACDM 智能问询</small></span></a>
       <span className="nav-caption">工作空间</span>
-      <nav aria-label="主导航"><a href="/" className={`nav-item ${active === "ask" ? "active" : ""}`} aria-current={active === "ask" ? "page" : undefined}><LayoutDashboard size={17} />运行问询{active === "ask" && <span className="nav-dot" />}</a><a href="/ontology" className={`nav-item ${active === "ontology" ? "active" : ""}`} aria-current={active === "ontology" ? "page" : undefined}><GitBranch size={17} />业务本体<ArrowUpRight size={13} className="nav-arrow" /></a><a href="/admin" className={`nav-item ${active === "admin" ? "active" : ""}`} aria-current={active === "admin" ? "page" : undefined}><Settings2 size={17} />管理后台{active === "admin" && <span className="nav-dot" />}</a></nav>
+      <nav aria-label="主导航"><a href="/" className={`nav-item ${active === "ask" ? "active" : ""}`} aria-current={active === "ask" ? "page" : undefined}><LayoutDashboard size={17} />运行问询{active === "ask" && <span className="nav-dot" />}</a><a href="/admin" className={`nav-item ${active === "admin" ? "active" : ""}`} aria-current={active === "admin" ? "page" : undefined}><Settings2 size={17} />管理后台{active === "admin" && <span className="nav-dot" />}</a></nav>
       {sidebar}
-      <div className="sidebar-bottom"><span className="mini-mark"><ShieldCheck size={17} /></span><div>只读查询<small>业务数据不会被修改</small></div></div>
     </aside>}
     <div className="main-shell"><header className="topbar"><div className="breadcrumb"><a className="mobile-brand" href="/" aria-label="知航首页"><img src="/brand/logo.svg" width={28} height={28} alt="" /><span>知航</span></a><span>工作空间</span><span className="slash">/</span><strong>{active === "ask" ? "运行问询" : active === "admin" ? "管理后台" : "业务本体"}</strong>{embedded && <Badge>嵌入模式</Badge>}</div><div className="topbar-right"><ThemeSettings /><span className="connection-label"><span className="status-dot" />{statusLabel}</span>{!embedded && <a className="mobile-management" href={active === "admin" ? "/" : "/admin"} aria-label={active === "admin" ? "返回问数" : "打开管理后台"}><Settings2 size={16} /></a>}{embedded && parentOrigin && <Button variant="ghost" aria-label="关闭嵌入窗口" onClick={() => { if (window.parent === window) window.location.assign('/'); else window.parent.postMessage({ type: "hbask:close" }, parentOrigin); }}><X size={17} /></Button>}</div></header>
-      {!embedded && <nav className="mobile-nav" aria-label="主导航">{[{ id: "ask", href: "/", label: "运行问询", icon: LayoutDashboard }, { id: "ontology", href: "/ontology", label: "业务本体", icon: GitBranch }, { id: "admin", href: "/admin", label: "管理后台", icon: Settings2 }].map(item => <a key={item.id} href={item.href} aria-current={active === item.id ? "page" : undefined}><item.icon size={16} aria-hidden="true" />{item.label}</a>)}</nav>}
+      {!embedded && <nav className="mobile-nav" aria-label="主导航">{[{ id: "ask", href: "/", label: "运行问询", icon: LayoutDashboard }, { id: "admin", href: "/admin", label: "管理后台", icon: Settings2 }].map(item => <a key={item.id} href={item.href} aria-current={active === item.id ? "page" : undefined}><item.icon size={16} aria-hidden="true" />{item.label}</a>)}</nav>}
       <main id="main-content" tabIndex={-1} className="workspace-main">{children}</main>
       <footer className="footer"><span><Database size={12} /> 数据有来源，结论可追溯</span><span>知航 <span className="footer-separator">/</span> ACDM 智能问询</span></footer>
     </div>

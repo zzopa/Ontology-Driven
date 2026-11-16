@@ -14,6 +14,7 @@ from starlette.concurrency import run_in_threadpool
 from app import core, llm
 from app.admin import service as admin_service
 from app.admin.api import router as admin_router
+from app.ops.api import router as ops_router
 from app.admin.auth import identity, require_role, same_origin
 from app.config import settings
 from app.execution import ExecutionTrace
@@ -45,6 +46,7 @@ async def lifespan(_app):
 app = FastAPI(title='知航 · ACDM 智能问询', lifespan=lifespan,
               docs_url=None, redoc_url=None)
 app.include_router(admin_router)
+app.include_router(ops_router)
 
 # Next.js static export; business APIs stay same-origin on the existing FastAPI port.
 app.mount('/_next', StaticFiles(directory=settings.page_path.parent / '_next', check_dir=False), name='next-assets')
@@ -165,6 +167,7 @@ def run_question(prepared, on_event=None):
                 else:
                     access = business_access.load_access(conn, prepared['business_user_id']) if prepared.get('business_user_id') else None
                 previous_plan = store.latest_completed_plan(prepared.get('conversation_id'), prepared.get('owner'))
+                recent_turns = store.recent_conversation_turns(prepared.get('conversation_id'), prepared.get('owner'))
                 options = {}
                 if prepared.get('day_mode') and prepared['day_mode'] != 'AUTO':
                     options['day_mode'] = prepared['day_mode']
@@ -172,6 +175,8 @@ def run_question(prepared, on_event=None):
                     options['access'] = access
                 if previous_plan is not None:
                     options['previous_plan'] = previous_plan
+                if recent_turns:
+                    options['conversation_history'] = recent_turns
                 if prepared.get('clarification'):
                     options.update(clarification=prepared['clarification'],choice_id=prepared.get('choice_id'))
                 result = core.do_ask(conn, prepared['question'], on_event=on_event, trace=trace, **options)

@@ -62,7 +62,9 @@ class FlightSequenceTests(unittest.TestCase):
 
     def test_conflicting_model_is_not_invoked_for_a_complete_sequence_query(self):
         chat = Mock(return_value=json.dumps({'subject': 'std_flight_core', 'intent': 'detail'}))
-        plan, source = Planner(self.catalog, chat=chat).parse('昨天最后一个航班是哪个')
+        with patch('app.acdm_ontology.datetime') as clock:
+            clock.now.return_value = datetime(2026, 11, 11, tzinfo=timezone(timedelta(hours=8)))
+            plan, source = Planner(self.catalog, chat=chat).parse('昨天最后一个航班是哪个')
         self.assertEqual(plan['flight_sequence'], 'last')
         self.assertIn('本体规则', source)
         chat.assert_not_called()
@@ -118,6 +120,20 @@ class FlightSequenceTests(unittest.TestCase):
         self.assertEqual(claims[0]['fact_ids'], ['F1'])
         _, empty = fallback_claims(self.catalog, plan, {'facts': []}, 0)
         self.assertIn('不表示当天没有航班', empty)
+
+    def test_attribute_answer_uses_record_evidence_and_reports_missing_values(self):
+        plan = self.plan()
+        plan.pop('flight_sequence')
+        plan['answer_field'] = 'dest_airport'
+        for value in ['SIN', None, '']:
+            with self.subTest(value=value):
+                evidence = build_evidence(self.catalog, plan, [
+                    {'id': 54282, 'flight_no': 'TR121', 'dest_airport': value}], 1, [], [])
+                claims, text = fallback_claims(self.catalog, plan, evidence, 1)
+                self.assertIn('TR121', text)
+                self.assertIn('目的机场', text)
+                self.assertIn('SIN' if value else '未填写，无法确定', text)
+                self.assertEqual(claims[0]['fact_ids'], ['F1'])
 
     def test_full_question_ignores_stale_cache_and_previous_flight(self):
         question = '昨天最后一个出港实际执飞航班是哪个'

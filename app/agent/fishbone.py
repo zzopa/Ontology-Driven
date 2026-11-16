@@ -246,8 +246,42 @@ def flight_node_specs(direction):
     for key in ('boarding_start', 'boarding_end', 'door_open', 'aibt'):
         item = specs[key]
         specs[key] = (*item[:5], [field for field in item[5] if not field.startswith('ALTERATE_')], *item[6:])
+    if direction == 'DEP':
+        specs.pop('baggage', None)
     order = NODE_ORDER if direction == 'DEP' else ['origin_dep', 'eldt', 'aldt', *[key for key in NODE_ORDER if key not in ('origin_dep', 'eldt', 'aldt')]]
     return [specs[key] for key in order if key in specs]
+
+
+def _sort_flight_nodes_chronologically(nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Order timed nodes strictly by actual/estimated/plan timestamp while keeping untimed nodes near their predecessor."""
+    if len(nodes) <= 1:
+        return nodes
+    indexed = []
+    for idx, node in enumerate(nodes):
+        raw_ts = node.get('actual_at') or node.get('estimated_at') or node.get('plan_at')
+        dt = parse_dt(raw_ts)
+        if dt and dt.tzinfo is None:
+            dt = dt.replace(tzinfo=BUSINESS_TZ)
+        indexed.append((idx, node, dt))
+
+    last_timed_idx = None
+    anchored_after: Dict[Optional[int], List[Dict[str, Any]]] = {}
+    timed: List[tuple] = []
+    for idx, node, dt in indexed:
+        if dt is not None:
+            timed.append((dt, idx, node))
+            last_timed_idx = idx
+        else:
+            anchored_after.setdefault(last_timed_idx, []).append(node)
+
+    if not timed:
+        return nodes
+    timed.sort(key=lambda item: (item[0], item[1]))
+    ordered = list(anchored_after.get(None, []))
+    for _, idx, node in timed:
+        ordered.append(node)
+        ordered.extend(anchored_after.get(idx, []))
+    return ordered
 
 
 def is_flight_row(row: Dict[str, Any]) -> bool:
@@ -383,6 +417,13 @@ def build_fishbone_meta(
             'delay_minutes': delay_minutes,
             'note': note
         })
+
+    if direction == 'DEP':
+        nodes = [
+            n for n in nodes
+            if n['key'] != 'runway_exit' or n['actual_at'] or n['estimated_at'] or n['plan_at']
+        ]
+    nodes = _sort_flight_nodes_chronologically(nodes)
 
     # 提取航班基础信息
     craft_type = safe_str(row.get('CRAFT_TYPE_ICAO_CD') or row.get('aircraft_type'))

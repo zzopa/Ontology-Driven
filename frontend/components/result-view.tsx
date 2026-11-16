@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, ArrowUpRight, BarChart3, Boxes, Check, ChevronLeft, ChevronRight, Code2, Database, Expand, FileCheck2, Flag, GitBranch, Layers, ListChecks, PieChart, RefreshCw, Search, ShieldCheck, Sparkles, Table2, TrendingUp, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, ArrowUpRight, Boxes, CalendarRange, Check, ChevronLeft, ChevronRight, Code2, Database, Expand, FileCheck2, Flag, GitBranch, HelpCircle, Layers, ListChecks, RefreshCw, Search, SearchX, ShieldCheck, Sparkles, Table2, X } from "lucide-react";
 import { request } from "@/lib/api";
 import { formatValue } from "@/lib/query";
 import { answerCopyText, answerSections } from "@/lib/answer-document";
@@ -13,6 +13,7 @@ import { Badge, Button, Card, CopyButton, Modal, Notice, Spinner } from "./ui";
 import { ExecutionProcess } from "./execution-process";
 import { TurnaroundGantt } from "./turnaround-gantt";
 import { FlightMilestones } from "./flight-milestones";
+import { BarVisual, DetailTableVisual, DonutVisual, StatsVisual, TrendVisual } from "./visual-views";
 import s from "./answer-layout.module.css";
 
 
@@ -21,155 +22,59 @@ function RichText({ text }: { text: string }) {
   return <>{text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, index) => part.startsWith("**") && part.endsWith("**") ? <strong key={index}>{part.slice(2, -2)}</strong> : part.startsWith("`") && part.endsWith("`") ? <code key={index}>{part.slice(1, -1)}</code> : <span key={index}>{part}</span>)}</>;
 }
 
+function parseReportSections(text: string): { title: string; lines: string[]; isBoundary: boolean }[] | null {
+  if (!text.includes("【")) return null;
+  const parts = text.split(/(?:^|\n)(【[^】\n]+】)/);
+  const blocks: { title: string; lines: string[]; isBoundary: boolean }[] = [];
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i].trim();
+    if (!part) continue;
+    if (part.startsWith("【") && part.endsWith("】")) {
+      const title = part.slice(1, -1).trim();
+      const rawBody = i + 1 < parts.length && !(parts[i + 1].trim().startsWith("【") && parts[i + 1].trim().endsWith("】")) ? parts[++i].trim() : "";
+      const lines = rawBody.split(/\n+/).map(line => line.trim()).filter(Boolean);
+      blocks.push({ title, lines, isBoundary: /边界|声明|口径|注意|提示|限制/.test(title) });
+    } else if (blocks.length === 0) {
+      const lines = part.split(/\n+/).map(line => line.trim()).filter(Boolean);
+      if (lines.length) blocks.push({ title: "专题概览", lines, isBoundary: false });
+    }
+  }
+  return blocks.length > 0 ? blocks : null;
+}
+
 function AnswerBody({ result, onEvidence }: { result: QueryResult; onEvidence: () => void }) {
   const sections = answerSections(result);
-  if (!sections) return <section className={s.answerSection}><span className={s.sectionKicker}>问询结论</span><div className={s.answerText}><RichText text={result.answer || "当前未生成回答，请查看数据明细。"} /></div></section>;
+  if (!sections) {
+    const reportBlocks = result.intent === "acdm_report" && result.answer ? parseReportSections(result.answer) : null;
+    if (reportBlocks) {
+      return <>{reportBlocks.map((block, index) => (
+        <section className={s.answerSection} data-kind={block.isBoundary ? "limitations" : "query_facts"} key={`${block.title}-${index}`}>
+          <span className={s.sectionKicker}>{block.title}</span>
+          <div className={s.answerText}>
+            {block.lines.map((line, lineIdx) => <div className={s.claim} key={lineIdx}><RichText text={line} /></div>)}
+          </div>
+        </section>
+      ))}</>;
+    }
+    const raw = result.answer || "当前未生成回答，请查看数据明细。";
+    const paragraphs = raw.split(/\n+/).map(line => line.trim()).filter(Boolean);
+    return <section className={s.answerSection}><span className={s.sectionKicker}>问询结论</span><div className={s.answerText}>{paragraphs.length > 1 ? paragraphs.map((line, i) => <div className={s.claim} key={i}><RichText text={line} /></div>) : <RichText text={raw} />}</div></section>;
+  }
   return <>{sections.map(section => <section className={s.answerSection} data-kind={section.kind} key={section.kind}>
     <h3>{section.kind === "query_facts" ? "问询结论" : section.title}{section.kind === "interpretation" && <span>模型解释</span>}</h3>
     <div className={s.answerText}>{section.claims.map((claim, i) => <div className={s.claim} key={i}><RichText text={claim.text} />{claim.fact_ids.length > 0 && <button className={s.claimSource} onClick={onEvidence} aria-label={`查看${section.title}第 ${i + 1} 条的来源`}><FileCheck2 size={11} aria-hidden="true" />{claim.fact_ids.join(" · ")}</button>}</div>)}</div>
   </section>)}</>;
 }
 
-function VisualView({ meta, onQuestion }: { meta?: VisualMeta; onQuestion?: (question: string) => void }) {
+function VisualView({ meta, onQuestion, onOpenAllRecords }: { meta?: VisualMeta; onQuestion?: (question: string) => void; onOpenAllRecords?: () => void }) {
   if (!meta || meta.kind === "none") return null;
-
-  if (meta.kind === "turnaround_gantt") {
-    return <TurnaroundGantt data={meta} onQuestion={onQuestion} />;
-  }
-
-  if (meta.kind === "stats") {
-    return (
-      <div className="visual-section">
-        <div className="visual-header">
-          <h4 className="visual-title"><BarChart3 size={13} />{meta.title}</h4>
-          <Badge tone="green">统计概览</Badge>
-        </div>
-        <div className="visual-stats-grid">
-          {meta.stats.map((s, i) => (
-            <div key={i} className="visual-stat-card">
-              <span className="visual-stat-label">{s.label}</span>
-              <div className="visual-stat-val">
-                <strong>{s.value}</strong>
-                {s.unit && <small>{s.unit}</small>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (meta.kind === "donut") {
-    const C = 2 * Math.PI * 40;
-    let accumulated = 0;
-    return (
-      <div className="visual-section">
-        <div className="visual-header">
-          <h4 className="visual-title"><PieChart size={13} />{meta.title}</h4>
-          <Badge>合计: {meta.total.toLocaleString()} {meta.unit}</Badge>
-        </div>
-        <div className="visual-donut-wrap">
-          <svg className="visual-donut-svg" viewBox="0 0 100 100" aria-hidden="true">
-            <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--line)" strokeWidth="14" />
-            {meta.slices.map((slice, i) => {
-              const dash = (slice.percent / 100) * C;
-              const offset = (accumulated / 100) * C;
-              accumulated += slice.percent;
-              return (
-                <circle
-                  key={i}
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  fill="transparent"
-                  stroke={slice.color}
-                  strokeWidth="14"
-                  strokeDasharray={`${dash} ${C - dash}`}
-                  strokeDashoffset={-offset}
-                />
-              );
-            })}
-          </svg>
-          <div className="visual-donut-legend">
-            {meta.slices.map((slice, i) => (
-              <div key={i} className="visual-legend-item">
-                <div className="visual-legend-item-left">
-                  <span className="visual-legend-dot" style={{ backgroundColor: slice.color }} />
-                  <span className="visual-legend-label" title={slice.label}>{slice.label}</span>
-                </div>
-                <span className="visual-legend-val">
-                  {slice.value.toLocaleString()} {meta.unit} ({slice.percent}%)
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (meta.kind === "bar") {
-    const maxVal = Math.max(...meta.bars.map(b => b.value), 1);
-    return (
-      <div className="visual-section">
-        <div className="visual-header">
-          <h4 className="visual-title"><BarChart3 size={13} />{meta.title}</h4>
-          <Badge>{meta.bars.length} 个分类</Badge>
-        </div>
-        <div className="visual-bars-wrap">
-          {meta.bars.map((bar, i) => {
-            const widthPct = Math.min(100, Math.max(2, (bar.value / maxVal) * 100));
-            return (
-              <div key={i} className="visual-bar-item">
-                <div className="visual-bar-label-row">
-                  <span className="visual-bar-name">{bar.label}</span>
-                  <span className="visual-bar-value">
-                    {bar.value.toLocaleString()} {meta.unit} {bar.percent > 0 ? `(${bar.percent}%)` : ""}
-                  </span>
-                </div>
-                <div className="visual-bar-track">
-                  <div
-                    className="visual-bar-fill"
-                    style={{ width: `${widthPct}%`, backgroundColor: bar.color }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  if (meta.kind === "trend") {
-    const maxVal = Math.max(...meta.series.map(s => s.value), 1);
-    return (
-      <div className="visual-section">
-        <div className="visual-header">
-          <h4 className="visual-title"><TrendingUp size={13} />{meta.title}</h4>
-          <Badge>{meta.metric_label || "趋势"}</Badge>
-        </div>
-        <div className="visual-trend-wrap">
-          {meta.series.map((pt, i) => {
-            const heightPct = Math.min(100, Math.max(6, (pt.value / maxVal) * 100));
-            return (
-              <div key={i} className="visual-trend-col">
-                <span className="visual-trend-val">{pt.value.toLocaleString()}</span>
-                <div
-                  className="visual-trend-pillar"
-                  style={{ height: `${heightPct}%` }}
-                />
-                <span className="visual-trend-label" title={pt.label}>{pt.label}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  if (meta.kind === "fishbone") return <FlightMilestones data={meta} />;
-
+  if (meta.kind === "turnaround_gantt") return <TurnaroundGantt data={meta} onQuestion={onQuestion} />;
+  if (meta.kind === "stats") return <StatsVisual meta={meta} />;
+  if (meta.kind === "donut") return <DonutVisual meta={meta} />;
+  if (meta.kind === "bar") return <BarVisual meta={meta} />;
+  if (meta.kind === "trend") return <TrendVisual meta={meta} />;
+  if (meta.kind === "detail_table") return <DetailTableVisual meta={meta} onQuestion={onQuestion} onOpenAllRecords={onOpenAllRecords} />;
+  if (meta.kind === "fishbone") return <FlightMilestones data={meta} onQuestion={onQuestion} />;
   return null;
 }
 
@@ -286,14 +191,38 @@ export function ResultView({ result, run, onQuestion, onClarify }: { result: Que
       setFbStatus({ ok: false, msg: err instanceof Error ? err.message : "反馈提交失败" });
     } finally { setFbBusy(false); }
   }
-  if (result && result.intent === "notice") return <Card className="card-pad">
-    <div className="card-head"><h2 className="section-title">{result.outcome === "clarification_needed" ? "请确认查询条件" : result.outcome === "out_of_coverage" ? "本地数据范围" : result.outcome === "unsupported" ? "当前查询能力" : "问询结果"}</h2><Badge>{formatStepElapsed(result.elapsed)}</Badge></div>
-    <p className="helper">{result.question}</p><div role="status" aria-live="polite"><p className="long-description">{result.answer}</p></div>
-    {!!result.clarification?.options.length && <div role="group" aria-label="待确认选项" style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBlock: 16 }}>{result.clarification.options.map(choice => <Button key={choice.id} style={{ minHeight: 44 }} disabled={!onClarify || busy} onClick={() => onClarify?.(choice)}>{choice.label}</Button>)}</div>}
-    {!!result.capability_gate?.alternatives?.length && <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBlock: 12 }}><span className="helper" style={{ alignSelf: "center" }}>可改查：</span>{result.capability_gate.alternatives.map(alt => onQuestion ? <Button key={alt} variant="ghost" disabled={busy} onClick={() => onQuestion(alt)}>{alt}</Button> : <Badge key={alt}>{alt}</Badge>)}</div>}
-    {result.outcome === "clarification_needed" && <p className="helper">{onClarify ? "请选择选项，或在输入框补充条件；也可以输入一个新的完整问题。" : "这是历史澄清记录，请回到问答页打开本会话继续确认。"}</p>}
-    <ExecutionProcess steps={result.execution_trace || []} inline />
-  </Card>;
+  if (result && result.intent === "notice") {
+    const isNoMatch = result.outcome === "unsupported" && Boolean(
+      result.answer?.includes("回复回复不了") || result.answer?.includes("未匹配到业务本体对照")
+    );
+    const noticeMeta = result.outcome === "clarification_needed"
+      ? { title: "请确认查询条件", badge: "待补充条件", tone: "amber" as const, Icon: HelpCircle }
+      : result.outcome === "out_of_coverage"
+        ? { title: "本地数据范围", badge: "超出范围", tone: "amber" as const, Icon: CalendarRange }
+        : isNoMatch
+          ? { title: "未匹配业务本体", badge: "回复不了", tone: "amber" as const, Icon: AlertTriangle }
+          : result.outcome === "unsupported"
+            ? { title: "当前查询能力", badge: "能力边界", tone: undefined, Icon: AlertTriangle }
+            : { title: "问询结果", badge: "未命中记录", tone: undefined, Icon: SearchX };
+    const NoticeIcon = noticeMeta.Icon;
+    return <Card className="card-pad">
+      <div className="card-head">
+        <h2 className="section-title"><NoticeIcon size={15} aria-hidden="true" />{noticeMeta.title}</h2>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Badge tone={noticeMeta.tone}>{noticeMeta.badge}</Badge>
+          <Badge>{formatStepElapsed(result.elapsed)}</Badge>
+        </div>
+      </div>
+      <p className="helper" style={{ marginBottom: 10 }}>原问题：{result.question}</p>
+      <div role="status" aria-live="polite" style={{ padding: "14px 16px", borderRadius: 12, background: "var(--surface-2)", border: "1px solid var(--line)", marginBottom: 12 }}>
+        <p className="long-description" style={{ fontSize: 15, lineHeight: 1.7, color: "var(--text)", margin: 0 }}>{result.answer}</p>
+      </div>
+      {!!result.clarification?.options.length && <div role="group" aria-label="待确认选项" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBlock: 14 }}>{result.clarification.options.map(choice => <Button key={choice.id} variant="primary" style={{ minHeight: 40 }} disabled={!onClarify || busy} onClick={() => onClarify?.(choice)}>{choice.label}</Button>)}</div>}
+      {!!result.capability_gate?.alternatives?.length && <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBlock: 12 }}><span className="helper" style={{ alignSelf: "center" }}>建议改查：</span>{result.capability_gate.alternatives.map(alt => onQuestion ? <Button key={alt} variant="ghost" disabled={busy} onClick={() => onQuestion(alt)}>{alt}</Button> : <Badge key={alt}>{alt}</Badge>)}</div>}
+      {result.outcome === "clarification_needed" && <p className="helper">{onClarify ? "请选择以上选项，或在输入框补充条件；也可以输入一个新的完整问题。" : "这是历史澄清记录，请回到问答页打开本会话继续确认。"}</p>}
+      <ExecutionProcess steps={result.execution_trace || []} inline />
+    </Card>;
+  }
   return <><div className="result-top"><div><h2>查询结果</h2><p>{result?.question || run?.question}</p></div><div className="result-top-actions"><Badge>{formatStepElapsed(result?.elapsed ?? run?.elapsed ?? 0)}</Badge>{busy && run && <Button onClick={run.onStop} variant="ghost"><X size={12} aria-hidden="true" />停止等待</Button>}{result && <Button variant="ghost" onClick={() => setFbOpen(true)}><Flag size={12} aria-hidden="true" />反馈不准</Button>}{result && <CopyButton text={answerCopyText(result)} label="复制回答" />}</div></div>{fbStatus && <Notice error={!fbStatus.ok}>{fbStatus.msg}</Notice>}<Card className="result-card"><div className="result-tabs" role="tablist" aria-label="查询结果内容">{tabs.map(item => <button key={item.id} id={`tab-${item.id}`} className={`result-tab ${tab === item.id ? "selected" : ""}`} role="tab" aria-selected={tab === item.id} aria-controls="result-panel" disabled={!result && item.id !== "process" && !(item.id === "answer" && delta)} onClick={() => setTab(item.id)}><item.icon size={13} aria-hidden="true" />{item.label}{item.id === "process" && busy && <Spinner />}{item.id === "evidence" && <Badge>{result?.claims?.length || 0}</Badge>}</button>)}</div><div className="result-content" role="tabpanel" id="result-panel" aria-labelledby={`tab-${tab}`}>
     {run?.error && <Notice error>{run.error} <button className="inline-button" onClick={run.onRetry} disabled={busy}>重新查询<RefreshCw size={11} aria-hidden="true" /></button></Notice>}
     {tab === "process" && <div className={s.processPane}>
@@ -304,7 +233,7 @@ export function ResultView({ result, run, onQuestion, onClarify }: { result: Que
     {tab === "answer" && result && <div className={s.resultAnswer}>
       <div className={s.answerStatus}><span><Check size={13} aria-hidden="true" />查询已完成</span><span>{result.answer_validation === "deterministic" ? turnaround ? "规则归纳" : "确定性统计" : result.answer_validation === "evidence_fallback" ? "事实摘要回退" : "来源及数值校验"}<i />{formatStepElapsed(result.elapsed)}</span></div>
       <div className={`${s.answerLayout} ${flight ? s.flightLayout : ""} ${turnaround ? s.turnaroundLayout : ""}`}>
-        {visual && <div className={s.visualPrimary}><VisualView meta={visual} onQuestion={onQuestion} /></div>}
+        {visual && <div className={s.visualPrimary}><VisualView meta={visual} onQuestion={onQuestion} onOpenAllRecords={() => (result.drill_token ? setRecords(true) : setTab("data"))} /></div>}
         <aside className={`${s.conclusionPanel} ${turnaround ? s.inspectionRail : ""}`}>
           {turnaround && <section className={s.objectContext}><div className={s.railHeading}><Boxes size={15} aria-hidden="true" /><h3>对象上下文</h3><span>本次命中</span></div><dl>{[["航班", turnaround.flight_pair], ["航空器", turnaround.craft_no], ["机位", turnaround.stand], ["登机口", turnaround.gate]].map(([label, value])=><div key={label}><dt>{label}</dt><dd>{value || "未提供"}</dd></div>)}</dl><button className={s.relationLink} onClick={()=>setTab("graph")}><GitBranch size={13} aria-hidden="true" />查询关系路径<span>{result.graph?.edges.length || 0} 条展开</span><ArrowUpRight size={12} aria-hidden="true" /></button></section>}
           <section className={turnaround ? s.answerRailCard : undefined}>
@@ -319,6 +248,16 @@ export function ResultView({ result, run, onQuestion, onClarify }: { result: Que
           {result.plan_template && <Badge>规划模板：{result.plan_template.name || result.plan_template.code}</Badge>}
           {result.applied_rules?.map(r => (
             <span key={r.code} title={r.description || r.code}><Badge>规则校验：{r.name} (v{r.versionNo || 1})</Badge></span>
+          ))}
+        </div>
+      )}
+      {result.intent === "acdm_report" && result.related.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 10 }}>
+          <span className="helper" style={{ fontSize: 12 }}>专题明细附表：</span>
+          {result.related.map(item => (
+            <Button key={item.table} variant="ghost" onClick={() => setRelated(item)}>
+              <Table2 size={12} aria-hidden="true" />{item.name || item.table} ({item.count.toLocaleString()})
+            </Button>
           ))}
         </div>
       )}

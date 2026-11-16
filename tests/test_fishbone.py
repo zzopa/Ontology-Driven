@@ -161,6 +161,32 @@ class FishboneBuilderTests(unittest.TestCase):
             [{'flight_no': 'MU2613', 'n': 2}, {'flight_no': 'MU2614', 'n': 3}], 5)
         self.assertEqual(result['kind'], 'donut')
 
+    def test_dep_milestones_are_chronologically_ordered_and_omit_arrival_baggage(self):
+        meta = build_fishbone_meta({
+            'flight_no': 'CZ3357',
+            'direction': 'DEP',
+            'flight_date': '2026-11-10',
+            'prev_actual_departure': '2026-11-10 03:40:00',
+            'checkin_act_begin': '2026-11-10 06:26:10',
+            'inbound_actual_arrival': '2026-11-10 07:00:00',
+            'actual_on_block': '2026-11-10 07:07:00',
+            'REAL_BY_BRIDGE_TIME': '2026-11-10 07:22:14',
+            'REAL_OPEN_CABIN_TIME': '2026-11-10 07:11:00',
+            'REAL_LAUNCH_TIME': '2026-11-10 08:13:28',
+            'actual_off_block': '2026-11-10 08:14:00',
+            'actual_departure': '2026-11-10 08:32:00',
+        })
+        keys = [n['key'] for n in meta['nodes']]
+        self.assertNotIn('baggage', keys)
+        self.assertNotIn('runway_exit', keys)
+        timed = [n for n in meta['nodes'] if n['actual_at'] or n['estimated_at'] or n['plan_at']]
+        timestamps = [n['actual_at'] or n['estimated_at'] or n['plan_at'] for n in timed]
+        self.assertEqual(timestamps, sorted(timestamps))
+        self.assertEqual(
+            [n['key'] for n in timed],
+            ['origin_dep', 'checkin_start', 'inbound_landing', 'aibt', 'door_open', 'bridge_on', 'pushback', 'aobt', 'atot'],
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

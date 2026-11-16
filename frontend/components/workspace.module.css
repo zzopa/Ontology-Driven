@@ -1,23 +1,26 @@
 .workspace{min-width:0}
+.historyRow{display:flex;align-items:center;gap:2px}
+.historyRow :global(.history-item){flex:1;min-width:0;margin:0}
+.historyRow .historyDelete{width:44px;min-height:44px;padding:0;flex-shrink:0;color:var(--muted)}
+.historyRow .historyDelete:hover:not(:disabled){color:var(--danger)}
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
 .toolbar h1{font-size:20px;font-weight:600;letter-spacing:0}
 .title{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.actions,.controlActions{display:flex;align-items:center;gap:12px}
-.actions{gap:8px}
-.queryCard{padding:16px 18px;border-radius:10px;background:var(--paper,var(--panel));box-shadow:none}
+.actions,.controlActions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.heroStage{max-width:1040px;margin:0 auto}
+.queryCard{padding:16px 18px;border-radius:14px;background:var(--paper,var(--panel));box-shadow:none}
 .queryLabel{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;font-size:13px;font-weight:600}
 .queryLabel small{font-weight:400}
-.composer{display:flex;align-items:center;padding-right:12px;border-radius:9px}
-.workspace .composer textarea{min-width:0;flex:1;min-height:60px;max-height:180px;padding:12px 14px;font-size:15px;line-height:1.7}
+.composer{display:flex;align-items:center;padding-right:10px;border-radius:11px}
+.workspace .composer textarea{min-width:0;flex:1;min-height:54px;max-height:160px;padding:11px 14px;font-size:14.5px;line-height:1.65;resize:none}
 .composer>button{flex-shrink:0}
-.controls{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px}
-.controls :global(.inline-button){min-height:32px}
+.controls{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;flex-wrap:wrap}
+.controls :global(.inline-button){min-height:30px}
 .quickStrip{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
 .quickLabel{font-size:11px;color:var(--muted);margin-right:4px}
-.quickChip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:12px;line-height:1.4;cursor:pointer;transition:border-color .15s ease,background-color .15s ease,color .15s ease}
-.quickChip:hover:not(:disabled){border-color:var(--accent);color:var(--accent-bright);background:color-mix(in srgb,var(--accent) 6%,var(--panel))}
+.quickChip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:12px;line-height:1.4;cursor:pointer;transition:border-color .15s ease,background-color .15s ease,color .15s ease}
+.quickChip:hover:not(:disabled){border-color:var(--accent);color:var(--accent-bright);background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
 .quickChip:disabled{opacity:.55;cursor:not-allowed}
-.workspace .results{margin-top:20px;scroll-margin-top:16px}
 .telemetryGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:18px}
 .telemetryCard{display:flex;flex-direction:column;gap:6px;padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--panel);box-shadow:inset 0 1px 0 color-mix(in srgb,var(--text) 6%,transparent);min-width:0;text-align:left;color:var(--text);transition:border-color .15s ease,background-color .15s ease}
 .telemetryBtn{cursor:pointer}
@@ -28,8 +31,64 @@
 .telemetryValue{font-size:24px;line-height:1.25;font-weight:600;letter-spacing:-.5px;color:var(--text);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .telemetryValue[data-text=true]{font-size:18px;line-height:30px;font-family:Consolas,"Cascadia Code",monospace}
 .telemetryMeta{font-size:12px;color:var(--subtle);line-height:1.5;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@media(max-width:1150px){
+
+/* Option B: Split Chat + Live Visual Canvas Workbench */
+.splitWorkbench{display:grid;grid-template-columns:minmax(360px,41fr) minmax(0,59fr);gap:16px;align-items:stretch;height:clamp(560px,calc(100dvh - 190px),920px);min-height:0}
+.chatPane{display:flex;flex-direction:column;min-width:0;min-height:0;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--panel) 94%,var(--bg));overflow:hidden}
+.chatPaneHead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--surface) 45%,var(--panel));flex-shrink:0}
+.chatHeadTitle{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--text)}
+.chatMessages{flex:1;min-height:0;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth}
+.chatTurnGroup{display:flex;flex-direction:column;gap:10px}
+.userRow{display:flex;justify-content:flex-end;align-items:flex-end;gap:8px}
+.userBubble{max-width:86%;padding:9px 14px;border-radius:14px 14px 4px 14px;border:1px solid color-mix(in srgb,var(--accent) 30%,var(--line));background:color-mix(in srgb,var(--accent) 11%,var(--panel));color:var(--text);font-size:13.5px;line-height:1.6;overflow-wrap:anywhere}
+.userAvatar{width:26px;height:26px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:var(--surface);color:var(--muted)}
+.botRow{display:flex;align-items:flex-start;gap:9px;min-width:0}
+.botAvatar{width:28px;height:28px;flex-shrink:0;border-radius:9px;display:grid;place-items:center;border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 16%,var(--panel)),color-mix(in srgb,var(--accent) 4%,var(--panel)));color:var(--accent-bright);margin-top:2px}
+.botCard{flex:1;min-width:0;padding:12px 14px;border-radius:4px 14px 14px 14px;border:1px solid var(--line);background:var(--panel);text-align:left;transition:border-color .18s ease,box-shadow .18s ease,background-color .18s ease;display:flex;flex-direction:column;gap:8px}
+.botCard:hover{border-color:color-mix(in srgb,var(--accent) 42%,var(--line))}
+.botCardActive{border-color:color-mix(in srgb,var(--accent) 62%,var(--line));background:color-mix(in srgb,var(--accent) 5%,var(--panel));box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 18%,transparent),0 8px 24px color-mix(in srgb,var(--bg) 55%,transparent)}
+.botHead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.botName{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text)}
+.botName small{font-weight:400;color:var(--muted);font-size:11px}
+.botText{font-size:13.5px;line-height:1.68;color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.botError{font-size:13px;line-height:1.65;color:var(--danger);white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.botProgress{display:flex;flex-direction:column;gap:6px}
+.botProgressTrack{height:3px;border-radius:6px;background:var(--line);overflow:hidden}
+.botProgressFill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-bright));transition:width .45s ease}
+.choicePills{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
+.choicePill{display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:12px;line-height:1.4;cursor:pointer;transition:border-color .15s ease,background-color .15s ease}
+.choicePill:hover:not(:disabled){border-color:var(--accent);color:var(--accent-bright);background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
+.choicePillChosen{border-color:color-mix(in srgb,var(--accent) 55%,var(--line));background:color-mix(in srgb,var(--accent) 14%,var(--panel));color:var(--accent-bright);font-weight:600;opacity:1!important}
+.botFooter{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:8px;margin-top:2px;border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent);font-size:11.5px;color:var(--muted)}
+.inspectTrigger{display:inline-flex;align-items:center;gap:4px;background:none;border:0;padding:2px 0;font-size:11.5px;color:var(--muted);cursor:pointer}
+.inspectTrigger:hover{color:var(--accent-bright)}
+.inspectTriggerActive{color:var(--accent-bright);font-weight:600}
+
+.chatComposerWrap{flex-shrink:0;padding:12px;border-top:1px solid var(--line);background:color-mix(in srgb,var(--surface) 40%,var(--panel))}
+.quickDrawer{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed var(--line)}
+.composerDockCard{border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:8px 10px;transition:border-color .2s,box-shadow .2s}
+.composerDockCard:focus-within{border-color:color-mix(in srgb,var(--accent) 55%,transparent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 6%,transparent)}
+.composerDockCard textarea{width:100%;border:0;outline:none!important;background:none;color:var(--text);font-size:14px;line-height:1.6;min-height:44px;max-height:120px;resize:none;padding:2px 4px}
+.composerDockCard textarea::placeholder{color:var(--muted)}
+.composerDockBar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;padding-top:6px;border-top:1px solid color-mix(in srgb,var(--line) 65%,transparent);flex-wrap:wrap}
+.composerDockTools{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.miniPillBtn{display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:11.5px;min-height:28px;cursor:pointer}
+.miniPillBtn:hover:not(:disabled),.miniPillBtnActive{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));color:var(--accent-bright);background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
+.dockSendBtn{min-height:32px!important;padding:5px 13px!important;border-radius:8px!important;font-size:12.5px!important}
+
+.canvasPane{display:flex;flex-direction:column;min-width:0;min-height:0;border:1px solid var(--line);border-radius:16px;background:var(--panel);overflow:hidden}
+.canvasHead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--surface) 45%,var(--panel));flex-shrink:0}
+.canvasHeadTitle{display:flex;align-items:center;gap:8px;min-width:0}
+.canvasHeadTitle strong{font-size:13.5px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.canvasBody{flex:1;min-height:0;overflow-y:auto;padding:18px 20px}
+.canvasBody :global(.result-top){margin-bottom:10px}
+.canvasEmpty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:32px;color:var(--muted);font-size:13px}
+
+@media(max-width:1180px){
  .telemetryGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .splitWorkbench{grid-template-columns:1fr;height:auto}
+ .chatMessages{max-height:480px}
+ .canvasPane{min-height:420px}
 }
 @media(max-width:720px){
  .toolbar{flex-wrap:wrap;gap:10px}
@@ -40,12 +99,13 @@
  .queryLabel{align-items:flex-start}
  .queryLabel small{font-size:11px}
  .composer{flex-wrap:wrap;justify-content:flex-end;padding:0 10px 10px}
- .workspace .composer textarea{flex-basis:100%;padding:12px 2px;min-height:76px;font-size:16px}
+ .workspace .composer textarea{flex-basis:100%;padding:12px 2px;min-height:68px;font-size:16px}
  .composer>button{min-height:40px}
  .controls{align-items:flex-start;flex-wrap:wrap;gap:4px}
- .controlActions{flex:1;justify-content:flex-end;gap:12px}
- .controls :global(.inline-button){min-height:40px;font-size:12px}
- .workspace .results{margin-top:16px}
+ .controlActions{flex:1;justify-content:flex-end;gap:10px}
+ .controls :global(.inline-button){min-height:36px;font-size:12px}
+ .userBubble{max-width:92%}
+ .canvasBody{padding:14px}
 }
 @media(max-width:540px){
  .telemetryGrid{grid-template-columns:1fr;gap:10px}

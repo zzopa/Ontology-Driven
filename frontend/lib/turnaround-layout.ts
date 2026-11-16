@@ -7,6 +7,14 @@ export function completeTurnaroundOperations(operations: TurnaroundOperation[]):
   return [...operations, ...missing];
 }
 
+export function turnaroundChartRows(data: VisualTurnaround): (TurnaroundOperation & { node?: FishboneNode })[] {
+  return [...completeTurnaroundOperations(data.operations), ...(data.ground_nodes || []).map(node => ({
+    id: `node:${node.key}`, name: node.name, icon: "", node,
+    status: node.actual_time ? "completed" as const : "planned" as const,
+    actual_end: node.actual_time, plan_end: node.estimated_time || node.plan_time,
+  }))];
+}
+
 export function turnaroundOperationTimeline(data: Pick<VisualTurnaround, "operations" | "milestones" | "timeline_range" | "time_ticks">) {
   if (data.timeline_range && !timelineWindow(data.timeline_range)) return { timeline_range: data.timeline_range, time_ticks: data.time_ticks };
   const times = [...data.operations.flatMap(operation => [operation.actual_start, operation.actual_end, operation.plan_start, operation.plan_end]),
@@ -19,19 +27,84 @@ export function turnaroundOperationTimeline(data: Pick<VisualTurnaround, "operat
   return { timeline_range: `${clock(first)} - ${clock(last)}`, time_ticks: ticks };
 }
 
+function nodeTimeComparable(node: FishboneNode): { isoMs: number | null; clockMin: number | null } {
+  const iso = node.actual_at || node.estimated_at || node.plan_at;
+  const parsed = iso ? Date.parse(iso) : NaN;
+  const clock = node.actual_time || node.estimated_time || node.plan_time;
+  return {
+    isoMs: Number.isNaN(parsed) ? null : parsed,
+    clockMin: clockMinutes(clock),
+  };
+}
+
 export function completeFlightNodes(nodes: FishboneNode[], direction?: string): FishboneNode[] {
-  const baseline = [
+  const baseline: [string, string][] = [
     ["origin_dep", "前站起飞"], [direction === "ARR" ? "aldt" : "inbound_landing", "落地"],
     ["aibt", "挡轮挡"], ["door_open", "客舱开门"], ["boarding_start", "开始登机"],
     ["boarding_end", "登机完成"], ["door_close", "客舱关门"], ["cargo_close", "货舱关门"],
     ["aobt", "撤轮挡"], ["pushback", "推出"], ["atot", "起飞"],
   ];
-  const byKey = new Map(nodes.map(node => [node.key, node]));
-  const keys = new Set(baseline.map(([key]) => key));
-  return [...baseline.map(([key, name], index): FishboneNode => byKey.get(key) || {
+  const makePlaceholder = (key: string, name: string, index: number): FishboneNode => ({
     key, name, code: "", category: "control", position: index % 2 ? "bottom" : "top",
     status: "pending", status_label: "未记录", time_display: "",
-  }), ...nodes.filter(node => !keys.has(node.key))];
+  });
+  if (!nodes.length) {
+    return baseline.map(([key, name], index) => makePlaceholder(key, name, index));
+  }
+
+  const byKey = new Map(nodes.map(node => [node.key, node]));
+  const flowOrder = direction === "ARR"
+    ? ["origin_dep", "eldt", "aldt", "runway_exit", "aibt", "bridge_on", "door_open", "cargo_open",
+      "checkin_start", "checkin_end", "ground_service", "boarding_start", "urge_boarding", "boarding_end",
+      "door_close", "cargo_close", "bridge_off", "tobt", "tsat", "push_request", "pushback", "aobt", "engine_start", "atot", "baggage"]
+    : ["origin_dep", "eldt", "inbound_landing", "runway_exit", "aibt", "bridge_on", "door_open", "cargo_open",
+      "checkin_start", "checkin_end", "ground_service", "boarding_start", "urge_boarding", "boarding_end",
+      "door_close", "cargo_close", "bridge_off", "tobt", "tsat", "push_request", "pushback", "aobt", "engine_start", "atot", "aldt"];
+  const flowRank = new Map(flowOrder.map((key, index) => [key, index]));
+
+  const merged: FishboneNode[] = [];
+  const added = new Set<string>();
+  const candidates: Array<{ node: FishboneNode; rank: number; seq: number }> = [];
+
+  nodes.forEach((node, seq) => {
+    added.add(node.key);
+    candidates.push({ node, rank: flowRank.get(node.key) ?? 1000 + seq, seq });
+  });
+  baseline.forEach(([key, name], index) => {
+    if (!added.has(key)) {
+      added.add(key);
+      candidates.push({ node: byKey.get(key) || makePlaceholder(key, name, index), rank: flowRank.get(key) ?? 500 + index, seq: 10000 + index });
+    }
+  });
+  candidates.sort((a, b) => a.rank - b.rank || a.seq - b.seq);
+  for (const item of candidates) merged.push(item.node);
+
+  // Order nodes with recorded/planned timestamps chronologically while keeping untimed nodes after their predecessor.
+  const comps = merged.map(node => nodeTimeComparable(node));
+  const useIso = comps.every(c => (c.isoMs === null && c.clockMin === null) || c.isoMs !== null);
+  const timed: Array<{ time: number; idx: number; node: FishboneNode }> = [];
+  const anchoredAfter = new Map<number | null, FishboneNode[]>();
+  let lastTimedIdx: number | null = null;
+  merged.forEach((node, idx) => {
+    const c = comps[idx];
+    const t = useIso ? c.isoMs : c.clockMin;
+    if (t !== null) {
+      timed.push({ time: t, idx, node });
+      lastTimedIdx = idx;
+    } else {
+      const bucket = anchoredAfter.get(lastTimedIdx) || [];
+      bucket.push(node);
+      anchoredAfter.set(lastTimedIdx, bucket);
+    }
+  });
+  if (!timed.length) return merged;
+  timed.sort((a, b) => a.time - b.time || a.idx - b.idx);
+  const ordered: FishboneNode[] = [...(anchoredAfter.get(null) || [])];
+  for (const item of timed) {
+    ordered.push(item.node);
+    ordered.push(...(anchoredAfter.get(item.idx) || []));
+  }
+  return ordered;
 }
 
 export function turnaroundFlightNodes(data: Pick<VisualTurnaround, "flight_nodes" | "milestones" | "operations" | "pipeline">, direction?: string): FishboneNode[] {
@@ -71,7 +144,8 @@ export function turnaroundHeading(data: { query_identifier?: string; craft_no?: 
   const flight = data.flight_pair || data.out_flight || data.in_flight;
   const aircraftQuery = Boolean(query && data.craft_no && query.replaceAll("-", "").toUpperCase() === data.craft_no.replaceAll("-", "").toUpperCase());
   const subject = query || flight || data.craft_no;
-  const detail = aircraftQuery ? (flight ? `对应航班 ${flight}` : "") : [data.craft_no && `执飞机号 ${data.craft_no}`, query && flight && query !== flight && `航班连班 ${flight}`].filter(Boolean).join(" · ");
+  const pair = data.in_flight && data.out_flight ? `进港 ${data.in_flight} → 出港 ${data.out_flight}` : "";
+  const detail = [aircraftQuery ? (flight ? `对应航班 ${flight}` : "") : data.craft_no && `执飞机号 ${data.craft_no}`, pair || (!aircraftQuery && query && flight && query !== flight && `航班连班 ${flight}`)].filter(Boolean).join(" · ");
   return { title: subject ? `${subject} · 过站保障` : "过站保障", detail };
 }
 
@@ -96,7 +170,7 @@ export function operationClock(operation: TurnaroundOperation) {
     .find(value => clockMinutes(value) !== null);
 }
 
-export function sortTurnaroundOperations(operations: TurnaroundOperation[], range: string) {
+export function sortTurnaroundOperations<T extends TurnaroundOperation>(operations: T[], range: string): T[] {
   if (!timelineWindow(range)) return [...operations];
   return [...operations].sort((a, b) => (clockMinutes(operationClock(a)) ?? 24 * 60) - (clockMinutes(operationClock(b)) ?? 24 * 60));
 }

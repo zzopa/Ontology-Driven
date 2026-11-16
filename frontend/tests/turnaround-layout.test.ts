@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { clockMinutes, completeFlightNodes, completeTurnaroundOperations, hasOperationEnd, sortTurnaroundOperations, timelinePoint, timelineWindow, timelineSpan, turnaroundFishboneLayout, turnaroundFlightNodes, turnaroundHeading, turnaroundOperationTimeline, turnaroundRecordSummary } from "../lib/turnaround-layout.ts";
-import type { FishboneNode, TurnaroundOperation } from "../lib/types.ts";
+import { clockMinutes, completeFlightNodes, completeTurnaroundOperations, hasOperationEnd, sortTurnaroundOperations, timelinePoint, timelineWindow, timelineSpan, turnaroundChartRows, turnaroundFishboneLayout, turnaroundFlightNodes, turnaroundHeading, turnaroundOperationTimeline, turnaroundRecordSummary } from "../lib/turnaround-layout.ts";
+import type { FishboneNode, TurnaroundOperation, VisualTurnaround } from "../lib/types.ts";
 
 test("flight inquiry titles keep the requested flight primary and label the aircraft separately", () => {
   assert.deepEqual(turnaroundHeading({ query_identifier: "MU2613", flight_pair: "MU2613", craft_no: "B20AE" }), {
@@ -13,6 +13,35 @@ test("flight inquiry titles keep the requested flight primary and label the airc
   assert.equal(turnaroundHeading({ flight_pair: "MU2613", craft_no: "B20AE" }).title, "MU2613 · 过站保障");
   assert.equal(turnaroundHeading({ query_identifier: "MU2613", flight_pair: "MU2613 → MU2614", craft_no: "B20AE" }).title, "MU2613 · 过站保障");
   assert.equal(turnaroundHeading({}).title, "过站保障");
+  assert.deepEqual(turnaroundHeading({ query_identifier: "CZ8318", flight_pair: "CZ8318", craft_no: "B1921", in_flight: "CZ8318", out_flight: "CZ3357" }), {
+    title: "CZ8318 · 过站保障", detail: "执飞机号 B1921 · 进港 CZ8318 → 出港 CZ3357",
+  });
+});
+
+test("ground chart combines actual inbound points with work intervals without inventing durations", () => {
+  const ground = (key: string, time: string): FishboneNode => ({ key, name: key, code: key,
+    category: "ramp", position: "top", status: time ? "completed" : "pending", status_label: "", actual_time: time, time_display: time });
+  const data: VisualTurnaround = { kind: "turnaround_gantt", flight_pair: "CZ8318", in_flight: "CZ8318", out_flight: "CZ3357",
+    craft_no: "B1921", stand: "", gate: "", flight_date: "2026-11-10", pipeline: [],
+    milestones: { aibt: "07:07", sobt: null, tobt: null, tsat: null, current_time: null },
+    timeline_range: "07:00 - 08:42", time_ticks: [],
+    ground_nodes: [ground("inbound_landing", "07:00"), ground("aibt", "07:07"), ground("cargo_open", ""), ground("atot", "08:32")],
+    operations: [{ id: "fueling", name: "加油", icon: "", status: "completed", actual_start: "07:15", actual_end: "07:22" }],
+    conclusion: { summary: "", meta: { has_delay: false, evidence: "", actual: "", plan_end: "", delay_desc: "" } },
+  };
+  const original = structuredClone(data);
+  const rows = turnaroundChartRows(data);
+  assert.equal(rows.length, 9);
+  const timeline = turnaroundOperationTimeline({ ...data, operations: rows });
+  assert.equal(timeline.timeline_range, "07:00 - 08:42");
+  const window = timelineWindow(timeline.timeline_range)!;
+  const landing = rows.find(row => row.id === "node:inbound_landing")!;
+  assert.equal(landing.node?.actual_time, "07:00");
+  assert.equal(timelinePoint(landing.actual_end, window), 0);
+  assert.equal(timelineSpan(landing.actual_start, landing.actual_end, window), null);
+  assert.equal(rows.find(row => row.id === "node:cargo_open")?.actual_end, "");
+  assert.equal(turnaroundRecordSummary(data.operations).ended, 1);
+  assert.deepEqual(data, original);
 });
 
 test("complete flight flow retains the original eleven nodes and every additional returned node", () => {
@@ -30,6 +59,15 @@ test("complete flight flow retains the original eleven nodes and every additiona
   assert.equal(full.find(node => node.key === extra.key), extra);
   assert.deepEqual(input, original);
   assert.equal(completeFlightNodes([], "ARR")[1].key, "aldt");
+
+  const disordered: FishboneNode[] = [
+    { ...baseline[10], key: "atot", name: "跑道起飞", code: "ATOT", actual_time: "08:32", actual_at: "2026-11-10T08:32:00+08:00" },
+    { ...baseline[2], key: "bridge_on", name: "靠接廊桥", code: "BRG_ON", actual_time: "07:22", actual_at: "2026-11-10T07:22:14+08:00" },
+    { ...baseline[0], key: "checkin_start", name: "旅客值机", code: "CHK_S", actual_time: "06:26", actual_at: "2026-11-10T06:26:10+08:00" },
+  ];
+  const sorted = completeFlightNodes(disordered, "DEP");
+  const timedKeys = sorted.filter(n => n.actual_at).map(n => n.key);
+  assert.deepEqual(timedKeys, ["checkin_start", "bridge_on", "atot"]);
 });
 
 test("old snapshots retain known boarding, target, and door records when showing the complete flow", () => {

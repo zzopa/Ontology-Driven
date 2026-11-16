@@ -2,7 +2,7 @@
 from copy import deepcopy
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from contextvars import copy_context
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 import json
 import logging
 import re
@@ -270,11 +270,11 @@ def _finalize_governance_plan(question, plan, catalog, day_mode='AUTO'):
 
 
 def parse_question(question, catalog, use_model=True, use_cache=True, trace=None, lookups=None, previous_plan=None,
-                   references=(), clarification=None, choice_id=None, day_mode='AUTO'):
+                   references=(), clarification=None, choice_id=None, day_mode='AUTO', conversation_history=None):
     if settings.data_source == 'ops_ask' and getattr(settings, 'coordinator_enabled', False):
         from app.agent.coordinator import Coordinator
         plan = Coordinator(catalog, chat if use_model and model_available() else None,references,trace).plan(
-            question,previous_plan,clarification,choice_id,day_mode=day_mode)
+            question,previous_plan,clarification,choice_id,day_mode=day_mode,history=conversation_history)
         return _finalize_governance_plan(question, plan, catalog, day_mode=day_mode), '运营总控·结构化规划'
     if settings.data_source == 'ops_ask' and catalog.overrides.get('offline_queries'):
         from app.acdm_ontology import parse_question as parse_local
@@ -599,6 +599,12 @@ def answer(catalog,plan,evidence,main_total,use_model,question='',trace=None,del
     return claims,text,validation
 
 
+_AMBIGUOUS_AIRLINE_CITY_NAMES = {
+    '上海', '深圳', '山东', '河北', '青岛', '福州', '南京', '乌鲁木齐',
+    '北京', '成都', '重庆', '云南', '天津', '厦门', '海南', '四川', '西藏', '香港', '澳门'
+}
+
+
 def load_ops_references(conn, catalog):
     if 'dim_airline' not in catalog.entities:
         return []
@@ -608,15 +614,24 @@ def load_ops_references(conn, catalog):
     references = []
     codes = {str(row['iata_code']) for row in rows if row.get('iata_code')}
     for row in rows:
-        if row.get('iata_code'):
-            for term in (row.get('name_zh'), row.get('name_en'), row['iata_code']):
+        iata = row.get('iata_code')
+        if iata:
+            name_zh = row.get('name_zh')
+            name_en = row.get('name_en')
+            terms = [name_en, iata]
+            if name_zh:
+                if name_zh in _AMBIGUOUS_AIRLINE_CITY_NAMES:
+                    terms.extend([name_zh + '航空', name_zh + '航'])
+                else:
+                    terms.append(name_zh)
+            for term in terms:
                 if term:
-                    references.append({'role':'airline','term':term,'value':row['iata_code'],
-                                       'table':'dim_airline','field':'iata_code','column':'airline_code'})
+                    references.append({'role': 'airline', 'term': term, 'value': iata,
+                                       'table': 'dim_airline', 'field': 'iata_code', 'column': 'airline_code'})
     for term, code in Planner._AIRLINE_ALIASES.items():
         if code in codes:
-            references.append({'role':'airline','term':term,'value':code,
-                               'table':'dim_airline','field':'iata_code','column':'airline_code'})
+            references.append({'role': 'airline', 'term': term, 'value': code,
+                               'table': 'dim_airline', 'field': 'iata_code', 'column': 'airline_code'})
     return references
 
 
@@ -653,8 +668,46 @@ def local_coverage(conn, catalog, plan):
     return result
 
 
+def _single_flight_visual_plan(plan, subject, intent, main, main_total, conn):
+    """Attach standard turnaround gantt data when a detail query resolves to one ops_ask flight."""
+    if (
+        settings.data_source != 'ops_ask'
+        or conn is None
+        or intent != 'detail'
+        or plan.get('turnaround_data')
+        or subject not in ('std_flight_core', 'ops_ask_views.flight_execution', 'acdm.tb_dyn_flight')
+        or main_total != 1
+        or len(main) != 1
+    ):
+        return plan
+    row = main[0]
+    fno = row.get('flight_no') or row.get('FLIGHT_NO')
+    if not fno:
+        return plan
+    raw_day = row.get('flight_date') or row.get('EXEC_DATE')
+    if not raw_day and row.get('execution_time'):
+        tz_bj = timezone(timedelta(hours=8))
+        try:
+            dt_val = datetime.fromisoformat(str(row['execution_time']).replace('Z', '+00:00'))
+            raw_day = (dt_val.replace(tzinfo=tz_bj) if dt_val.tzinfo is None else dt_val.astimezone(tz_bj)).date().isoformat()
+        except ValueError:
+            raw_day = str(row['execution_time'])[:10]
+    fday = str(raw_day or '')[:10] or None
+    row_id = row.get('id') if subject in ('std_flight_core', 'ops_ask_views.flight_execution') else None
+    if not fday and row_id is None:
+        return plan
+    try:
+        from app.turnaround_standard import get_standard_turnaround_data
+        td = get_standard_turnaround_data(str(fno), fday, flight_id=row_id)
+        if td and (td.get('operations') or td.get('flight_nodes')):
+            return {**plan, 'turnaround_data': td}
+    except Exception:
+        logger.debug('Single-flight turnaround enrichment skipped for %s', fno, exc_info=True)
+    return plan
+
+
 def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,access=None,previous_plan=None,
-           clarification=None,choice_id=None,day_mode='AUTO'):
+           clarification=None,choice_id=None,day_mode='AUTO',conversation_history=None):
     catalog=current_catalog()
     if access:
         catalog=access.catalog(catalog)
@@ -677,29 +730,69 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
         checkpoint=perf_counter()
         lookups=load_lookups(conn,catalog,access) if access else None
         coordinated = settings.data_source == 'ops_ask' and getattr(settings, 'coordinator_enabled', False)
+        display_text = text
+        references = load_ops_references(conn, catalog) if coordinated else ()
+        names_dict = lookups[0] if (lookups and isinstance(lookups, (tuple, list))) else NAME_INDEX
+        has_named_match = bool(names_dict) and any(name in text for names in names_dict.values() for name in names if len(name) >= 2)
+        if not has_named_match and not catalog.has_ontology_match(text, references=references, previous_plan=previous_plan, clarification=clarification):
+            msg = ('当前输入问题未匹配到业务本体对照，回复回复不了。请围绕航班动态、航司、机位、过站保障或运营指标等业务范围提问。'
+                   if coordinated else
+                   '当前输入问题未匹配到业务本体对照，回复回复不了。请说明具体业务对象、指标或管理规则后提问。')
+            trace.start('ontology', '匹配业务本体', '检索授权业务对象、指标与参考词典')
+            trace.finish('ontology', '未匹配到业务本体对照', ['问题不在当前授权业务本体范围内'])
+            return business_response(display_text, {'outcome': 'unsupported', 'answer': msg}, catalog, trace, perf_counter()-started)
         if coordinated:
             from app.agent.coordinator import Coordinator
-            references = load_ops_references(conn, catalog)
             plan,source = parse_question(text,catalog,use_model,False,trace,lookups,previous_plan,
-                                         references,clarification,choice_id,day_mode=day_mode)
+                                         references,clarification,choice_id,day_mode=day_mode,
+                                         conversation_history=conversation_history)
             use_cache = False
             use_model = False  # Business facts come only from deterministic query results.
+            resolved_q = ((plan.get('query_context') or {}).get('question')
+                          or (plan.get('clarification') or {}).get('original_question'))
+            if resolved_q and resolved_q != text:
+                if (choice_id or clarification or plan.get('follow_up')) and text not in resolved_q:
+                    display_text = f'{resolved_q}（{text}）'
+                else:
+                    display_text = resolved_q
             if plan.get('outcome'):
-                return business_response(text, plan, catalog, trace, perf_counter()-started)
+                return business_response(display_text, plan, catalog, trace, perf_counter()-started)
             if plan['intent'] == 'turnaround':
                 from app.turnaround import get_turnaround_data
                 trace.start('turnaround_lookup', '执行保障记录查询', '按已确认的航班身份和业务日读取保障来源，不替换其他日期')
                 try:
                     t_data = get_turnaround_data(plan['query_identifier'], plan['flight_date'])
                 except ValueError as exc:
-                    decision = Coordinator(catalog).notice('clarification_needed', str(exc), text,
+                    msg = str(exc)
+                    clean_q = (plan.get('query_context') or {}).get('question') or display_text
+                    if '未找到' in msg:
+                        trace.finish('turnaround_lookup', msg)
+                        return business_response(display_text, {
+                            'outcome': 'no_data',
+                            'plan': json_safe(plan),
+                            'answer': msg,
+                        }, catalog, trace, perf_counter()-started)
+                    multi = re.search(r'有多个(?:\s*ACDM)?\s*航班[（(]([^）)]+)[）)]', msg)
+                    slot_name, choices = None, []
+                    if multi:
+                        slot_name = 'flight'
+                        cands = re.findall(r'(?:[A-Z]{2}|[A-Z]\d|\d[A-Z])\d{2,4}[A-Z]?', multi.group(1).upper())
+                        choices = [(c, c) for c in dict.fromkeys(cands)]
+                    decision = Coordinator(catalog).notice(
+                        'clarification_needed', msg, clean_q,
                         datetime.fromisoformat(plan['query_context']['anchor']),
-                        plan['query_context']['slots'])
-                    trace.finish('turnaround_lookup', str(exc), state='skipped')
-                    return business_response(text, decision, catalog, trace, perf_counter()-started)
+                        deepcopy(plan['query_context']['slots']),
+                        slot_name, choices,
+                    )
+                    trace.finish('turnaround_lookup', msg, state='skipped')
+                    return business_response(display_text, decision, catalog, trace, perf_counter()-started)
                 if not t_data:
                     trace.finish('turnaround_lookup', '当前本地数据没有匹配保障记录')
-                    return business_response(text, {'outcome':'no_data','answer':'当前本地数据没有匹配保障记录，不能据此判断现实作业状态。'},catalog,trace,perf_counter()-started)
+                    return business_response(display_text, {
+                        'outcome': 'no_data',
+                        'plan': json_safe(plan),
+                        'answer': '当前本地数据没有匹配保障记录，不能据此判断现实作业状态。',
+                    }, catalog, trace, perf_counter()-started)
                 expected = plan['query_context']['slots']
                 row = t_data.get('source_row') or {}
                 direction = row.get('direction') or row.get('NORMAL_FLIGHT_STAT_CD')
@@ -710,13 +803,19 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
                                    for ref in expected.get('references',[]) if ref['role']=='airline')
                 if not (same_aircraft and same_direction and same_airline):
                     trace.finish('turnaround_lookup','已存保障记录不满足全部指定条件')
-                    return business_response(text,{'outcome':'no_data','answer':'当前本地保障记录不满足全部身份、方向或航司条件；未替换其他航班或日期。'},catalog,trace,perf_counter()-started)
+                    return business_response(display_text,{
+                        'outcome': 'no_data',
+                        'plan': json_safe(plan),
+                        'answer': '当前本地保障记录不满足全部身份、方向或航司条件；未替换其他航班或日期。',
+                    }, catalog, trace, perf_counter()-started)
                 plan.update(subject=t_data.get('source_table','std_flight_core'), flight_id=t_data.get('flight_id'), turnaround_data=t_data,
                             focus_tables=['std_flight_process'] if t_data.get('process_row') else [],
                             conditions=[{'col':t_data.get('id_column') or 'id','op':'=','value':t_data['flight_id']}])
                 trace.finish('turnaround_lookup', '已取得指定业务日的保障记录', [t_data.get('source_label','')])
         else:
             plan,source=parse_question(text,catalog,use_model,use_cache,trace,lookups,previous_plan=previous_plan,day_mode=day_mode)
+            if plan.get('outcome'):
+                return business_response(display_text, plan, catalog, trace, perf_counter()-started)
         if plan.get('flight_sequence'):
             use_model = False
         timings['parse']=round(perf_counter()-checkpoint,3)
@@ -740,7 +839,7 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
         coverage_check = (local_coverage(conn, catalog, plan) if coordinated else
                           DataCoverageService(catalog).assess_plan(plan))
         if coordinated and coverage_check['status'] == 'OUT_OF_COVERAGE':
-            return business_response(text, {'outcome':'out_of_coverage','answer':coverage_check['message'],
+            return business_response(display_text, {'outcome':'out_of_coverage','answer':coverage_check['message'],
                 'coverage_assessment':coverage_check,'plan':json_safe(plan)},catalog,trace,perf_counter()-started)
         if coverage_check['status'] == 'OUT_OF_COVERAGE':
             trace.start('coverage_notice', '数据覆盖边界提醒', '查询日期超出当前数据源覆盖范围')
@@ -749,7 +848,7 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
         gate = check_capability_gate(catalog, plan, template=plan.get('plan_template'))
         if not gate['allowed']:
             if coordinated:
-                return business_response(text, {
+                return business_response(display_text, {
                     'outcome': 'unsupported',
                     'answer': gate['message'],
                     'capability_gate': gate,
@@ -841,6 +940,11 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
                          'note': 'flight_id = std_flight_core.id', 'type': 'fk', 'level': 1, 'count': 1,
                          'rows': clean_rows(catalog, 'std_flight_process', [t_data['process_row']])}]
                        if t_data.get('process_row') else [])
+            if t_data.get('acdm_rows') and 'acdm.tb_dyn_flight' in catalog.entities:
+                related.append({'table': 'acdm.tb_dyn_flight', 'name': 'ACDM 保障来源及关联航班',
+                    'note': t_data.get('association_note') or '同日同航班同机号的保障来源',
+                    'type': 'logical', 'level': 1, 'count': len(t_data['acdm_rows']),
+                    'rows': clean_rows(catalog, 'acdm.tb_dyn_flight', t_data['acdm_rows'])})
         elif intent == 'acdm_report' and acdm_report_res is not None:
             main = json_safe(acdm_report_res['rows'])
             main_total = int(acdm_report_res.get('total') or len(main))
@@ -949,7 +1053,7 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
                         delivery.get('completed_batches',0),delivery.get('batch_count',0)),
                        '已读取证据完整传递' if delivery.get('complete_queried_data') else '证据传递未全部确认完成，保留数据库事实摘要']
                       if delivery else ['未启用模型证据解读或本次使用确定性统计']))
-        output={'ok':True,'question':text,'source':source,'parse':json_safe(plan),'intent':intent,
+        output={'ok':True,'question':display_text,'source':source,'parse':json_safe(plan),'intent':intent,
             'plan':json_safe(plan),'sql':statement.sql,'sql_params':json_safe(statement.params),
             'graph_tables':links,'graph':graph_view(subject,links),'main_total':main_total,
             'main_rows':main if intent!='detail' else main[:5],
@@ -966,9 +1070,11 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
             'ontology_version':catalog.version,'timings':timings,
             'elapsed':round(perf_counter()-started,3)}
         from app.agent.visual import build_visual_meta
+        visual_plan = (plan if intent == 'acdm_report'
+                       else _single_flight_visual_plan(plan, subject, intent, main, main_total, conn))
         visual_meta = (acdm_report_res['visual_meta']
                        if intent == 'acdm_report' and acdm_report_res is not None and acdm_report_res.get('visual_meta')
-                       else build_visual_meta(plan, main if intent != 'detail' else main[:5], main_total, metric, catalog, related=related))
+                       else build_visual_meta(visual_plan, main if intent != 'detail' else main[:settings.graph_main_limit], main_total, metric, catalog, related=related))
         output['visual_meta'] = visual_meta
         output['coverage_assessment'] = coverage_check
         if coordinated:

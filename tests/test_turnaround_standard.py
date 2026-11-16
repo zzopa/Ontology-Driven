@@ -203,6 +203,85 @@ class TurnaroundStandardTests(unittest.TestCase):
             self.assertEqual(nodes['origin_dep']['actual_time'], '10-09 23:50' if craft == 'B-20AE' else '')
             self.assertEqual(nodes['inbound_landing']['actual_time'], '01:00' if craft == 'B-20AE' else '')
 
+    def test_either_end_of_an_explicit_turnaround_returns_ground_nodes_and_outbound_work(self):
+        inbound = {'FLIGHT_ID': '1', 'FLIGHT_NO': 'CZ8318', 'CRAFT_NO': 'B1921',
+            'EXEC_DATE': '2026-11-10', 'NORMAL_FLIGHT_STAT_CD': 'ARR', 'ASSOCIATED_FLIGHT_ID': '2',
+            'REAL_LANDIN_TIME': '2026-11-10T07:00:00', 'REAL_BLOCK_ON_TIME': '2026-11-10T07:07:00',
+            'REAL_OPEN_CABIN_TIME': '2026-11-10T07:11:00', 'REAL_BY_BRIDGE_TIME': '2026-11-10T07:22:14'}
+        outbound = {'FLIGHT_ID': '2', 'FLIGHT_NO': 'CZ3357', 'CRAFT_NO': 'B-1921',
+            'EXEC_DATE': '2026-11-10', 'NORMAL_FLIGHT_STAT_CD': 'DEP', 'ASSOCIATED_FLIGHT_ID': '1',
+            'REAL_START_SUPPLY_TIME': '2026-11-10T07:15:18', 'REAL_END_SUPPLY_TIME': '2026-11-10T07:22:38',
+            'REAL_BEGIN_BOARD_TIME': '2026-11-10T07:47:00', 'REAL_END_BOARD_TIME': '2026-11-10T07:55:00',
+            'REAL_BLOCK_OFF_TIME': '2026-11-10T08:14:00', 'REAL_TAKEOFF_TIME': '2026-11-10T08:32:00',
+            'REAL_LANDIN_TIME': '2026-11-10T10:05:00'}
+        for own, linked in ((inbound, outbound), (outbound, inbound)):
+            with self.subTest(flight=own['FLIGHT_NO']):
+                cursor, conn = Mock(), Mock()
+                cursor.fetchall.return_value = [tuple(own.get(key) for key in ACDM_FIELDS)]
+                cursor.fetchone.return_value = tuple(linked.get(key) for key in ACDM_FIELDS)
+                conn.cursor.return_value = cursor
+                with patch('app.turnaround_standard.connect_db', return_value=conn):
+                    result = get_recorded_acdm_turnaround(own['FLIGHT_NO'], '2026-11-10')
+                self.assertEqual(result['flight_pair'], own['FLIGHT_NO'])
+                self.assertEqual(result['source_row'], {key: own.get(key) for key in ACDM_FIELDS})
+                self.assertEqual((result['in_flight'], result['out_flight']), ('CZ8318', 'CZ3357'))
+                nodes = {node['key']: node for node in result['ground_nodes']}
+                self.assertEqual(nodes['inbound_landing']['actual_time'], '07:00')
+                self.assertEqual(nodes['aibt']['actual_time'], '07:07')
+                self.assertEqual(nodes['atot']['actual_time'], '08:32')
+                self.assertNotIn('aldt', nodes)
+                self.assertEqual(result['timeline_range'], '07:00 - 08:42')
+                self.assertEqual(result['operations'][3]['actual_start'], '07:15')
+                self.assertIn('2 类有时刻记录', result['dynamic_narrative'])
+                self.assertIn('行李装卸', result['dynamic_narrative'])
+                self.assertEqual(len(result['acdm_rows']), 2)
+
+    def test_inbound_nodes_are_reported_even_without_operation_intervals(self):
+        result = build_standard_turnaround(self.flight, {'actual_arrival': '2026-11-09T07:00:00',
+            'actual_on_block': '2026-11-09T07:07:00', 'ext_json': {'REAL_OPEN_CABIN_TIME': '2026-11-09T07:11:00'}}, 'MU2554')
+        self.assertIn('已记录保障节点', result['conclusion']['summary'])
+        self.assertIn('07:07', result['dynamic_narrative'])
+        self.assertEqual(result['timeline_range'], '07:00 - 07:21')
+
+    def test_linked_outbound_rejects_other_aircraft_direction_and_reversed_times(self):
+        inbound = {'FLIGHT_ID': '1', 'FLIGHT_NO': 'CZ8318', 'CRAFT_NO': 'B1921',
+            'EXEC_DATE': '2026-11-10', 'NORMAL_FLIGHT_STAT_CD': 'ARR', 'ASSOCIATED_FLIGHT_ID': '2',
+            'REAL_BLOCK_ON_TIME': '2026-11-10T07:07:00'}
+        outbound = {'FLIGHT_ID': '2', 'FLIGHT_NO': 'CZ3357', 'CRAFT_NO': 'B1921',
+            'EXEC_DATE': '2026-11-10', 'NORMAL_FLIGHT_STAT_CD': 'DEP',
+            'REAL_BLOCK_OFF_TIME': '2026-11-10T08:14:00', 'REAL_BEGIN_BOARD_TIME': '2026-11-10T07:47:00'}
+        for overrides in ({'CRAFT_NO': 'B0000'}, {'NORMAL_FLIGHT_STAT_CD': 'ARR'},
+                          {'REAL_BLOCK_OFF_TIME': '2026-11-10T06:00:00'}):
+            with self.subTest(overrides=overrides):
+                cursor, conn = Mock(), Mock()
+                cursor.fetchall.return_value = [tuple(inbound.get(key) for key in ACDM_FIELDS)]
+                cursor.fetchone.return_value = tuple({**outbound, **overrides}.get(key) for key in ACDM_FIELDS)
+                conn.cursor.return_value = cursor
+                with patch('app.turnaround_standard.connect_db', return_value=conn):
+                    result = get_recorded_acdm_turnaround('CZ8318', '2026-11-10')
+                self.assertEqual(result['out_flight'], '')
+                self.assertFalse(any(has_operation_times(item) for item in result['operations']))
+                self.assertNotIn('association_note', result)
+
+    def test_partial_standard_inbound_keeps_local_arrival_when_enriched_with_outbound(self):
+        flight = {**self.flight, 'flight_no': 'CZ8318', 'aircraft_reg': 'B1921', 'flight_date': '2026-11-10',
+                  'actual_arrival': '2026-11-10T07:00:00'}
+        process = {'actual_on_block': '2026-11-10T07:07:00', 'boarding_start': '2026-11-10T07:47:00'}
+        recorded = build_standard_turnaround({**flight, 'direction': 'DEP', 'actual_arrival': '2026-11-10T10:05:00'},
+            {'boarding_start': '2026-11-10T07:47:00', 'boarding_end': '2026-11-10T07:55:00',
+             'inbound_actual_arrival': '2026-11-10T07:00:00', 'ext_json': {'REAL_TAKEOFF_TIME': '2026-11-10T08:32:00'}}, 'CZ8318')
+        recorded.update(in_flight='CZ8318', out_flight='CZ3357', association_note='进港 CZ8318 → 出港 CZ3357')
+        cursor, conn = Mock(), Mock()
+        cursor.fetchall.return_value = [(flight, process)]
+        conn.cursor.return_value = cursor
+        with patch('app.turnaround_standard.connect_db', return_value=conn), \
+             patch('app.turnaround_standard.get_recorded_acdm_turnaround', return_value=recorded):
+            result = get_standard_turnaround_data('CZ8318', '2026-11-10')
+        ground = {node['key']: node for node in result['ground_nodes']}
+        self.assertEqual(ground['inbound_landing']['actual_time'], '07:00')
+        self.assertEqual(ground['atot']['actual_time'], '08:32')
+        self.assertNotIn('aldt', ground)
+
     def test_standard_enrichment_only_adds_same_identity_data_and_preserves_existing_times(self):
         flight = {**self.flight, 'direction': 'DEP', 'flight_no': 'MU2613', 'flight_date': '2026-10-10'}
         process = {'boarding_start': '2026-10-10T14:23:00'}
@@ -223,6 +302,9 @@ class TurnaroundStandardTests(unittest.TestCase):
             self.assertEqual(nodes['door_close']['actual_time'], '14:46' if day == '2026-10-10' else '')
             self.assertEqual(len(result['operations']), 5)
             self.assertEqual(sum(has_operation_times(item) for item in result['operations']), 2 if day == '2026-10-10' else 1)
+            self.assertIn(f'{2 if day == "2026-10-10" else 1} 类有时刻记录', result['dynamic_narrative'])
+            if day == '2026-10-10':
+                self.assertNotIn('1 类有时刻记录', result['dynamic_narrative'])
 
     def test_late_on_block_time_does_not_stretch_the_operation_chart(self):
         result = build_standard_turnaround(self.flight, {'boarding_start': '2026-11-09T14:29:00',

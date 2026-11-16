@@ -20,8 +20,50 @@ export type AnswerDocument = {
 };
 export type VisualStatItem = { label: string; value: string; unit?: string };
 export type VisualDonutSlice = { label: string; value: number; percent: number; color: string; count?: number };
-export type VisualBarItem = { label: string; value: number; percent: number; color: string; count?: number };
+export type VisualBarItem = { label: string; value: number; percent: number; color?: string; count?: number };
 export type VisualTrendPoint = { label: string; value: number };
+export type VisualDetailColumn = { key: string; label: string; unit?: string };
+export type VisualDetailFlightRow = {
+  flight_no: string;
+  airline?: string;
+  airline_name?: string;
+  direction?: string;
+  direction_label?: string;
+  flight_date?: string;
+  origin?: string;
+  origin_code?: string;
+  destination?: string;
+  destination_code?: string;
+  route?: string;
+  plan_time?: string;
+  actual_time?: string;
+  stand?: string;
+  gate?: string;
+  terminal?: string;
+  aircraft_type?: string;
+  aircraft_reg?: string;
+  status?: string;
+  delay_minutes?: number | null;
+  delay_reason?: string;
+  drill_question?: string;
+};
+export type VisualDetailTable = {
+  kind: "detail_table";
+  is_flight: boolean;
+  title: string;
+  total: number;
+  shown: number;
+  summary?: {
+    dep_count: number;
+    arr_count: number;
+    ontime_count: number;
+    delayed_count: number;
+    planned_count?: number;
+    hourly_distribution?: { hour: number; label: string; count: number }[];
+  };
+  columns: VisualDetailColumn[];
+  rows: (VisualDetailFlightRow | Row)[];
+};
 export type FishboneNode = {
   key: string;
   name: string;
@@ -105,6 +147,8 @@ export type VisualTurnaround = {
   pipeline: TurnaroundPipelineNode[];
   flight_nodes?: FishboneNode[];
   flight_nodes_source?: string;
+  ground_nodes?: FishboneNode[];
+  association_note?: string;
   available_record?: { flight_date: string; flight_no: string; source_label: string; recorded_operations: number; question: string };
   conclusion: {
     summary: string;
@@ -121,8 +165,9 @@ export type VisualMeta =
   | { kind: "none" }
   | { kind: "stats"; title: string; stats: VisualStatItem[] }
   | { kind: "donut"; title: string; slices: VisualDonutSlice[]; total: number; unit: string; group_label: string }
-  | { kind: "bar"; title: string; bars: VisualBarItem[]; unit: string; group_label: string }
+  | { kind: "bar"; title: string; bars: VisualBarItem[]; unit: string; group_label: string; is_rate?: boolean }
   | { kind: "trend"; title: string; series: VisualTrendPoint[]; unit: string; metric_label: string }
+  | VisualDetailTable
   | VisualFishbone
   | VisualTurnaround;
 export type QueryResult = {

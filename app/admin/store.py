@@ -316,7 +316,7 @@ class AdminStore:
         with self.db() as db:
             row = self.check_conversation(db, conversation_id, owner, all_access)
             messages = []
-            for item in db.execute('SELECT * FROM messages WHERE conversation_id=? ORDER BY created_at', (conversation_id,)):
+            for item in db.execute('SELECT * FROM messages WHERE conversation_id=? ORDER BY created_at, rowid', (conversation_id,)):
                 value = dict(item)
                 value['question'] = self.vault.open(value['question'])
                 value['result'] = json.loads(self.vault.open(value['result'])) if value['result'] else None
@@ -331,7 +331,7 @@ class AdminStore:
             rows = db.execute(
                 "SELECT m.result FROM messages m JOIN conversations c ON c.id=m.conversation_id "
                 "WHERE m.conversation_id=? AND c.owner=? AND m.status='completed' AND m.result IS NOT NULL "
-                "ORDER BY m.created_at DESC",
+                "ORDER BY m.created_at DESC, m.rowid DESC",
                 (conversation_id, owner)
             ).fetchall()
             for row in rows:
@@ -340,14 +340,58 @@ class AdminStore:
                 except (ValueError, TypeError):
                     continue
                 if result.get('outcome', 'answered') in ('answered','no_data','out_of_coverage') and result.get('plan'):
-                    return result['plan']
+                    plan = result['plan']
+                    rows = result.get('main_rows') or []
+                    if plan.get('query_context'):
+                        plan['query_context'].pop('result_identity', None)
+                    if (result.get('outcome', 'answered') == 'answered' and result.get('main_total') == 1
+                            and len(rows) == 1 and plan.get('intent') == 'detail'
+                            and plan.get('subject') in ('std_flight_core', 'ops_ask_views.flight_execution')
+                            and plan.get('query_context') and rows[0].get('id') is not None):
+                        plan['query_context']['result_identity'] = {
+                            key: rows[0][key] for key in ('id', 'flight_no', 'direction') if key in rows[0]
+                        }
+                    return plan
             return None
+
+    def recent_conversation_turns(self, conversation_id, owner, limit=6):
+        """Return chronological summaries of recent completed turns for multi-turn planning."""
+        if not conversation_id or limit <= 0:
+            return []
+        with self.db() as db:
+            rows = db.execute(
+                "SELECT m.question, m.result FROM messages m JOIN conversations c ON c.id=m.conversation_id "
+                "WHERE m.conversation_id=? AND c.owner=? AND m.status='completed' AND m.result IS NOT NULL "
+                "ORDER BY m.created_at DESC, m.rowid DESC LIMIT ?",
+                (conversation_id, owner, int(limit))
+            ).fetchall()
+        turns = []
+        for row in reversed(rows):
+            try:
+                question_text = self.vault.open(row['question'])
+                result = json.loads(self.vault.open(row['result']))
+            except (ValueError, TypeError):
+                continue
+            plan = result.get('plan') if isinstance(result.get('plan'), dict) else {}
+            ctx = plan.get('query_context') if isinstance(plan.get('query_context'), dict) else {}
+            turns.append({
+                'question': result.get('question') or question_text,
+                'outcome': result.get('outcome', 'answered'),
+                'subject': plan.get('subject') or (result.get('parse') or {}).get('subject'),
+                'intent': plan.get('intent') or result.get('intent'),
+                'metric': plan.get('metric'),
+                'slots': ctx.get('slots', {}),
+            })
+        return turns
 
     def clarification(self, conversation_id, owner, message_id):
         with self.db() as db:
             self.check_conversation(db, conversation_id, owner)
-            row = db.execute('SELECT id,result FROM messages WHERE conversation_id=? ORDER BY created_at DESC LIMIT 1',
-                             (conversation_id,)).fetchone()
+            row = db.execute(
+                "SELECT id,result FROM messages WHERE conversation_id=? AND status!='failed' "
+                "ORDER BY created_at DESC, rowid DESC LIMIT 1",
+                (conversation_id,),
+            ).fetchone()
             if not row or row['id'] != message_id or not row['result']:
                 raise ValueError('澄清已结束或不属于本会话，请重新提问')
             result = json.loads(self.vault.open(row['result']))
