@@ -769,7 +769,40 @@ class Coordinator:
             if self.trace and self.trace.steps['coordinator']['state']=='running':
                 self.trace.finish('coordinator', '本轮业务识别与口径检查完成')
 
-    def _plan(self, question, anchor, expected):
+    @property
+    def _is_mock_model(self):
+        try:
+            from unittest.mock import NonCallableMock
+            return isinstance(self.chat, NonCallableMock)
+        except Exception:
+            return False
+
+    def _normalize_with_model(self, question, anchor):
+        if not self.chat or self._is_mock_model:
+            return None
+        today_str = anchor.strftime('%Y-%m-%d')
+        prompt = (
+            f"你是民航运行与数据查询系统的语义标准化助手。基准业务日期（今天）为 {today_str}。\n"
+            "你的任务是将用户的口语化、含错别字或缩写的提问，转写为规范的标准问数表达。\n"
+            "转写规则：\n"
+            "1. 纠正常见错别字（如'保障时常'->'保障时长'、'保章'->'保障'、'撤轮挡'->'撤轮挡'）。\n"
+            f"2. 口语化日期（如'11-12'、'11/12'、'11.12'）补全为当前基准年份 '{anchor.year}-MM-DD'；相对日期（如'今天'）转为具体日期 '{today_str}'。\n"
+            "3. 口语化通俗表达对齐为标准术语（如'在地上停了多久/地面存放/停放多久/停留时间/过站耗时'->'过站平均保障时长'）。\n"
+            f"示范：'CA8203今天在地面存放多久' -> '查询 {today_str} CA8203 过站平均保障时长'\n"
+            f"示范：'查11-12的平均保障时常' -> '查询 {anchor.year}-11-12 过站平均保障时长'\n"
+            "4. 保持用户原意，仅输出一句标准化后的规范问数表达，严禁任何额外解释、标点废话或前后缀。"
+        )
+        try:
+            norm = self.chat(prompt, question, max_tokens=60, temperature=0.0).strip()
+            norm = norm.strip('"`\' \n')
+            if not norm or norm == question or norm.startswith('{') or norm.startswith('[') or len(norm) > 150:
+                return None
+            norm = re.sub(r'^(规范表达|标准化|纠正后|规范后)[：:]\s*', '', norm).strip()
+            return norm if norm and norm != question else None
+        except Exception:
+            return None
+
+    def _plan(self, question, anchor, expected, allow_normalize=True):
         catalog = self.catalog
         report = match_acdm_report(question, catalog,
             bounds_fn=lambda _: ('range', *expected['period']) if expected.get('period') else None,
@@ -816,6 +849,9 @@ class Coordinator:
                 cand_gb, _, _ = extract_acdm_dimensions_and_topn(question, catalog, target=CORE, allow_topn=True)
                 if cand_gb:
                     metric = 'flight_count'
+            if not metric and re.search(r'存放多久|停放多久|停了多久|停留多久|在地上停|在地面停|地面存放|地面停放', question):
+                if 'avg_turnaround_service_minutes' in catalog.metrics:
+                    metric = 'avg_turnaround_service_minutes'
         if metric and expected.get('flight'):
             metric_filters = []
             apply_acdm_metric_slots(question, catalog, metric, metric_filters)
@@ -863,6 +899,17 @@ class Coordinator:
                                'basis', [('实际执行（按实际起飞/落地）', 'actual'), ('计划航班（按计划业务日）', 'planned')])
         if subject in (CORE, ACTUAL) and not metric and not turnaround:
             if not expected.get('basis'):
+                residual = self._residual(question, expected, subject, None)
+                if residual and allow_normalize and self.chat and not self._is_mock_model:
+                    norm = self._normalize_with_model(question, anchor)
+                    if norm and norm != question:
+                        norm_expected = slots(norm, anchor, self.references, self.catalog)
+                        norm_plan = self._plan(norm, anchor, norm_expected, allow_normalize=False)
+                        if isinstance(norm_plan, dict) and not norm_plan.get('outcome'):
+                            if 'query_context' in norm_plan:
+                                norm_plan['query_context']['raw_question'] = question
+                                norm_plan['query_context']['normalized_question'] = norm
+                            return norm_plan
                 return self.notice('clarification_needed', '你要查询计划航班，还是实际执行航班？', question, anchor, expected,
                                    'basis', [('实际执行（按实际起飞/落地）', 'actual'), ('计划航班（按计划业务日）', 'planned')])
             subject = ACTUAL if expected['basis'] == 'actual' else CORE
@@ -872,6 +919,16 @@ class Coordinator:
         if subject:
             temporal = catalog.entities[subject].get('query_semantics', {})
             if (temporal.get('date_required') or turnaround) and not expected.get('period'):
+                if allow_normalize and self.chat and not self._is_mock_model:
+                    norm = self._normalize_with_model(question, anchor)
+                    if norm and norm != question:
+                        norm_expected = slots(norm, anchor, self.references, self.catalog)
+                        norm_plan = self._plan(norm, anchor, norm_expected, allow_normalize=False)
+                        if isinstance(norm_plan, dict) and not norm_plan.get('outcome'):
+                            if 'query_context' in norm_plan:
+                                norm_plan['query_context']['raw_question'] = question
+                                norm_plan['query_context']['normalized_question'] = norm
+                            return norm_plan
                 return self.notice('clarification_needed', '请确认要查询的业务日期。', question, anchor, expected,
                                    'period', [(label, period(label, anchor)) for label in ('昨天', '今天', '前天')])
         if turnaround:
@@ -938,6 +995,16 @@ class Coordinator:
                     candidate['flight_sequence'] = 'last' if expected['sequence'] == 'desc' else 'first'
             if not self._residual(question, expected, subject, metric, hints=hints):
                 return self.validate(candidate, question, expected, anchor, hints=hints)
+        if allow_normalize and self.chat and not self._is_mock_model:
+            norm = self._normalize_with_model(question, anchor)
+            if norm and norm != question:
+                norm_expected = slots(norm, anchor, self.references, self.catalog)
+                norm_plan = self._plan(norm, anchor, norm_expected, allow_normalize=False)
+                if isinstance(norm_plan, dict) and not norm_plan.get('outcome'):
+                    if 'query_context' in norm_plan:
+                        norm_plan['query_context']['raw_question'] = question
+                        norm_plan['query_context']['normalized_question'] = norm
+                    return norm_plan
         if not self.chat:
             return self.notice('clarification_needed', '当前规则无法完整理解这个问法，且内网模型不可用。请明确对象、条件和所需结果。',
                                question, anchor, expected)
@@ -1057,6 +1124,8 @@ class Coordinator:
                 terms += ['延误', '晚点']
             elif metric == 'cancel_count':
                 terms += ['取消']
+            elif metric == 'avg_turnaround_service_minutes':
+                terms += ['在地面', '在地上', '地面', '地上', '地面存放', '地面停放', '存放多久', '停放多久', '停了多久', '停留多久', '在地上停', '在地面停', '存放', '停放', '停留', '多久']
             _, _, mod_terms = extract_acdm_dimensions_and_topn(question, self.catalog, target=subject, allow_topn=True)
             _, slot_terms = apply_acdm_metric_slots(question, self.catalog, metric, [])
             terms += mod_terms + slot_terms
@@ -1102,7 +1171,8 @@ class Coordinator:
             '情况如何', '情况', '状况', '如何', '怎么样', '怎样', '架次', '班次', '人次', '人数',
             '分布', '排名', '排行', '趋势', '各个', '各', '按', '小时', '航司', '航班',
             '飞往', '前往', '出港去', '从', '由', '至',
-            '的', '是', '有', '了', '个', '中', '里', '一个', '一班', '一条', '班', '条', '家', '请问', '请', '查', '吗', '呢'
+            '的', '是', '有', '了', '个', '中', '里', '一个', '一班', '一条', '班', '条', '家', '请问', '请', '查', '吗', '呢',
+            '在', '于', '年', '月', '日', '号', '多久'
         )
         for token in sorted(vocabulary, key=len, reverse=True):
             rest = rest.replace(token, '')

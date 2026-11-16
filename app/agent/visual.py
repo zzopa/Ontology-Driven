@@ -99,6 +99,25 @@ _DEFAULT_AIRPORT_MAP: Dict[str, str] = {
     'SHS': '沙市', 'WDS': '十堰武当山', 'HPG': '神农架红坪',
 }
 
+_PREFERRED_AIRLINE_NAMES: Dict[str, str] = {
+    'CZ': '南方航空', 'MU': '东方航空', 'CA': '中国国航',
+    'HU': '海南航空', 'ZH': '深圳航空', '3U': '四川航空',
+    'FM': '上海航空', 'MF': '厦门航空', 'SC': '山东航空',
+    '9C': '春秋航空', 'HO': '吉祥航空', 'JD': '首都航空',
+    'GS': '天津航空', '8L': '祥鹏航空', 'KN': '中国联合航空',
+    'BK': '奥凯航空', 'EU': '成都航空', 'G5': '华夏航空',
+    'GJ': '长龙航空', 'QW': '青岛航空', 'KY': '昆明航空',
+    'DZ': '东海航空', 'RY': '江西航空', 'FU': '福州航空',
+    'GX': '北部湾航空', 'DR': '瑞丽航空', 'GT': '桂林航空',
+    'A6': '湖南航空', 'Y8': '金鹏航空', 'O3': '顺丰航空',
+    'YG': '圆通航空', 'CF': '邮政航空', 'CX': '国泰航空',
+    'KA': '国泰港龙航空', 'HX': '香港航空', 'NX': '澳门航空',
+    'AK': '亚洲航空', 'AQ': '九元航空', '9H': '长安航空',
+    'NS': '河北航空', 'TV': '西藏航空', 'JR': '幸福航空',
+    'LT': '龙江航空', 'PN': '西部航空', 'UQ': '乌鲁木齐航空',
+    'OQ': '重庆航空', 'GY': '多彩贵州航空',
+}
+
 _AIRPORT_MAP: Optional[Dict[str, str]] = None
 _AIRLINE_MAP: Optional[Dict[str, str]] = None
 _DELAY_REASON_MAP: Optional[Dict[str, str]] = None
@@ -146,20 +165,7 @@ def get_airline_name(code: Any) -> str:
         return ''
     c = raw.upper()
     if _AIRLINE_MAP is None:
-        _AIRLINE_MAP = {
-            'CZ': '南方航空', 'MU': '东方航空', 'CA': '中国国航',
-            'HU': '海南航空', 'ZH': '深圳航空', '3U': '四川航空',
-            'FM': '上海航空', 'MF': '厦门航空', 'SC': '山东航空',
-            '9C': '春秋航空', 'HO': '吉祥航空', 'JD': '首都航空',
-            'GS': '天津航空', '8L': '祥鹏航空', 'KN': '联合航空',
-            'BK': '奥凯航空', 'EU': '成都航空', 'G5': '华夏航空',
-            'GJ': '长龙航空', 'QW': '青岛航空', 'KY': '昆明航空',
-            'DZ': '东海航空', 'RY': '江西航空', 'FU': '福州航空',
-            'GX': '北部湾航空', 'DR': '瑞丽航空', 'GT': '桂林航空',
-            'A6': '红土航空', 'Y8': '金鹏航空', 'O3': '顺丰航空',
-            'YG': '圆通航空', 'CF': '邮政航空', 'CX': '国泰航空',
-            'KA': '港龙航空', 'HX': '香港航空', 'NX': '澳门航空',
-        }
+        _AIRLINE_MAP = dict(_PREFERRED_AIRLINE_NAMES)
         conn = None
         try:
             from app.core import connect_db
@@ -170,7 +176,8 @@ def get_airline_name(code: Any) -> str:
                 for icode, name_zh in cur.fetchall():
                     ic = (icode or '').strip().upper()
                     if ic and name_zh:
-                        _AIRLINE_MAP[ic] = name_zh.strip()
+                        if ic not in _PREFERRED_AIRLINE_NAMES:
+                            _AIRLINE_MAP[ic] = name_zh.strip()
                 cur.close()
         except Exception:
             pass
@@ -524,6 +531,9 @@ def build_visual_meta(
             attr = catalog.entities[target].get('attributes', {}).get(group_key, {})
             attr_label = attr.get('label') or group_key
 
+        if group_key in ('airline', 'airline_code', 'airline_two_char_cd', 'AIRLINE_TWO_CHAR_CD') or attr_label in ('航司代码', '航司', '航空公司'):
+            attr_label = '航司'
+
         total_sum = sum(safe_num(r.get(val_alias, r.get('total', r.get('n', 0)))) for r in main_rows)
         unit = (metric or {}).get('unit', '架次' if intent in ('count', 'metric') else '')
         agg_kind = str((metric or {}).get('aggregation') or '').upper()
@@ -535,7 +545,21 @@ def build_visual_meta(
         for i, r in enumerate(main_rows):
             val = safe_num(r.get(val_alias, r.get('total', r.get('n', 0))))
             pct = 0.0 if is_rate_or_avg else (round((val / total_sum * 100), 1) if total_sum > 0 else 0.0)
-            label_val = str(r.get(group_key) or '未标注') if group_key else f'项目 {i+1}'
+            raw_group_val = r.get(group_key)
+            if group_key in ('airline', 'airline_code', 'airline_two_char_cd', 'AIRLINE_TWO_CHAR_CD') or attr_label == '航司':
+                al_name = get_airline_name(raw_group_val)
+                if al_name and al_name != str(raw_group_val):
+                    label_val = f"{al_name}（{raw_group_val}）"
+                else:
+                    label_val = str(raw_group_val or '未标注')
+            elif group_key in ('dest_city', 'origin_city', 'dest_airport', 'origin_airport', 'airport', 'airport_code', 'takeoff_airport_iata', 'arrival_airport_iata', 'TAKEOFF_AIRPORT_IATA', 'ARRIVAL_AIRPORT_IATA') or attr_label in ('机场代码', '起飞机场', '到达机场', '目的地'):
+                ap_name = get_airport_name(raw_group_val)
+                if ap_name and ap_name != str(raw_group_val):
+                    label_val = f"{ap_name}（{raw_group_val}）"
+                else:
+                    label_val = str(raw_group_val or '未标注')
+            else:
+                label_val = str(raw_group_val or '未标注') if group_key else f'项目 {i+1}'
             items.append({
                 'label': label_val,
                 'value': val,

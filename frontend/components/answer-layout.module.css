@@ -48,6 +48,16 @@
 @container(max-width:900px){.flightLayout{grid-template-columns:1fr}.conclusionPanel{padding:23px}.flightRoute{margin-left:auto}.milestones{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
 @container(max-width:540px){.answerStatus{font-size:12px;align-items:flex-start}.answerStatus>span:last-child{font-size:12px}.answerLayout{gap:17px}.conclusionPanel{padding:20px 17px}.answerText{font-size:13px}.answerSection[data-kind=query_facts] .answerText{font-size:16px}.flightIdentity{padding:20px 17px;gap:17px}.flightNumber{gap:10px}.planeMark{width:39px;height:39px;border-radius:10px}.flightNumber h3{font-size:25px}.flightRoute{margin-left:0;gap:8px}.flightRoute>strong{font-size:15px}.flightRoute>time{text-align:left;font-size:12px}.flightDetails{grid-template-columns:repeat(2,minmax(0,1fr));padding:16px 18px;gap:16px}.milestoneHeading{padding:20px 17px 12px;align-items:flex-start;gap:12px}.milestoneHeading h4{font-size:13px}.milestoneHeading>span{font-size:12px;max-width:130px;line-height:1.8}.nodeLegend{padding:0 17px 15px;gap:8px;font-size:8px}.milestones{grid-template-columns:repeat(2,minmax(0,1fr));padding:0 12px;gap:7px}.milestone{padding:10px 9px}.nodeHeading{gap:4px}.nodeState{font-size:12px;gap:3px}.nodeIndex{font-size:8px}.milestone h5{font-size:12px}.milestone dd{font-size:12px}.milestone dt{font-size:12px}.milestone p{font-size:8px}.recordNote{padding:14px 17px;font-size:12px}.answerActions{gap:7px}.answerActions>button{font-size:12px;gap:6px;padding:10px}.visualPrimary>:global(.visual-section){padding:17px}.flightNumber p{font-size:12px;line-height:1.8}}
 .processPane :global(.execution-process.is-inline){margin:0;border:0;background:none;box-shadow:none;border-radius:0}
+.focusedCard:global(.result-card){border:0;background:transparent;box-shadow:none;overflow:visible}
+.focusedCard :global(.result-content){padding:0}
+.focusedCard .focusedLayout{display:block}
+.focusedCard :global(.result-tabs){border:1px solid var(--line);border-radius:8px;margin-top:16px;background:var(--panel);overflow-x:auto}
+.focusedCard :global(.result-tab){min-height:44px;font-size:12px;flex-shrink:0}
+.focusedNotes{margin-top:12px;padding:12px 16px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:13px}
+.focusedNotes summary{font-weight:500}
+.focusedHeader:global(.result-top){margin-top:16px;align-items:center;gap:12px;flex-wrap:wrap}
+.focusedHeader:global(.result-top)>div:first-child{display:none}
+.focusedHeader :global(.result-top-actions){margin-left:auto}
 .processPane :global(.process-body){border:0;padding:0}
 .processPane :global(.progress-card){padding:0 0 18px;border-bottom:1px solid var(--line);margin-bottom:14px}
 .processPane :global(.process-caption){margin-top:0}

@@ -7,22 +7,22 @@ import {
   ArrowRight,
   ArrowUpRight,
   BookOpen,
-  Bot,
+  BarChart3,
+  CalendarDays,
   Check,
   ChevronDown,
   Database,
   GitBranch,
   History,
-  Layers,
+  MapPin,
   MessageSquare,
+  Percent,
+  Plane,
   Plus,
   RefreshCw,
   Send,
   Settings2,
-  ShieldCheck,
-  Sparkles,
   Trash2,
-  User as UserIcon,
   Users,
 } from "lucide-react";
 import { request, streamQuestion } from "@/lib/api";
@@ -42,6 +42,8 @@ import { ConversationsPanel } from "./admin/conversations";
 import { AccountMenu, AuthForm } from "./admin/account";
 import { Badge, Button, Card, Modal, Notice, Shell, Spinner } from "./ui";
 import { ResultView } from "./result-view";
+import { ThemeSettings } from "./theme-settings";
+import { formatDate } from "@/lib/admin";
 import s from "./workspace.module.css";
 
 const FLIGHT_DOMAINS = [
@@ -58,13 +60,13 @@ const FLIGHT_DOMAINS = [
 ];
 
 const ACDM_QUICK_PROMPTS = [
-  { label: "A-CDM 通用报告", query: "生成昨天 A-CDM 通用报告" },
-  { label: "地服运行简报", query: "生成今天地服公司运行简报" },
-  { label: "保障节点与单桥周转", query: "近7天保障节点录入排行与登机桥周转" },
-  { label: "地服起飞正常率", query: "昨天地服起飞正常率是多少" },
-  { label: "航司放行正常率 Top5", query: "昨天各航司放行正常率前5名" },
-  { label: "过站平均保障时长", query: "昨天过站平均保障时长是多少" },
-  { label: "起降高峰小时", query: "昨天高峰小时起降架次分布" },
+  { label: "航班动态", query: "昨天实际执飞航班明细", icon: Plane },
+  { label: "过站保障", query: "查看昨天的过站保障情况", icon: RefreshCw },
+  { label: "起降高峰", query: "昨天高峰小时起降架次分布", icon: BarChart3 },
+  { label: "A-CDM 通用报告", query: "生成昨天 A-CDM 通用报告", icon: BookOpen },
+  { label: "地服运行简报", query: "生成今天地服公司运行简报", icon: CalendarDays },
+  { label: "放行正常率", query: "昨天各航司放行正常率前5名", icon: Percent },
+  { label: "保障节点", query: "近7天保障节点录入排行与登机桥周转", icon: GitBranch },
 ];
 
 function DataStatus({ status, error, refresh }: { status: Status | null; error: string; refresh: () => void }) {
@@ -78,7 +80,7 @@ function DataStatus({ status, error, refresh }: { status: Status | null; error: 
         <span className="db-mark"><Database size={17} /></span>
         <div>
           <strong>{status?.database || "连接检测中"}</strong>
-          <small>{status?.data_source === "acdm" ? "ACDM 本地副本 · 本体查询" : "PostgreSQL · 实时查询"}</small>
+          <small>{status?.data_source === "acdm" ? "ACDM 本地数据" : "实时数据"}</small>
         </div>
         <Badge tone={status?.ready ? "green" : "neutral"}>{status?.ready ? "已连接" : error ? "未连接" : "检测中"}</Badge>
       </div>
@@ -188,7 +190,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
     } catch (e) {
       if (mounted.current) {
         const interrupted = e instanceof Error && e.name === "AbortError";
-        const message = interrupted ? "已停止等待。本次后台只读查询可能仍在完成，不会修改业务数据。" : e instanceof Error ? e.message : "查询失败，请重试";
+        const message = interrupted ? "已停止等待，后台查询可能仍在完成。" : e instanceof Error ? e.message : "查询失败，请重试";
         setTurns(prev => prev.map(t => t.id === turnId ? failChatTurn(t, message, interrupted) : t));
       }
     } finally {
@@ -290,9 +292,10 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
   const hasActivity = turns.length > 0;
   const inspectedTurn = turns.find(t => t.id === inspectedTurnId) || latestTurn || null;
   const inspectedIndex = inspectedTurn ? turns.findIndex(t => t.id === inspectedTurn.id) : -1;
+  const turnaround = inspectedTurn?.result?.visual_meta?.kind === "turnaround_gantt" ? inspectedTurn.result.visual_meta : null;
   const inspectedTitle = inspectedTurn?.result?.visual_meta?.kind === "turnaround_gantt"
     ? `${inspectedTurn.result.visual_meta.flight_pair} · 过站保障 · ${inspectedTurn.result.visual_meta.flight_date}`
-    : inspectedTurn?.result?.question || inspectedTurn?.displayQuestion || "洞察画板";
+    : inspectedTurn?.result?.question || inspectedTurn?.displayQuestion || "查询结果";
 
   const closeSystem = useCallback(() => setSystemModal(false), []);
   const closeHelp = useCallback(() => setHelpModal(false), []);
@@ -302,9 +305,9 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
   const auxFormBlock = (
     <AnimatePresence>
       {showForm && (
-        <motion.div id="query-form" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} style={{ overflow: "hidden" }}>
+        <motion.div id="query-form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <form className="form-grid" onSubmit={e => { e.preventDefault(); setQuestion(composeQuestion(form)); setShowForm(false); input.current?.focus(); }}>
-            <label className="form-field">业务本体对象<select value={form.domain} onChange={e => setForm(v => ({ ...v, domain: e.target.value }))}>{FLIGHT_DOMAINS.map(d => <option key={d} value={d}>{d}</option>)}</select></label>
+            <label className="form-field">业务对象<select value={form.domain} onChange={e => setForm(v => ({ ...v, domain: e.target.value }))}>{FLIGHT_DOMAINS.map(d => <option key={d} value={d}>{d}</option>)}</select></label>
             <label className="form-field">查询方式<select value={form.intent} onChange={e => setForm(v => ({ ...v, intent: e.target.value }))}><option value="status">执行概况 / 动态</option><option value="detail">信息明细</option><option value="count">架次 / 数量统计</option></select></label>
             <label className="form-field">运行日期 · 可选<select value={form.date} onChange={e => setForm(v => ({ ...v, date: e.target.value }))}><option value="昨天">昨天（常用）</option><option value="今天">今天</option><option value="前天">前天</option><option value="最近7天">最近7天</option><option value="">不限日期</option></select></label>
             <label className="form-field">进出港方向 · 可选<select value={form.direction} onChange={e => setForm(v => ({ ...v, direction: e.target.value }))}><option value="">全部方向</option><option value="出港">出港 (DEP)</option><option value="进港">进港 (ARR)</option></select></label>
@@ -318,17 +321,15 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
   );
 
   const dayModeToggle = status?.operational_day?.enabled ? (
-    <div role="group" aria-label="日界口径" style={{ display: "inline-flex", gap: 3, alignItems: "center", padding: "2px", borderRadius: 6, border: "1px solid var(--line)" }}>
+    <div className={s.dayModeToggle} role="group" aria-label="日界口径">
       <button
         type="button"
-        className="inline-button"
-        style={dayMode === "CALENDAR" ? { background: "rgba(16,185,129,.16)", color: "var(--accent-bright)", fontWeight: 600, padding: "2px 7px", borderRadius: 4, minHeight: 24 } : { padding: "2px 7px", opacity: .75, minHeight: 24 }}
+        aria-pressed={dayMode === "CALENDAR"}
         onClick={() => setDayMode("CALENDAR")}
       >自然日</button>
       <button
         type="button"
-        className="inline-button"
-        style={dayMode === "OPERATIONAL" ? { background: "rgba(56,189,248,.16)", color: "#7dd3fc", fontWeight: 600, padding: "2px 7px", borderRadius: 4, minHeight: 24 } : { padding: "2px 7px", opacity: .75, minHeight: 24 }}
+        aria-pressed={dayMode === "OPERATIONAL"}
         onClick={() => setDayMode("OPERATIONAL")}
       >运营日</button>
     </div>
@@ -336,12 +337,14 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <Shell
+      className={`${s.shell} ${hasActivity ? s.activeShell : ""}`}
       embedded={embedded}
+      header={embedded ? undefined : <><div className={s.breadcrumb}><span className={s.mobileWordmark}>知航</span><span>工作空间</span><span>/</span><strong>运行问询</strong></div><div className={s.headerContext}>{status?.home_airport && <span><MapPin size={18} aria-hidden="true" />{status.home_airport.displayName || status.home_airport.cityName}</span>}<time><CalendarDays size={18} aria-hidden="true" />{status ? new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Shanghai" }) : "—"}</time><ThemeSettings /></div></>}
       statusLabel={status?.ready ? "业务数据已连接" : statusError ? "数据连接异常" : "正在检测连接"}
       sidebar={
         <>
           <div className="sidebar-section">
-            <div className="nav-caption">历史会话 <span style={{ float: "right", fontVariantNumeric: "tabular-nums" }}>{history.length ? history.length.toString().padStart(2, "0") : ""}</span></div>
+            <div className="nav-caption">最近会话</div>
             <div className="history-items">
               {history.length ? history.map(item => (
                 <div className={s.historyRow} key={item.id}>
@@ -351,7 +354,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                   <Button variant="ghost" className={s.historyDelete} aria-label={`删除会话 ${item.title}`} title="删除会话" disabled={busy} onClick={() => { setDeleteError(""); setDeleting(item); }}><Trash2 size={14} aria-hidden="true" /></Button>
                 </div>
               )) : (
-                <div className="history-empty">{historyError ? "登录后可读取个人历史会话" : "还没有查询记录"}<br />{historyError ? "支持原有业务账号权限" : "会话会自动保存到服务端"}</div>
+                <div className="history-empty">{historyError ? "登录后可查看历史会话" : "还没有查询记录"}<br />{historyError ? "使用现有业务账号登录" : "查询记录会自动保存"}</div>
               )}
             </div>
             <div className="history-tools"><button disabled={busy} onClick={() => setHistoryModal(true)} className="inline-button"><History size={12} aria-hidden="true" />管理、归档与导出会话</button></div>
@@ -363,24 +366,24 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
       <div className={s.workspace}>
         <header className={s.toolbar}>
           <div className={s.title}>
-            <h1>知航 · ACDM 智能问询</h1>
+            <div><h1>{turnaround ? "航班保障" : "运行问询"}</h1>{!hasActivity && <p className={s.pageDescription}>查询航班动态、保障过程与运行指标</p>}</div>
             {acdm && <Badge>ACDM 数据副本</Badge>}
             {hasActivity && <Badge tone="green">{turns.length} 轮对话</Badge>}
           </div>
           <div className={s.actions}>
-            <Button onClick={() => setSystemModal(true)}><Database size={14} aria-hidden="true" />运行状态</Button>
-            <Button onClick={newQuery} disabled={busy}><Plus size={14} aria-hidden="true" />新对话</Button>
+            <Button onClick={() => setSystemModal(true)}><BarChart3 size={18} aria-hidden="true" />运行状态</Button>
+            <Button variant="primary" onClick={newQuery} disabled={busy}><MessageSquare size={18} aria-hidden="true" />新对话</Button>
           </div>
         </header>
 
         {auth?.user?.source === "hbairport01" && <div className="admin-mobile-account"><AccountMenu user={auth.user} /><Button disabled={busy} onClick={() => setHistoryModal(true)}><History size={12} aria-hidden="true" />我的会话</Button></div>}
-        {auth && !auth.user && <div className="login-notice"><Notice>登录业务账号后，即可按你的数据权限开始查询。<Button variant="primary" onClick={() => setLoginOpen(true)}>登录业务账号<ArrowUpRight size={14} aria-hidden="true" /></Button></Notice></div>}
+        {auth && !auth.user && <div className="login-notice"><Notice>登录业务账号后开始查询<Button variant="primary" onClick={() => setLoginOpen(true)}>登录业务账号<ArrowUpRight size={14} aria-hidden="true" /></Button></Notice></div>}
 
         {!hasActivity && (
           <div className={s.heroStage}>
             <Card className={s.queryCard}>
-              <form onSubmit={e => { e.preventDefault(); submit(); }}>
-                <label className={s.queryLabel} htmlFor="question">查询问题<small>航班 · ACDM · 地服调度</small></label>
+              <form id="question-form" onSubmit={e => { e.preventDefault(); submit(); }}>
+                <label className={s.queryLabel} htmlFor="question">查询航班与保障运行</label>
                 <div className={`composer ${s.composer}`}>
                   <textarea
                     ref={input}
@@ -388,59 +391,39 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                     name="question"
                     rows={2}
                     aria-describedby="question-hint"
-                    placeholder="输入航班号、机号或保障问题，例如：2026-11-10 CZ3357 的过站保障甘特图"
+                    placeholder="输入航班号、机号或运行问题"
                     value={question}
                     maxLength={4000}
                     disabled={busy}
                     onChange={e => setQuestion(e.target.value)}
                     onKeyDown={queryKeyDown}
                   />
-                  <Button type="submit" variant="primary" className="composer-submit" disabled={!question.trim() || busy || Boolean(auth && !auth.user)}>
-                    {busy ? <Spinner /> : <Send size={16} aria-hidden="true" />}<span>{busy ? "查询中…" : "开始查询"}</span>
-                  </Button>
                 </div>
-              </form>
               <div className={s.controls}>
-                <span id="question-hint" className="composer-tip"><ShieldCheck size={12} aria-hidden="true" />只读查询 <span className="keycap">Enter 提交 · Shift+Enter 换行</span>{status?.home_airport?.cityName && <span style={{ marginLeft: 8, opacity: .8 }}>· 本场：{status.home_airport.displayName || status.home_airport.cityName}</span>}</span>
                 <div className={s.controlActions}>
                   {dayModeToggle}
-                  <button className="inline-button" onClick={() => setShowForm(v => !v)} aria-expanded={showForm} aria-controls="query-form"><Settings2 size={12} aria-hidden="true" />辅助查询表达<ChevronDown size={12} aria-hidden="true" style={{ transform: showForm ? "rotate(180deg)" : "none" }} /></button>
-                  <button className="inline-button" onClick={() => setHelpModal(true)}><BookOpen size={12} aria-hidden="true" />提问指南</button>
+                  <span id="question-hint" className={s.queryHint}>Enter 提交</span>
+                  <button type="button" className="inline-button" onClick={() => setShowForm(v => !v)} aria-expanded={showForm} aria-controls="query-form"><Settings2 size={12} aria-hidden="true" />辅助查询表达<ChevronDown size={12} aria-hidden="true" style={{ transform: showForm ? "rotate(180deg)" : "none" }} /></button>
+                  <button type="button" className="inline-button" onClick={() => setHelpModal(true)}><BookOpen size={12} aria-hidden="true" />提问指南</button>
                 </div>
+                <Button type="submit" variant="primary" className={s.submitButton} disabled={!question.trim() || busy || Boolean(auth && !auth.user)}>{busy && <Spinner />}{busy ? "查询中…" : "开始查询"}</Button>
               </div>
+              </form>
               {auxFormBlock}
               <div className={s.quickStrip} role="group" aria-label="A-CDM 专题报告与高频指标">
-                <span className={s.quickLabel}>A-CDM 速查：</span>
+                <span className={s.quickLabel}>快捷查询</span>
                 {ACDM_QUICK_PROMPTS.map(item => (
                   <button key={item.label} type="button" className={s.quickChip} disabled={busy || Boolean(auth && !auth.user)} onClick={() => submitQuestion(item.query, undefined, true)}>
-                    {item.label}
+                    <item.icon size={20} aria-hidden="true" />{item.label}
                   </button>
                 ))}
               </div>
             </Card>
 
             {!embedded && (
-              <section className={s.telemetryGrid} aria-label="运行数据源概览">
-                <button type="button" className={`${s.telemetryCard} ${s.telemetryBtn}`} onClick={() => setSystemModal(true)}>
-                  <span className={s.telemetryHead}><span>当前数据源</span><Database size={14} aria-hidden="true" /></span>
-                  <strong className={s.telemetryValue} data-text="true">{status?.database || "连接检测中"}</strong>
-                  <span className={s.telemetryMeta}>{status?.data_source === "acdm" ? "ACDM 本地副本 · 只读" : status?.ready ? "PostgreSQL 实时在线" : "正在检测数据库"}</span>
-                </button>
-                <div className={s.telemetryCard}>
-                  <span className={s.telemetryHead}><span>业务本体对象</span><GitBranch size={14} aria-hidden="true" /></span>
-                  <strong className={s.telemetryValue}>{typeof status?.queryable_entities === "number" ? status.queryable_entities.toLocaleString() : "—"}</strong>
-                  <span className={s.telemetryMeta}>{typeof status?.relations === "number" ? `${status.relations} 条确认关联路径` : "业务模型与口径定义"}</span>
-                </div>
-                <div className={s.telemetryCard}>
-                  <span className={s.telemetryHead}><span>受控表与字段</span><Layers size={14} aria-hidden="true" /></span>
-                  <strong className={s.telemetryValue}>{typeof status?.tables === "number" ? status.tables.toLocaleString() : "—"}</strong>
-                  <span className={s.telemetryMeta}>{typeof status?.fields === "number" ? `${status.fields.toLocaleString()} 个可查白名单字段` : "只读白名单访问"}</span>
-                </div>
-                <button type="button" className={`${s.telemetryCard} ${s.telemetryBtn}`} onClick={() => setSystemModal(true)}>
-                  <span className={s.telemetryHead}><span>服务同步时间</span><Activity size={14} aria-hidden="true" /></span>
-                  <strong className={s.telemetryValue}>{status?.refreshed_at ? new Date(status.refreshed_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : "—"}</strong>
-                  <span className={s.telemetryMeta}>{status ? `已服务 ${status.requests} 次 · 均值 ${status.average_seconds}s` : "点击查看运行状态"}</span>
-                </button>
+              <section className={s.recentSessions} aria-label="最近会话">
+                <h2>最近会话</h2>
+                {history.length ? history.slice(0, 3).map(item => <button className={s.recentRow} key={item.id} onClick={() => restoreConversation(item)} disabled={busy}><span className={s.recentIcon}><MessageSquare size={22} aria-hidden="true" /></span><strong>{item.title}</strong><span className={s.recentMeta}>{item.message_count} 轮对话</span><time dateTime={item.updated_at} title={formatDate(item.updated_at)}>{new Date(item.updated_at).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Shanghai" })}</time><ArrowUpRight size={16} aria-hidden="true" /></button>) : <p className={s.recentEmpty}>{auth?.user ? "还没有会话，开始你的第一次查询" : "登录后查看最近会话"}</p>}
               </section>
             )}
           </div>
@@ -449,7 +432,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
         {statusError && <Notice error>{statusError}<button className="inline-button" onClick={refresh}>重试连接<RefreshCw size={12} aria-hidden="true" /></button></Notice>}
 
         {hasActivity && (
-          <div className={s.splitWorkbench} aria-live="polite">
+          <div className={`${s.splitWorkbench} ${turnaround ? s.flightWorkbench : ""}`} aria-live="polite">
             <section className={s.chatPane} aria-label="对话记录与追问输入">
               <div className={s.chatPaneHead}>
                 <div className={s.chatHeadTitle}>
@@ -480,7 +463,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                     : turn.result?.outcome === "no_data"
                     ? "未命中"
                     : isNoMatch
-                    ? "回复不了"
+                    ? "暂不支持"
                     : turn.result?.outcome === "unsupported"
                     ? "边界提示"
                     : "已回答";
@@ -494,11 +477,9 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                     <div key={turn.id} className={s.chatTurnGroup}>
                       <div className={s.userRow}>
                         <div className={s.userBubble}>{turn.displayQuestion}</div>
-                        <span className={s.userAvatar} aria-hidden="true"><UserIcon size={13} /></span>
                       </div>
 
                       <div className={s.botRow}>
-                        <span className={s.botAvatar} aria-hidden="true"><Bot size={15} /></span>
                         <div
                           className={`${s.botCard} ${isInspected ? s.botCardActive : ""}`}
                           onClick={() => setInspectedTurnId(turn.id)}
@@ -510,7 +491,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                               setInspectedTurnId(turn.id);
                             }
                           }}
-                          aria-label={`查看第 ${idx + 1} 轮详情到右侧画板`}
+                          aria-label={`查看第 ${idx + 1} 轮查询结果`}
                         >
                           <div className={s.botHead}>
                             <span className={s.botName}>
@@ -526,7 +507,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                           {isTurnBusy && (
                             <div className={s.botProgress}>
                               <div className="progress-top"><Spinner /><span>{turn.progress.message}</span><time>{turn.elapsed.toFixed(1)}s</time></div>
-                              <div className={s.botProgressTrack}><div className={s.botProgressFill} style={{ width: `${turn.progress.percent}%` }} /></div>
+                              <div className={s.botProgressTrack}><div className={s.botProgressFill} style={{ transform: `scaleX(${turn.progress.percent / 100})` }} /></div>
                               {turn.delta && <p className={s.botText}>{turn.delta}</p>}
                             </div>
                           )}
@@ -547,7 +528,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                           )}
 
                           {!isTurnBusy && !turn.error && turn.result && (
-                            <p className={s.botText}>{turn.result.answer || "已完成本轮查询，右侧画板可查看详细信息。"}</p>
+                            <p className={s.botText}>{turn.result.answer || "已完成本轮查询，可查看图表与数据明细。"}</p>
                           )}
 
                           {Boolean(turn.result?.clarification?.options.length) && (
@@ -594,9 +575,9 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                             </span>
                             <span className={`${s.inspectTrigger} ${isInspected ? s.inspectTriggerActive : ""}`}>
                               {isInspected ? (
-                                <><Check size={12} aria-hidden="true" />已在右侧画板打开</>
+                                <><Check size={12} aria-hidden="true" />当前结果</>
                               ) : (
-                                <>在右侧画板查看<ArrowRight size={12} aria-hidden="true" /></>
+                                <>查看结果<ArrowRight size={12} aria-hidden="true" /></>
                               )}
                             </span>
                           </div>
@@ -632,7 +613,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                     rows={2}
                     aria-label="继续追问"
                     aria-describedby="followup-hint"
-                    placeholder="继续追问或切换条件（如：只看出港 / 改查昨天 / 看明细）…"
+                    placeholder="继续提问"
                     value={question}
                     maxLength={4000}
                     disabled={busy}
@@ -672,10 +653,10 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
               </div>
             </section>
 
-            <section className={s.canvasPane} aria-label="实时洞察画板">
+            <section className={s.canvasPane} aria-label="查询结果">
               <div className={s.canvasHead}>
                 <div className={s.canvasHeadTitle}>
-                  <Sparkles size={15} style={{ color: "var(--accent-bright)" }} aria-hidden="true" />
+                  <Activity size={16} aria-hidden="true" />
                   <Badge>第 {inspectedIndex + 1} 轮</Badge>
                   <strong title={inspectedTitle}>{inspectedTitle}</strong>
                 </div>
@@ -686,13 +667,14 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                     </Button>
                   )}
                   <Badge tone={inspectedTurn?.isHistorical ? "neutral" : "green"}>
-                    {inspectedTurn?.isHistorical ? "历史记录" : "洞察画板"}
+                    {inspectedTurn?.isHistorical ? "历史记录" : "查询结果"}
                   </Badge>
                 </div>
               </div>
               <div ref={canvasScrollRef} className={s.canvasBody}>
                 {inspectedTurn ? (
                   <ResultView
+                    compact
                     key={inspectedTurn.id}
                     result={inspectedTurn.result}
                     onQuestion={q => submitQuestion(q)}
@@ -715,7 +697,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                   />
                 ) : (
                   <div className={s.canvasEmpty}>
-                    <Sparkles size={20} aria-hidden="true" />
+                    <Activity size={20} aria-hidden="true" />
                     <span>提交问题后，图表、节点时序与数据明细将在此处展示。</span>
                   </div>
                 )}
@@ -745,9 +727,9 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
             <div><b>指定业务对象</b><br />明确航班号（如 CA1234）、航空公司、机场三字码或机位编号。</div>
             <div><b>明确运行时间</b><br />例如“昨天”、“今天”或指定业务日（如 2026-11-08）。航班运行以业务日为基准。</div>
             <div><b>说明方向与口径</b><br />区分“出港”与“进港”；执飞情况统计、计划航班量与实际执飞明细口径不同。</div>
-            <div><b>核对数据依据</b><br />在回答结果中查看中文字段、执飞时间、关联记录、事实来源与参数化 SQL。</div>
+            <div><b>查看查询结果</b><br />在结果中查看航班动态、保障时刻和相关明细。</div>
           </div>
-          <Notice>辅助表达生成的是可编辑的问题，不会在后台附加不可见条件。没有明确业务解释时，系统可能要求澄清。</Notice>
+          <p className="helper">辅助查询会将条件填入输入框，提交前可继续编辑。</p>
         </Modal>
       )}
     </Shell>

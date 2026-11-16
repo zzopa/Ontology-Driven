@@ -1032,3 +1032,34 @@ class AdditionalMultiTurnMemoryTests(unittest.TestCase):
         self.assertEqual(p3.get('intent'), 'acdm_report')
         self.assertEqual(p3.get('report_kind'), 'safeguard_board')
         self.assertEqual(p3.get('report_start'), '2026-11-10')
+
+    def test_dual_track_normalizes_typos_and_shorthand_date_to_fast_path(self):
+        def fake_chat(prompt, question, **kwargs):
+            if '11-12' in question and '时常' in question:
+                return '查询2026-11-12的平均保障时长'
+            return question
+
+        coord = Coordinator(self.catalog, chat=fake_chat, references=self.refs)
+        plan = coord.plan('查11-12的平均保障时常')
+        self.assertIsNone(plan.get('outcome'))
+        self.assertEqual(plan.get('subject'), 'mv_acdm_turnaround_pair')
+        self.assertEqual(plan.get('metric'), 'avg_turnaround_service_minutes')
+        self.assertEqual(plan.get('query_context', {}).get('raw_question'), '查11-12的平均保障时常')
+        self.assertEqual(plan.get('query_context', {}).get('normalized_question'), '查询2026-11-12的平均保障时长')
+        conds = json.dumps(plan.get('conditions', []), ensure_ascii=False)
+        self.assertIn('2026-11-12', conds)
+        self.assertIn('2026-11-13', conds)
+
+    def test_ground_duration_colloquial_normalizes_to_turnaround_without_basis_prompt(self):
+        def fake_chat(prompt, question, **kwargs):
+            if '地面存放' in question or '停了多久' in question:
+                return '查询CA8203今天的过站平均保障时长'
+            return question
+
+        coord = Coordinator(self.catalog, chat=fake_chat, references=self.refs)
+        plan = coord.plan('CA8203今天在地面存放多久')
+        self.assertIsNone(plan.get('outcome'))
+        self.assertEqual(plan.get('subject'), 'mv_acdm_turnaround_pair')
+        self.assertEqual(plan.get('metric'), 'avg_turnaround_service_minutes')
+        self.assertEqual(plan.get('query_context', {}).get('raw_question'), 'CA8203今天在地面存放多久')
+        self.assertEqual(plan.get('query_context', {}).get('normalized_question'), '查询CA8203今天的过站平均保障时长')

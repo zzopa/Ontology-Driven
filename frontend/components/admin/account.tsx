@@ -10,7 +10,7 @@ import { useAction } from "./shared";
 export function AuthForm({ onLogin }: { auth: Auth; onLogin: (user: User) => void }) {
   const [username, setUsername] = useState(""), [password, setPassword] = useState("");
   const action = useAction();
-  return <Card className="admin-auth"><span className="admin-auth-mark"><img src="/brand/logo.svg" width={50} height={50} alt="知航 Logo" /></span><div className="eyebrow">知航 · ACDM 智能问询</div><h1>登录业务账号</h1><p>使用现有填报系统账号。问数和管理后台共用账号、角色与数据权限。</p>
+  return <Card className="admin-auth"><span className="admin-auth-mark"><img src="/brand/logo.svg" width={50} height={50} alt="知航 Logo" /></span><div className="eyebrow">知航 · ACDM 智能问询</div><h1>登录业务账号</h1><p>使用现有填报系统账号登录</p>
     <form onSubmit={e => { e.preventDefault(); action.run(async () => {
       const value = await request<{ user: User }>("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
       setPassword(""); onLogin(value.user);

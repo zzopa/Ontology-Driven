@@ -139,6 +139,16 @@ export function turnaroundFlightNodes(data: Pick<VisualTurnaround, "flight_nodes
   return nodes;
 }
 
+export function turnaroundSummaryNodes(data: Pick<VisualTurnaround, "flight_nodes" | "ground_nodes" | "milestones" | "operations" | "pipeline">): FishboneNode[] {
+  const nodes = completeFlightNodes(turnaroundFlightNodes(data));
+  return ["aibt", "door_open", "boarding_end", "door_close", "aobt", "pushback"]
+    .map(key => {
+      const node = nodes.find(item => item.key === key);
+      return node?.actual_time ? node : data.ground_nodes?.find(item => item.key === key && item.actual_time) || node;
+    })
+    .filter((node): node is FishboneNode => Boolean(node));
+}
+
 export function turnaroundHeading(data: { query_identifier?: string; craft_no?: string; flight_pair?: string; out_flight?: string; in_flight?: string }) {
   const query = data.query_identifier?.trim();
   const flight = data.flight_pair || data.out_flight || data.in_flight;

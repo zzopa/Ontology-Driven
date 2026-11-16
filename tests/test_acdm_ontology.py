@@ -61,11 +61,11 @@ class ACDMOntologyTests(unittest.TestCase):
 
     def test_local_model_allowed_and_remote_hosts_denied(self):
         from app import llm
-        for url in ['http://localhost:11434/v1/chat/completions','http://127.0.0.1:1234/v1/chat/completions','http://[::1]:8000/v1/chat/completions']:
-            self.assertTrue(llm.local_model({'url':url}))
-        for url in ['https://api.siliconflow.cn/v1/chat/completions','http://192.168.1.1/v1','http://localhost.example.com/v1','file:///etc/passwd']:
-            self.assertFalse(llm.local_model({'url':url}))
         with patch.object(llm,'settings',SimpleNamespace(permitted_model_origins=('http://172.26.197.154:3000',))):
+            for url in ['http://localhost:11434/v1/chat/completions','http://127.0.0.1:1234/v1/chat/completions','http://[::1]:8000/v1/chat/completions']:
+                self.assertTrue(llm.local_model({'url':url}))
+            for url in ['https://api.siliconflow.cn/v1/chat/completions','http://192.168.1.1/v1','http://localhost.example.com/v1','file:///etc/passwd']:
+                self.assertFalse(llm.local_model({'url':url}))
             self.assertTrue(llm.local_model({'url':'http://172.26.197.154:3000/v1/chat/completions'}))
             self.assertFalse(llm.local_model({'url':'http://172.26.197.154:3001/v1/chat/completions'}))
 

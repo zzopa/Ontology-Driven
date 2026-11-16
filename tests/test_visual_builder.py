@@ -157,6 +157,11 @@ class VisualBuilderTests(unittest.TestCase):
         self.assertEqual(rate_meta['kind'], 'bar')
         self.assertTrue(rate_meta.get('is_rate'))
         self.assertEqual(rate_meta['bars'][0]['percent'], 0.0)
+        self.assertEqual(rate_meta['bars'][0]['label'], '南方航空（CZ）')
+        self.assertEqual(rate_meta['bars'][1]['label'], '东方航空（MU）')
+        self.assertEqual(rate_meta['bars'][2]['label'], '中国国航（CA）')
+        self.assertEqual(rate_meta['group_label'], '航司')
+        self.assertEqual(rate_meta['title'], '按航司排名统计')
 
         rank_plan = {'subject': 'flight_execution', 'intent': 'count', 'group_by': ['dest_city'], 'limit': 5, 'conditions': []}
         rank_metric = {'name': 'Top5 航线架次', 'unit': '班'}
@@ -168,6 +173,38 @@ class VisualBuilderTests(unittest.TestCase):
         rank_meta = build_visual_meta(rank_plan, rank_rows, 3, rank_metric, self.catalog)
         self.assertEqual(rank_meta['kind'], 'bar')
         self.assertEqual(rank_meta['unit'], '班')
+
+    def test_airline_group_fallback_claims_translates_to_chinese_with_code(self):
+        from app.evidence import fallback_claims
+        from tests.test_coordinator import ops_catalog
+        cat = ops_catalog()
+        plan = {
+            'subject': 'mv_acdm_dyn_flight_detail',
+            'intent': 'metric',
+            'group_by': ['airline_code'],
+            'conditions': []
+        }
+        evidence = {
+            'facts': [
+                {
+                    'id': 'F1',
+                    'name': '放行正常率',
+                    'table': 'mv_acdm_dyn_flight_detail',
+                    'metric': {'name': '放行正常率', 'unit': '%', 'value_alias': 'rate'},
+                    'values': {'airline_code': '3U', 'rate': '100.00', 'n': 10}
+                },
+                {
+                    'id': 'F2',
+                    'name': '放行正常率',
+                    'table': 'mv_acdm_dyn_flight_detail',
+                    'metric': {'name': '放行正常率', 'unit': '%', 'value_alias': 'rate'},
+                    'values': {'airline_code': 'CA', 'rate': '100.00', 'n': 59}
+                }
+            ]
+        }
+        claims, text = fallback_claims(cat, plan, evidence, 69)
+        self.assertIn('航司=四川航空（3U）：放行正常率为 100.00 %，参与 10 条记录。', text)
+        self.assertIn('航司=中国国航（CA）：放行正常率为 100.00 %，参与 59 条记录。', text)
 
     def test_flight_count_stats_uses_flight_unit(self):
         plan = {'subject': 'flight_execution', 'intent': 'count', 'conditions': []}

@@ -1,4 +1,69 @@
 .sheet{min-width:0;background:transparent;border:0;border-radius:0;overflow:visible;--record-good:var(--success);--record-open:var(--warning);--record-info:var(--info);font-variant-numeric:tabular-nums}
+.focused{--record-good:var(--accent)}
+.focused .caseHeader{padding:16px 20px;margin:0;border:1px solid var(--line);border-bottom:0;border-radius:8px 8px 0 0;background:var(--panel);gap:16px;flex-wrap:wrap}
+.focused .flightGlyph,.focused .kicker{display:none}
+.focused .identity>div{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.focused .identity h3{font-size:40px;line-height:48px;letter-spacing:0;margin:0;font-weight:650}
+.focused .identity p{font-size:13px;margin:0;padding-left:20px;border-left:1px solid var(--line)}
+.route{font-size:18px;padding-left:20px;border-left:1px solid var(--line);white-space:nowrap}
+.focused .businessDay{border:0;padding:0;font-size:0}
+.focused .businessDay svg{display:none}
+.focused .businessDay strong{font-size:13px;margin:0;font-weight:400}
+.focused .clockRail{margin:0;border:1px solid var(--line);border-top:0;border-radius:0 0 8px 8px;background:var(--panel)}
+.focused .clockRail>div{padding:12px 16px}
+.focused .clockRail dt{font-size:12px;gap:6px}
+.focused .clockRail dt b{display:none}
+.focused .clockRail dd,.focused .clockRail>div[data-code=TOBT][data-present=true] dd{font-size:22px;color:var(--text);font-weight:600}
+.focused .clockRail>div[data-code=TOBT][data-present=true]{background:transparent}
+.focused .chartPanel{margin-top:12px;border-radius:8px;background:var(--panel)}
+.focused .chartHeader{padding:16px 20px 12px;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.focused .chartHeading{display:block}
+.focused .chartHeading h4{font-size:23px;line-height:32px;margin-bottom:12px;font-weight:600}
+.focused .viewSwitch{width:fit-content;background:var(--panel);border-radius:6px;overflow:hidden}
+.focused .viewSwitch button{min-height:36px;padding:8px 16px;gap:6px;border:0;border-radius:0}
+.focused .viewSwitch button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);font-weight:500}
+.focused .filters button{font-size:11px;min-height:32px;padding:4px 8px}
+.focused .chartLegend{font-size:11px;padding:0 20px 12px;gap:12px}
+.focused .chartLegend,.focused .chartFootnote{display:none}
+.focused .chartScroll{margin:0 20px}
+.focused .chartGrid{min-width:600px}
+.focused .axis,.focused .row{grid-template-columns:90px minmax(0,1fr)}
+.focused .axis>span:last-child,.focused .times{display:none}
+.focused .axis{min-height:52px}
+.focused .operation{padding:8px 8px 8px 0;gap:0}
+.focused .stateIcon,.focused .operation small{display:none}
+.focused .operation strong{font-size:14px;font-weight:500}
+.focused .row{min-height:44px}
+.focused .lane{min-height:44px;margin:0}
+.focused .gridLine{border-left-style:solid;opacity:.6}
+.focused .plannedBar{top:12px;height:22px;border:0;background:var(--line);border-radius:3px}
+.focused .actualBar{top:12px;height:22px;border:0;border-radius:3px;background:var(--row-color);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.barLabel{font-size:12px;font-weight:500;white-space:nowrap;color:var(--on-accent);padding-inline:4px}
+.focused .startPoint,.focused .endPoint{top:18px}
+.focused .targetTag{font-size:10px}
+.focused .chartFootnote{font-size:11px;padding:8px 20px}
+.focused .explanation{margin:12px 20px;font-size:12px;background:var(--panel)}
+.nodeRail{display:flex;list-style:none;padding:20px 24px;margin:0;overflow-x:auto}
+.nodeRail li{flex:1;min-width:100px;position:relative;display:flex;align-items:center;flex-direction:column;gap:8px;text-align:center}
+.nodeRail li:not(:last-child)::after{content:"";position:absolute;top:13px;left:calc(50% + 14px);width:calc(100% - 28px);height:2px;background:var(--line)}
+.nodeRail li[data-recorded=true]::after{background:var(--accent)}
+.nodeRail li>span{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;border:2px solid var(--line);background:var(--panel);color:var(--muted)}
+.nodeRail li[data-recorded=true]>span{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.nodeRail strong{font-size:13px;font-weight:500}
+.nodeRail small{font-size:12px;color:var(--muted)}
+.operationDetails{display:flex;align-items:center;gap:16px;margin:0 20px 20px;border:1px solid var(--line);border-radius:6px;overflow:auto}
+.operationDetails table{flex:1;border-collapse:collapse;min-width:400px;font-size:13px;text-align:left}
+.operationDetails caption{text-align:left;padding:10px 16px;font-weight:500}
+.operationDetails th,.operationDetails td{padding:10px 16px;border-top:1px solid var(--line);font-weight:400;white-space:nowrap}
+.operationDetails th{background:var(--surface);font-weight:500}
+.operationDetails td span{font-size:11px;color:var(--muted)}
+.operationDetails td span[data-recorded=true]{color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--panel));padding:3px 8px;border-radius:4px}
+.operationDetails>button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:8px 12px;margin-right:16px;border:1px solid var(--accent);border-radius:5px;background:var(--panel);color:var(--accent);font-size:12px;white-space:nowrap}
+.extraNodes{margin-top:12px;padding:12px 16px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:13px}
+.extraNodes summary{font-weight:500}
+.pipelineRecords{display:grid;gap:8px;margin-top:16px;color:var(--muted)}
+.pipelineRecords strong{margin-right:12px;color:var(--text);font-weight:500}
+@media(max-width:720px){.focused .caseHeader{padding:16px}.focused .identity>div{gap:8px}.focused .identity h3{font-size:26px}.focused .identity p{padding:0;border:0;flex-basis:100%;line-height:1.8}.focused .businessDay{margin:0}.focused .clockRail dd{font-size:18px}.focused .chartHeader{padding:16px}.focused .chartHeading h4{font-size:20px}.focused .chartScroll{margin-inline:12px}.focused .chartLegend{padding-inline:12px}.nodeRail{padding-inline:16px}.operationDetails{display:block;margin:0 12px 12px}.operationDetails>button{margin:12px;min-height:44px}.focused .clockRail>div[data-code=TOBT][data-present=true] dd{font-size:18px}}
 .chartHeading{display:flex;align-items:center;gap:18px;flex-wrap:wrap}.viewSwitch{display:flex;border:1px solid var(--line);border-radius:7px;padding:0;background:var(--bg)}.viewSwitch button{display:flex;align-items:center;justify-content:center;gap:6px;min-height:38px;padding:6px 14px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--muted);font-size:13px;cursor:pointer}.viewSwitch button[aria-pressed=true]{background:var(--paper,var(--panel));color:var(--record-good);font-weight:650;box-shadow:none;border-color:var(--record-good)}.viewSwitch button:focus-visible{outline:2px solid var(--record-info);outline-offset:2px}.targetKey{width:16px;border-top:1px dashed var(--record-info)}
 .caseHeader{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:4px 4px 22px}.identity{display:flex;align-items:center;gap:16px;min-width:0}.flightGlyph{display:grid;place-items:center;width:54px;height:54px;border:1px solid var(--line);border-radius:10px;color:var(--text);background:var(--paper,var(--panel));flex-shrink:0}.kicker{display:block;font-size:13px;line-height:1.6;letter-spacing:.04em;color:var(--muted);font-weight:500}.identity h3{font-size:28px;line-height:1.3;font-weight:700;letter-spacing:-.03em;margin-top:4px;overflow-wrap:anywhere}.identity p{font-size:14px;color:var(--muted);margin-top:4px}.businessDay{display:flex;align-items:center;gap:9px;padding-left:18px;border-left:1px solid var(--line);flex-shrink:0;color:var(--muted);font-size:13px}.businessDay strong{display:block;color:var(--text);font:650 16px/1.7 var(--font-sans);margin-top:2px}
 .recordOverview{display:flex;justify-content:space-between;align-items:center;gap:22px;margin:0;padding:14px 20px;background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--record-good);border-radius:8px}.recordOverview h4{font-size:21px;line-height:1.5;font-weight:700;margin-top:0;letter-spacing:-.02em}.recordOverview p{font-size:14px;line-height:1.8;color:var(--muted);max-width:55em;margin-top:4px}.completeness{min-width:150px;max-width:180px;flex-shrink:0;text-align:right}.completeness>strong{font:700 30px/1.2 var(--font-sans);letter-spacing:-.04em}.completeness strong small{font:400 16px/1.5 var(--font-sans);color:var(--muted)}.completeness>span{display:block;font-size:12px;color:var(--muted);margin-top:5px}.recordSegments{display:flex;gap:4px;margin-top:10px}.recordSegments i{height:5px;flex:1;background:var(--line);border-radius:3px}.recordSegments i[data-recorded=true]{background:var(--record-good)}

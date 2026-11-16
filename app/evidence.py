@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 from decimal import Decimal, InvalidOperation
+from typing import Any, Tuple
 
 from app.query import json_safe
 
@@ -206,8 +207,11 @@ def _single_flight_summary(props):
     direction = str(_prop_val(props, 'direction', 'NORMAL_FLIGHT_STAT_CD', 'IS_OFF_IN') or '').upper()
     dir_lbl = {'DEP': '出港', 'D': '出港', 'ARR': '进港', 'A': '进港'}.get(direction, '')
     fdate = str(_prop_val(props, 'flight_date', 'EXEC_DATE') or '')[:10]
-    origin = _prop_val(props, 'origin_city', 'origin_airport', 'TAKEOFF_AIRPORT_IATA')
-    dest = _prop_val(props, 'dest_city', 'dest_airport', 'ARRIVAL_AIRPORT_IATA')
+    origin_raw = _prop_val(props, 'origin_city', 'origin_airport', 'TAKEOFF_AIRPORT_IATA')
+    dest_raw = _prop_val(props, 'dest_city', 'dest_airport', 'ARRIVAL_AIRPORT_IATA')
+    from app.agent.visual import get_airport_name, format_flight_status
+    origin = get_airport_name(origin_raw) or origin_raw
+    dest = get_airport_name(dest_raw) or dest_raw
     route = f'{origin} → {dest}' if origin and dest else ''
     if direction in ('ARR', 'A'):
         plan_t = _fmt_local_time(_prop_val(props, 'scheduled_arrival', 'SCHEME_LANDIN_TIME'))
@@ -217,7 +221,8 @@ def _single_flight_summary(props):
         act_t = _fmt_local_time(_prop_val(props, 'actual_departure', 'REAL_TAKEOFF_TIME', 'execution_time'))
     stand = _prop_val(props, 'stand_code', 'CRAFT_SITE_CD')
     gate = _prop_val(props, 'gate_code', 'GATE_CD')
-    status = _prop_val(props, 'flight_status', 'operation_status')
+    raw_status = _prop_val(props, 'flight_status', 'operation_status')
+    status = format_flight_status(raw_status) if raw_status else None
     parts = [f'{fno}' + (f'（{dir_lbl}）' if dir_lbl else '')]
     if fdate:
         parts.append(f'业务日 {fdate}')
@@ -234,6 +239,26 @@ def _single_flight_summary(props):
     if status:
         parts.append(f'状态 {status}')
     return '；'.join(parts)
+
+
+def _format_dim_value(k: str, dim_lbl: str, val_raw: Any) -> tuple[str, str]:
+    if val_raw is None:
+        return dim_lbl, '未标注'
+    val_str = str(val_raw)
+    norm_lbl = dim_lbl
+    if k in ('airline', 'airline_code', 'airline_two_char_cd') or dim_lbl in ('航司代码', '航司', '航空公司'):
+        norm_lbl = '航司'
+        from app.agent.visual import get_airline_name
+        al_name = get_airline_name(val_raw)
+        if al_name and al_name != str(val_raw):
+            val_str = f"{al_name}（{val_raw}）"
+    elif k in ('dest_city', 'origin_city', 'dest_airport', 'origin_airport', 'airport', 'airport_code',
+              'takeoff_airport_iata', 'arrival_airport_iata', 'TAKEOFF_AIRPORT_IATA', 'ARRIVAL_AIRPORT_IATA') or dim_lbl in ('机场代码', '起飞机场', '到达机场', '目的地'):
+        from app.agent.visual import get_airport_name
+        ap_name = get_airport_name(val_raw)
+        if ap_name and ap_name != str(val_raw):
+            val_str = f"{ap_name}（{val_raw}）"
+    return norm_lbl, val_str
 
 
 def fallback_claims(catalog, plan, evidence, main_total):
@@ -302,7 +327,8 @@ def fallback_claims(catalog, plan, evidence, main_total):
                         dim_lbl = catalog.attribute(fact['table'], k)['label']
                     else:
                         dim_lbl = k
-                    group_parts.append(f"{dim_lbl}={values[k] if values[k] is not None else '未标注'}")
+                    norm_lbl, val_display = _format_dim_value(k, dim_lbl, values[k])
+                    group_parts.append(f"{norm_lbl}={val_display}")
                 group_text = '、'.join(group_parts)
                 text = '%s%s命中 %s 条记录。' % ((group_text+'：') if group_text else '', fact['name'], values['n'])
             else:
@@ -329,7 +355,8 @@ def fallback_claims(catalog, plan, evidence, main_total):
                         dim_lbl = catalog.attribute(fact['table'], k)['label']
                     else:
                         dim_lbl = k
-                    group_parts.append(f"{dim_lbl}={values[k] if values[k] is not None else '未标注'}")
+                    norm_lbl, val_display = _format_dim_value(k, dim_lbl, values[k])
+                    group_parts.append(f"{norm_lbl}={val_display}")
                 group_text = '、'.join(group_parts)
                 m_name = metric.get('name') or metric.get('code') or fact['name']
                 unit = (' ' + metric.get('unit')) if metric.get('unit') and val is not None else ''

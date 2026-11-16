@@ -130,6 +130,7 @@ export type TurnaroundPipelineNode = {
 };
 export type VisualTurnaround = {
   kind: "turnaround_gantt";
+  source_row?: Row;
   query_identifier?: string;
   selection_note?: string;
   source_label?: string;

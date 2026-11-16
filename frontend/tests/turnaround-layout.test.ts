@@ -1,7 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { clockMinutes, completeFlightNodes, completeTurnaroundOperations, hasOperationEnd, sortTurnaroundOperations, timelinePoint, timelineWindow, timelineSpan, turnaroundChartRows, turnaroundFishboneLayout, turnaroundFlightNodes, turnaroundHeading, turnaroundOperationTimeline, turnaroundRecordSummary } from "../lib/turnaround-layout.ts";
+import { clockMinutes, completeFlightNodes, completeTurnaroundOperations, hasOperationEnd, sortTurnaroundOperations, timelinePoint, timelineWindow, timelineSpan, turnaroundChartRows, turnaroundFishboneLayout, turnaroundFlightNodes, turnaroundHeading, turnaroundOperationTimeline, turnaroundRecordSummary, turnaroundSummaryNodes } from "../lib/turnaround-layout.ts";
 import type { FishboneNode, TurnaroundOperation, VisualTurnaround } from "../lib/types.ts";
+
+test("summary nodes retain actual and planned times without marking missing nodes complete", () => {
+  const data = { milestones: { aibt: "09:42", sobt: "10:40", tobt: null, tsat: null, current_time: null }, pipeline: [], operations: [{ id: "boarding", name: "登机", icon: "", status: "completed" as const, actual_end: "10:35" }] };
+  const original = structuredClone(data);
+  const nodes = turnaroundSummaryNodes(data);
+  assert.deepEqual(nodes.map(node => node.key), ["aibt", "door_open", "boarding_end", "door_close", "aobt", "pushback"]);
+  assert.equal(nodes[0].actual_time, "09:42");
+  assert.equal(nodes[2].actual_time, "10:35");
+  assert.equal(nodes[4].plan_time, "10:40");
+  assert.ok(nodes.filter((_, index) => index !== 0 && index !== 2).every(node => !node.actual_time));
+  assert.deepEqual(data, original);
+  const door: FishboneNode = { key: "door_open", name: "客舱开门", code: "DOOR_OPEN", category: "ramp", position: "top", status: "completed", status_label: "已记录", time_display: "09:44", actual_time: "09:44" };
+  assert.equal(turnaroundSummaryNodes({ ...data, ground_nodes: [door] })[1].actual_time, "09:44");
+});
 
 test("flight inquiry titles keep the requested flight primary and label the aircraft separately", () => {
   assert.deepEqual(turnaroundHeading({ query_identifier: "MU2613", flight_pair: "MU2613", craft_no: "B20AE" }), {

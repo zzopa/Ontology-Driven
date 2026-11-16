@@ -84,6 +84,9 @@ def load_settings():
     if data_source != 'hbairport':
         with (ROOT / 'data' / data_source / 'profile.json').open(encoding='utf-8') as source:
             _merge(config, json.load(source))
+        if local.exists():
+            with local.open(encoding='utf-8') as source:
+                _merge(config, json.load(source))
 
     server = config['server']
     database = config['database'].copy()
@@ -157,7 +160,9 @@ def load_settings():
         retention_days=int(config.get('admin', {}).get('retention_days', 90)),
         data_source=data_source, identity_db=identity_database,
         external_models_enabled=data_source == 'hbairport',
-        permitted_model_origins=tuple(config.get('llm',{}).get('permitted_origins',[])),
+        permitted_model_origins=tuple(
+            x.strip() for x in os.environ['HBASK_PERMITTED_MODEL_ORIGINS'].split(',') if x.strip()
+        ) if os.environ.get('HBASK_PERMITTED_MODEL_ORIGINS') else tuple(config.get('llm',{}).get('permitted_origins',[])),
         evidence_workers=max(1,min(4,int(query.get('evidence_workers',3)))),
         evidence_timeout_seconds=max(10,min(300,int(query.get('evidence_timeout_seconds',120)))),
         evidence_retries=max(0,min(2,int(query.get('evidence_retries',1)))),
