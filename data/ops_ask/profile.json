@@ -28,7 +28,8 @@
       "ops_ask_views.flight_execution",
       "public.mv_acdm_dyn_flight_detail",
       "public.mv_acdm_turnaround_pair",
-      "ops_ask_views.flight_hourly_movements"
+      "ops_ask_views.flight_hourly_movements",
+      "public.mv_acdm_flight_calendar"
     ]
   },
   "admin": {

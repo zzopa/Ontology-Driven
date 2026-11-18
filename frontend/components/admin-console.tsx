@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertCircle, BarChart3, BookCheck, BookOpen, Boxes, Compass, Cpu, Database,
-  FileClock, LayoutDashboard, MessageSquare, Settings2, Share2, ShieldCheck, SlidersHorizontal,
+  FileClock, LayoutDashboard, MessageSquare, Settings2, Share2, ShieldCheck, SlidersHorizontal, Users,
 } from "lucide-react";
 import { roleLabel, type AskFeedbackItem, type Auth, type Paged, type User } from "@/lib/admin";
 import { request } from "@/lib/api";
@@ -24,6 +24,7 @@ import { CapabilitiesAdminPanel } from "./admin/capabilities-admin";
 import { PlannerAdminPanel } from "./admin/planner-admin";
 import { AskSettingsPanel } from "./admin/ask-settings";
 import { FeedbackAdminPanel } from "./admin/feedback-admin";
+import { UserAdminPanel } from "./admin/user-admin";
 
 type TabDef = {
   id: string;
@@ -47,6 +48,7 @@ const TABS: TabDef[] = [
   { id: "sync", title: "数据同步", icon: Database, group: "ops", admin: true },
   { id: "models", title: "模型配置", icon: Settings2, group: "ops", admin: true },
   { id: "conversations", title: "会话管理", icon: MessageSquare, group: "ops" },
+  { id: "users", title: "用户与权限", icon: Users, group: "ops", admin: true },
   { id: "audit", title: "操作审计", icon: FileClock, group: "ops", admin: true },
 ];
 
@@ -179,6 +181,7 @@ export function AdminConsole() {
             {tab === "sync" && user.can_manage && <DataSyncPanel />}
             {tab === "models" && user.can_manage && <ModelsPanel />}
             {tab === "conversations" && <ConversationsPanel current={user} />}
+            {tab === "users" && user.can_manage && <UserAdminPanel current={user} />}
             {tab === "audit" && user.can_manage && <AuditPanel />}
           </div>
         </div>

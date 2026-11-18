@@ -5,6 +5,7 @@ import re
 from typing import Any
 
 SHANGHAI_TZ = timezone(timedelta(hours=8))
+GROUND_BRIEFING_CUTOFF = time(22)
 KEY_TURNAROUND_TYPES = ('B738', 'B788', 'A320', 'A321', 'A320/1', 'C919')
 REGIONAL_AIRPORT_NAMES = {
     'YIH': '宜昌三峡',
@@ -112,6 +113,10 @@ def build_general_report(
                     COALESCE(SUM(CASE WHEN is_operated_flight = 'Y' AND real_exec_day BETWEEN %s AND %s AND is_off_in = 'D' THEN COALESCE(dep_dpsr_depe_num, 0) ELSE 0 END), 0) AS dep_pax_calc,
                     COALESCE(SUM(CASE WHEN is_operated_flight = 'Y' AND real_exec_day BETWEEN %s AND %s AND is_off_in = 'A' THEN COALESCE(fpa_adult_count, 0) + COALESCE(fpa_children_count, 0) + COALESCE(fpa_baby_count, 0) ELSE 0 END), 0) AS arr_pax_fpa,
                     COALESCE(SUM(CASE WHEN is_operated_flight = 'Y' AND real_exec_day BETWEEN %s AND %s AND COALESCE(fpa_available_seat, 0) > 0 THEN fpa_available_seat ELSE 0 END), 0) AS total_seats,
+                    COALESCE(SUM(CASE WHEN is_operated_flight = 'Y' AND real_exec_day BETWEEN %s AND %s AND COALESCE(fpa_available_seat, 0)>0
+                        THEN CASE WHEN is_off_in='D' THEN COALESCE(dep_dpsr_depe_num,0)
+                            ELSE COALESCE(fpa_adult_count,0)+COALESCE(fpa_children_count,0)+COALESCE(fpa_baby_count,0) END ELSE 0 END),0) AS load_factor_pax,
+                    COUNT(*) FILTER(WHERE is_operated_flight='Y' AND real_exec_day BETWEEN %s AND %s AND COALESCE(fpa_available_seat,0)>0) AS load_factor_sample_flights,
                     COUNT(*) FILTER (WHERE is_operated_flight = 'Y' AND is_off_in = 'D' AND real_takeoff_day BETWEEN %s AND %s AND real_block_off_time IS NOT NULL AND targt_block_off_time IS NOT NULL) AS block_off_sample,
                     COUNT(*) FILTER (WHERE is_operated_flight = 'Y' AND is_off_in = 'D' AND real_takeoff_day BETWEEN %s AND %s AND real_block_off_time <= targt_block_off_time) AS block_off_ontime,
                     COUNT(*) FILTER (WHERE is_operated_flight = 'Y' AND is_off_in = 'D' AND real_takeoff_day BETWEEN %s AND %s AND real_close_cabin_time IS NOT NULL) AS close_cabin_real_cnt,
@@ -123,7 +128,7 @@ def build_general_report(
                     ROUND(AVG(real_taxi_out_time) FILTER (WHERE is_operated_flight = 'Y' AND is_off_in = 'D' AND real_takeoff_day BETWEEN %s AND %s AND real_taxi_out_time IS NOT NULL)::numeric, 2) AS avg_taxi_out_min,
                     COUNT(*) FILTER (WHERE is_operated_flight = 'Y' AND is_off_in = 'A' AND real_landin_day BETWEEN %s AND %s AND real_taxi_in_time IS NOT NULL) AS taxi_in_samples
                 FROM public.mv_acdm_dyn_flight_detail
-            """, (d_from, d_to) * 30)
+            """, (d_from, d_to) * 32)
 
             summary['execution_rate'] = _pct(summary.get('operated_all'), summary.get('planned_all'))
             summary['takeoff_on_time_rate'] = _pct(summary.get('takeoff_normal_cnt'), summary.get('dep_operated'))
@@ -134,8 +139,9 @@ def build_general_report(
             summary['bridge_rate_arr'] = _pct(summary.get('arr_bridge_cnt'), summary.get('arr_operated'))
             summary['bridge_rate_all'] = _pct(summary.get('all_bridge_cnt'), summary.get('operated_all'))
             summary['total_pax_sql'] = int(summary.get('dep_pax_calc') or 0) + int(summary.get('arr_pax_fpa') or 0)
-            summary['total_load_factor'] = _pct(summary['total_pax_sql'], summary.get('total_seats'))
-            summary['block_off_on_time_rate'] = _pct(summary.get('block_off_ontime'), summary.get('block_off_sample'))
+            summary['total_load_factor'] = _pct(summary.get('load_factor_pax'), summary.get('total_seats'))
+            summary['load_factor_excluded_pax'] = summary['total_pax_sql'] - int(summary.get('load_factor_pax') or 0)
+            summary['block_off_on_time_rate'] = _pct(summary.get('block_off_ontime'), summary.get('dep_operated'))
             if summary.get('dep_operated'):
                 improved_release = int(summary.get('release_normal_cnt') or 0) + int(summary.get('short_delay_5m_cnt') or 0)
                 base_r = summary['release_on_time_rate'] or 0.0
@@ -146,8 +152,8 @@ def build_general_report(
 
             pair_stats = _q_one(cur, """
                 SELECT
-                    COUNT(*) FILTER (WHERE is_both_operated = 'Y' AND valid_block_sequence AND arr_exec_date BETWEEN %s AND %s AND same_exec_date) AS pair_same_day_cnt,
-                    COUNT(*) FILTER (WHERE is_both_operated = 'Y' AND valid_block_sequence AND arr_exec_date BETWEEN %s AND %s AND same_exec_date AND pair_release_on_time = 'Y') AS pair_release_normal_cnt,
+                    COUNT(*) FILTER (WHERE is_both_operated = 'Y' AND valid_block_sequence AND arr_landin_day BETWEEN %s AND %s AND same_exec_date) AS pair_same_day_cnt,
+                    COUNT(*) FILTER (WHERE is_both_operated = 'Y' AND valid_block_sequence AND arr_landin_day BETWEEN %s AND %s AND same_exec_date AND pair_release_on_time = 'Y') AS pair_release_normal_cnt,
                     COUNT(*) FILTER (WHERE is_both_operated = 'Y' AND valid_block_sequence AND arr_landin_day BETWEEN %s AND %s) AS turnaround_valid_cnt,
                     ROUND(AVG(service_minutes) FILTER (WHERE is_both_operated = 'Y' AND valid_block_sequence AND arr_landin_day BETWEEN %s AND %s)::numeric, 2) AS avg_service_min,
                     ROUND(AVG(bridge_minutes) FILTER (WHERE is_both_operated = 'Y' AND valid_block_sequence AND arr_landin_day BETWEEN %s AND %s)::numeric, 2) AS avg_bridge_min,
@@ -224,17 +230,18 @@ def build_general_report(
             SELECT
                 COALESCE(c.abnormal_reason_cd, '未填原因') AS reason_code,
                 COALESCE(MAX(r.name_zh), COALESCE(c.abnormal_reason_cd, '未填原因')) AS reason_name,
-                COUNT(*) FILTER (WHERE COALESCE(c.takeoff_delay_time, 0) > 0 OR COALESCE(c.clearance_delay_time, 0) > 0) AS delay_flights,
-                COUNT(*) FILTER (WHERE c.abnormal_flight_stat_cd = 'CAN') AS cancel_flights
+                COUNT(*) FILTER (WHERE c.is_operated_flight='Y' AND c.real_exec_day BETWEEN %s AND %s
+                    AND (COALESCE(c.takeoff_delay_time, 0) > 0 OR COALESCE(c.clearance_delay_time, 0) > 0)) AS delay_flights,
+                COUNT(*) FILTER (WHERE c.abnormal_flight_stat_cd = 'CAN' AND c.plan_day BETWEEN %s AND %s) AS cancel_flights
             FROM public.mv_acdm_dyn_flight_detail c
             LEFT JOIN public.dim_abnormal_reason r ON r.code = c.abnormal_reason_cd AND r.deleted_at IS NULL
             WHERE COALESCE(c.flight_task_cd, '') <> 'A/N'
-              AND (c.exec_date BETWEEN %s AND %s)
+              AND (c.plan_day BETWEEN %s AND %s OR c.real_exec_day BETWEEN %s AND %s)
               AND (COALESCE(c.takeoff_delay_time, 0) > 0 OR COALESCE(c.clearance_delay_time, 0) > 0 OR c.abnormal_flight_stat_cd = 'CAN')
             GROUP BY COALESCE(c.abnormal_reason_cd, '未填原因')
             ORDER BY delay_flights DESC, cancel_flights DESC
             LIMIT 10
-        """, (start_date, end_date))
+        """, (start_date, end_date) * 4)
 
         # Section 6 Hourly movements & peak
         hourly_rows = _q_dicts(cur, """
@@ -248,7 +255,10 @@ def build_general_report(
             GROUP BY hour_of_day
             ORDER BY hour_of_day ASC
         """, (start_date, end_date))
-        peak_row = max(hourly_rows, key=lambda r: (r['total_movements'], -r['hour_of_day'])) if hourly_rows else None
+        peak_rows = _q_dicts(cur, """SELECT peak_hour, COUNT(*) AS total_movements
+            FROM ops_ask_views.flight_hourly_movements WHERE movement_date BETWEEN %s AND %s
+            GROUP BY peak_hour ORDER BY total_movements DESC,peak_hour ASC LIMIT 1""", (start_date, end_date))
+        peak_row = peak_rows[0] if peak_rows else None
 
         # Section 7 Key aircraft turnaround warning list + regional airport routes
         key_warnings = _q_dicts(cur, """
@@ -257,7 +267,7 @@ def build_general_report(
             WHERE is_key_turnaround_aircraft
               AND arr_exec_date BETWEEN %s AND %s
               AND sched_turnaround_minutes IS NOT NULL
-              AND sched_turnaround_minutes < 45
+              AND sched_turnaround_minutes > 0 AND sched_turnaround_minutes < 45
             ORDER BY sched_turnaround_minutes ASC, arr_exec_date DESC
             LIMIT 20
         """, (start_date, end_date))
@@ -295,8 +305,9 @@ def build_general_report(
         if prev_yoy else '当前本地库仅同步近 1 个月窗口，暂无法计算上年同期同比。'
     )
 
-    peak_text = f"峰值出现在 {peak_row['hour_of_day']:02d}:00 时段（{peak_row['total_movements']} 架次）" if peak_row else '当前时段暂无小时起降记录'
+    peak_text = f"最高单小时为 {str(peak_row['peak_hour'])[:16]} 起的一小时（{peak_row['total_movements']} 架次）" if peak_row else '当前时段暂无小时起降记录'
     cutoff_text = f"（截至 22:00 截断起飞正常率 {day_22_cutoff['takeoff_rate_22']}%，实际 {day_22_cutoff['dep_by_22']} 班）" if day_22_cutoff and day_22_cutoff.get('takeoff_rate_22') is not None else ''
+    load_factor_label = f"{current['total_load_factor']}%" if current['total_load_factor'] is not None else '无有效样本'
 
     sections = [
         {
@@ -305,7 +316,7 @@ def build_general_report(
             'claims': [
                 {'text': f"{span_label} 全场计划航班 {current['planned_all']} 班（国内客运正班 {current['planned_dom_pax']} 班），实际执行 {current['operated_all']} 班（出港 {current['dep_operated']} / 进港 {current['arr_operated']}），取消 {current['cancel_all']} 班，执行率 {current['execution_rate']}%。{cutoff_text}"},
                 {'text': f"正常性：起飞正常率 {current['takeoff_on_time_rate']}%、放行正常率(口径A单表) {current['release_on_time_rate']}%、始发正常率 {current['origin_dep_on_time_rate']}%、进港正常率(落地正常) {current['arr_on_time_rate']}%、地服起飞正常率(210+2403) {current['ground_takeoff_on_time_rate']}%。"},
-                {'text': f"吞吐与资源：旅客吞吐量(SQL混合口径) {current['total_pax_sql']:,} 人次（综合上座率 {current['total_load_factor']}%）、货邮吞吐量(不含行李) {current['cargo_mail_kg']:,} kg；进港靠桥率 {current['bridge_rate_arr']}%（全量进出港 {current['bridge_rate_all']}%）；撤轮挡准时率 {current['block_off_on_time_rate']}%（样本 {current['block_off_sample']} 班）。"},
+                {'text': f"吞吐与资源：全量旅客吞吐量 {current['total_pax_sql']:,} 人次；综合客座率 {load_factor_label}（有效座位样本旅客 {current['load_factor_pax']:,} 人次 / 座位 {current['total_seats']:,} 个，覆盖 {current['load_factor_sample_flights']} 架次；未匹配正数座位的旅客 {current['load_factor_excluded_pax']:,} 人次不计入该比率）；货邮吞吐量(不含行李) {current['cargo_mail_kg']:,} kg；进港靠桥率 {current['bridge_rate_arr']}%（全量进出港 {current['bridge_rate_all']}%）；撤轮挡准时率 {current['block_off_on_time_rate']}%（出港执行 {current['dep_operated']} 班，其中时刻完整 {current['block_off_sample']} 班）。"},
                 {'text': f"对比口径：{mom_text}；{yoy_text}"},
             ],
         },
@@ -362,7 +373,7 @@ def build_general_report(
     claims_flat = [{'text': c['text']} for s in sections for c in s['claims']]
     visual_meta = {
         'kind': 'trend' if len(hourly_rows) > 1 else 'stats',
-        'title': f'{span_label} {period_name}分时起降动态' if len(hourly_rows) > 1 else f'{span_label} 核心指标概览',
+        'title': f'{span_label} 各钟点累计起降分布' if len(hourly_rows) > 1 else f'{span_label} 核心指标概览',
         'series': [{'label': f"{r['hour_of_day']:02d}时", 'value': r['total_movements']} for r in hourly_rows] if len(hourly_rows) > 1 else [],
         'stats': [
             {'label': '执行航班', 'value': str(current['operated_all']), 'unit': '班'},
@@ -401,7 +412,7 @@ def build_ground_briefing(conn, *, target_date: date) -> dict[str, Any]:
     """Generate the calibrated 6-part Ground Handling Duty Briefing (Handbook Ch.7.2)."""
     next_day = target_date + timedelta(days=1)
     d0_00 = datetime.combine(target_date, time(0, 0), tzinfo=SHANGHAI_TZ)
-    d0_22 = datetime.combine(target_date, time(22, 0), tzinfo=SHANGHAI_TZ)
+    d0_22 = datetime.combine(target_date, GROUND_BRIEFING_CUTOFF, tzinfo=SHANGHAI_TZ)
     d1_00 = datetime.combine(next_day, time(0, 0), tzinfo=SHANGHAI_TZ)
     d1_05 = datetime.combine(next_day, time(5, 0), tzinfo=SHANGHAI_TZ)
     d1_06 = datetime.combine(next_day, time(6, 0), tzinfo=SHANGHAI_TZ)
@@ -498,20 +509,30 @@ def build_ground_briefing(conn, *, target_date: date) -> dict[str, Any]:
 
     d_str = target_date.isoformat()
     n_str = next_day.isoformat()
+    cutoff_label = GROUND_BRIEFING_CUTOFF.strftime('%H:%M')
+
+    def normality(scope: str, indicator: str) -> str:
+        numerator = norm_22[f'{scope}_{indicator}_norm_22']
+        denominator = norm_22[f'{scope}_dep_22']
+        rate = norm_22[f'{scope}_{indicator}_rate_22']
+        value = f'{rate:.2f}%' if rate is not None else '无有效分母'
+        return f'{value}（分子 {numerator}，分母 {denominator}）'
+
     sections = [
         {
-            'title': '1. 当日与次日凌晨收尾态势（00:00–22:00 / 次日 00:00–05:00）',
+            'title': '1. 当日全天运行与次日凌晨收尾态势',
             'kind': 'facts',
             'claims': [
                 {'text': f"{d_str} 计划航班 {today_box['planned_today']} 班，已执行 {today_box['operated_today']} 班，取消 {today_box['canceled_today']} 班，24:00前预计执行约 {today_box['est_before_24']} 班；延伸至次日（{n_str} 00:00–05:00）收尾航班 {today_box['late_00_05_window']} 班。"},
             ],
         },
         {
-            'title': '2. 截止 22:00 正常性双口径对照（本场全量 vs 地服 210+2403）',
+            'title': f'2. 截至 {cutoff_label} 的出港执行量与正常率',
             'kind': 'facts',
             'claims': [
-                {'text': f"本场全口径(出港 {norm_22['all_dep_22']} 班)：放行正常率 {norm_22['all_release_rate_22']}%、起飞正常率 {norm_22['all_takeoff_rate_22']}%。"},
-                {'text': f"地服口径(AGENCY=210 且 ATTRIBUTE=2403，出港 {norm_22['gh_dep_22']} 班)：放行正常率 {norm_22['gh_release_rate_22']}%、起飞正常率 {norm_22['gh_takeoff_rate_22']}%、地服放行延误 {norm_22['gh_release_delay_22']} 班。"},
+                {'text': f"本场全量出港执行 {norm_22['all_dep_22']} 架次。放行正常率 {normality('all', 'release')}，起飞正常率 {normality('all', 'takeoff')}。"},
+                {'text': f"地服口径出港执行 {norm_22['gh_dep_22']} 架次（AGENCY=210 且 ATTRIBUTE=2403）。放行正常率 {normality('gh', 'release')}，起飞正常率 {normality('gh', 'takeoff')}。地服放行延误 {norm_22['gh_release_delay_22']} 架次。"},
+                {'text': f'按北京时间当日 00:00 起、{cutoff_label} 前实际起飞的出港航班统计。各项正常率以同口径的出港执行量为分母，以相应正常标志为 Y 的执行架次为分子。'},
             ],
         },
         {
@@ -563,6 +584,42 @@ def build_ground_briefing(conn, *, target_date: date) -> dict[str, Any]:
     }
 
 
+def safeguard_node_counts_sql(safeguards, flights, definitions, where):
+    return f"""
+        WITH eligible AS (
+            SELECT COUNT(DISTINCT f.pg_flight_id) AS all_cnt,
+                   COUNT(DISTINCT f.pg_flight_id) FILTER (WHERE f.is_off_in='D') AS dep_cnt,
+                   COUNT(DISTINCT f.pg_flight_id) FILTER (WHERE f.is_off_in='A') AS arr_cnt
+            FROM {flights} f
+            WHERE f.is_operated_flight='Y' AND f.real_exec_day >= %s AND f.real_exec_day < %s
+        ), counts AS (
+            SELECT s.safeguard_code,
+                COALESCE(MAX(d.name), s.safeguard_code) AS node_name,
+                COALESCE(MAX(d.is_off_in), '—') AS is_off_in,
+                COUNT(*) AS total_records,
+                COUNT(s.safeguard_real_time) AS real_recorded_cnt,
+                COUNT(s.safeguard_alterate_time) AS alterate_cnt,
+                SUM(COUNT(*)) OVER() AS all_recorded_total,
+                COUNT(DISTINCT s.flight_id) AS distinct_flights,
+                COUNT(DISTINCT s.flight_id) FILTER (WHERE c.is_operated_flight='Y'
+                    AND c.real_exec_day >= %s AND c.real_exec_day < %s
+                    AND c.is_off_in=CASE WHEN UPPER(d.is_off_in) IN ('D','DEP','1','O') THEN 'D'
+                        WHEN UPPER(d.is_off_in) IN ('A','ARR','0','I') THEN 'A' ELSE c.is_off_in END) AS recorded_flights
+            FROM {safeguards} s
+            JOIN {flights} c ON c.pg_flight_id = s.flight_id
+            LEFT JOIN {definitions} d ON d.code = s.safeguard_code AND d.deleted_at IS NULL
+            {where}
+            GROUP BY s.safeguard_code
+        ), coverage AS (
+            SELECT counts.*, CASE WHEN UPPER(is_off_in) IN ('D','DEP','1','O') THEN dep_cnt
+                WHEN UPPER(is_off_in) IN ('A','ARR','0','I') THEN arr_cnt ELSE all_cnt END AS eligible_flights
+            FROM counts CROSS JOIN eligible
+        )
+        SELECT coverage.*, ROUND(100.0 * recorded_flights / NULLIF(eligible_flights, 0), 2) AS entry_rate_pct
+        FROM coverage
+    """
+
+
 def build_safeguard_and_resource_board(
     conn,
     *,
@@ -573,48 +630,42 @@ def build_safeguard_and_resource_board(
     cur = conn.cursor()
     try:
         cov = _coverage_bounds(cur)
-        total_operated = _q_one(cur, """
+        operated = _q_one(cur, """
             SELECT COUNT(*) AS op_cnt
             FROM public.mv_acdm_dyn_flight_detail
-            WHERE is_operated_flight = 'Y' AND exec_date BETWEEN %s AND %s
-        """, (start_date, end_date)).get('op_cnt') or 0
-
-        sg_rows = _q_dicts(cur, """
-            SELECT
-                s.safeguard_code,
-                COALESCE(MAX(d.name), s.safeguard_code) AS node_name,
-                COALESCE(MAX(d.is_off_in), '—') AS is_off_in,
-                COUNT(*) AS total_records,
-                COUNT(s.safeguard_real_time) AS real_recorded_cnt,
-                COUNT(s.safeguard_alterate_time) AS alterate_cnt
-            FROM public.std_flight_safeguard_node s
-            JOIN public.std_flight_core c ON c.id = s.flight_id
-            LEFT JOIN public.dim_safeguard_node d ON d.code = s.safeguard_code AND d.deleted_at IS NULL
-            WHERE (c.flight_date AT TIME ZONE 'Asia/Shanghai')::date BETWEEN %s AND %s
-              AND COALESCE(c.flight_task_cd, '') <> 'A/N'
-            GROUP BY s.safeguard_code
-            ORDER BY real_recorded_cnt DESC
-            LIMIT 25
+            WHERE is_operated_flight = 'Y' AND real_exec_day BETWEEN %s AND %s
         """, (start_date, end_date))
-        for r in sg_rows:
-            r['entry_rate_pct'] = _pct(r['real_recorded_cnt'], total_operated)
+        total_operated = operated.get('op_cnt') or 0
+        period_start = datetime.combine(start_date, time.min, tzinfo=SHANGHAI_TZ)
+        period_end = datetime.combine(end_date + timedelta(days=1), time.min, tzinfo=SHANGHAI_TZ)
+
+        sg_sql = safeguard_node_counts_sql(
+            'public.std_flight_safeguard_node', 'public.mv_acdm_dyn_flight_detail', 'public.dim_safeguard_node',
+            'WHERE s.safeguard_real_time >= %s AND s.safeguard_real_time < %s',
+        )
+        days = (start_date, period_end.date())
+        sg_rows = _q_dicts(cur, sg_sql + 'ORDER BY real_recorded_cnt DESC, safeguard_code LIMIT 25',
+                          (*days, *days, period_start, period_end))
 
         bridge_rows = _q_dicts(cur, """
             SELECT
                 COALESCE(b.air_bridge_cd, b.air_bridge_id, '未编码') AS bridge_code,
                 COALESCE(MAX(db.name_zh), MAX(b.air_bridge_cd), MAX(b.air_bridge_id), '未编码') AS bridge_name,
                 COUNT(*) AS use_count,
-                ROUND(AVG(COALESCE(b.bridge_duration / 60.0, EXTRACT(EPOCH FROM (b.bridge_end_time - b.bridge_start_time)) / 60.0))::numeric, 2) AS avg_bridge_duration_min,
+                ROUND(AVG(b.bridge_duration / 60.0) FILTER(WHERE b.bridge_duration>0)::numeric, 2) AS avg_bridge_duration_min,
+                SUM(COUNT(*)) OVER() AS all_usage_count,
+                SUM(SUM(CASE WHEN b.bridge_duration>0 THEN b.bridge_duration ELSE 0 END)) OVER() AS all_duration_seconds,
+                SUM(COUNT(*) FILTER(WHERE b.bridge_duration>0)) OVER() AS all_duration_samples,
                 COUNT(b.power_start_time) AS power_supply_cnt,
                 COUNT(b.ac_start_time) AS ac_supply_cnt
             FROM public.std_flight_air_bridge b
-            JOIN public.std_flight_core c ON c.id = b.flight_id
+            JOIN public.mv_acdm_dyn_flight_detail c ON c.pg_flight_id = b.flight_id
             LEFT JOIN public.dim_air_bridge db ON db.bridge_code = b.air_bridge_cd AND db.deleted_at IS NULL
-            WHERE (c.flight_date AT TIME ZONE 'Asia/Shanghai')::date BETWEEN %s AND %s
+            WHERE b.bridge_start_time>=%s AND b.bridge_start_time<%s
             GROUP BY COALESCE(b.air_bridge_cd, b.air_bridge_id, '未编码')
             ORDER BY use_count DESC
             LIMIT 20
-        """, (start_date, end_date))
+        """, (period_start, period_end))
 
         terminal_rows = _q_dicts(cur, """
             SELECT
@@ -625,7 +676,7 @@ def build_safeguard_and_resource_board(
                 COUNT(*) FILTER (WHERE is_operated_flight = 'Y' AND attribute = '2403') AS domestic_flights,
                 COUNT(*) FILTER (WHERE is_operated_flight = 'Y' AND attribute IN ('2401', '2402')) AS intl_reg_flights
             FROM public.mv_acdm_dyn_flight_detail
-            WHERE exec_date BETWEEN %s AND %s
+            WHERE real_exec_day BETWEEN %s AND %s
             GROUP BY 1
             ORDER BY operated_flights DESC
         """, (start_date, end_date))
@@ -633,18 +684,31 @@ def build_safeguard_and_resource_board(
         cur.close()
 
     span_label = start_date.isoformat() if start_date == end_date else f'{start_date.isoformat()} ~ {end_date.isoformat()}'
-    top_sg = '；'.join(f"{r['node_name']}({r['safeguard_code']}): 实测 {r['real_recorded_cnt']} 条(占执飞 {r['entry_rate_pct']}%)" for r in sg_rows[:6])
+    top_sg = '；'.join(f"{r['node_name']}: 实测 {r['real_recorded_cnt']} 条，覆盖适用航班 {r['recorded_flights']}/{r['eligible_flights']}（{r['entry_rate_pct'] if r['entry_rate_pct'] is not None else '—'}%）" for r in sg_rows[:6])
     top_br = '；'.join(f"{r['bridge_code']}: 使用 {r['use_count']} 次(均长 {r['avg_bridge_duration_min'] or '—'} 分)" for r in bridge_rows[:5])
+    summary = {
+        'operated_all': total_operated,
+        'safeguard_node_recorded_count': sg_rows[0]['all_recorded_total'] if sg_rows else 0,
+        'air_bridge_usage_count': bridge_rows[0]['all_usage_count'] if bridge_rows else 0,
+        'avg_air_bridge_minutes': round(bridge_rows[0]['all_duration_seconds'] / 60.0 / bridge_rows[0]['all_duration_samples'], 2)
+            if bridge_rows and bridge_rows[0]['all_duration_samples'] else None,
+    }
+    for row in sg_rows:
+        row.pop('all_recorded_total', None)
+        row.pop('distinct_flights', None)
+    for row in bridge_rows:
+        for key in ('all_usage_count', 'all_duration_seconds', 'all_duration_samples'):
+            row.pop(key, None)
     sections = [
         {
-            'title': '1. 保障节点录入质量统计（std_flight_safeguard_node）',
+            'title': '1. 保障节点录入质量统计',
             'kind': 'facts',
             'claims': [
                 {'text': f"{span_label} 执飞航班共 {total_operated} 班；高频保障节点实测录入：{top_sg or '暂无记录'}。"},
             ],
         },
         {
-            'title': '2. 登机桥周转与桥载使用（std_flight_air_bridge）',
+            'title': '2. 登机桥周转与桥载使用',
             'kind': 'facts',
             'claims': [
                 {'text': f"登机桥使用概况：{top_br or '当前时段无登机桥占用明细'}。"},
@@ -661,7 +725,7 @@ def build_safeguard_and_resource_board(
             'title': '数据能力边界说明',
             'kind': 'limitations',
             'claims': [
-                {'text': '保障节点预计时间(SAFEGUARD_ALTERATE_TIME)全量为 0 且缺节点时限标准，故仅输出“录入数量与录入率”；“节点准点率/及时率”及“进程保障8态/跑道占用”暂待上游接入。'},
+                {'text': '按北京时间自然日统计作业实际记录；航班按实际起降日归属。节点覆盖率按适用进出港方向的当期执行航班去重计算，记录次数单列。缺少节点时限标准，暂不输出节点准点率或及时率。'},
             ],
         },
     ]
@@ -670,13 +734,14 @@ def build_safeguard_and_resource_board(
         'kind': 'safeguard_board',
         'title': f'《保障节点质量与资源周转看板》· {span_label}',
         'coverage': cov,
+        'summary': summary,
         'text': summary_text,
         'claims': [{'text': c['text']} for s in sections for c in s['claims']],
         'document': {'title': f'《保障节点质量与资源周转看板》· {span_label}', 'sections': sections},
         'rows': sg_rows[:12],
         'total': int(total_operated or len(sg_rows)),
         'related': [
-            {'table': 'safeguard_ranking', 'name': '保障节点录入排行', 'note': '含实测录入条数与占执飞比', 'type': 'report', 'level': 1, 'count': len(sg_rows), 'rows': sg_rows},
+            {'table': 'safeguard_ranking', 'name': '保障节点录入排行', 'note': '实测记录条数、适用航班去重覆盖率', 'type': 'report', 'level': 1, 'count': len(sg_rows), 'rows': sg_rows},
             {'table': 'air_bridge_turnover', 'name': '登机桥使用与桥载电/气统计', 'note': 'std_flight_air_bridge', 'type': 'report', 'level': 1, 'count': len(bridge_rows), 'rows': bridge_rows},
             {'table': 'terminal_split', 'name': '航站楼(T2/T3)执行分流', 'note': '含国内与国际/地区分项', 'type': 'report', 'level': 1, 'count': len(terminal_rows), 'rows': terminal_rows},
         ],

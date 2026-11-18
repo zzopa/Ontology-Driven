@@ -11,8 +11,11 @@
 .fullProcess .milestone dl{gap:5px}.fullProcess .milestone dt{font-size:12px}.fullProcess .milestone dd{font:550 13px/1.6 var(--font-sans);font-variant-numeric:tabular-nums}.fullProcess .milestone dd[data-missing=true]{font-size:12px;font-weight:400;color:var(--muted)}
 .fullProcess .milestone p{font-size:11px;line-height:1.7;margin-top:10px}.fullProcess .recordNote{padding:12px 18px;font-size:12px}
 @media(max-width:540px){.fullProcess .milestones{grid-template-columns:repeat(2,minmax(0,1fr));padding:0 10px;gap:8px}.fullProcess .milestone{padding:10px}.fullProcess .milestone h5{font-size:14px}.fullProcess .milestone dl>div{flex-wrap:wrap;gap:2px 6px}.fullProcess .milestone dd{font-size:12px}.fullProcess .nodeHeading{flex-wrap:wrap;gap:5px}.fullProcess .milestoneHeading{padding:14px 12px 10px}.fullProcess .nodeLegend{padding-inline:12px;font-size:11px}}
-.answerStatus{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:0 0 19px;font-size:12px;color:var(--muted)}
-.answerStatus>span{display:flex;align-items:center;gap:6px}.answerStatus>span:first-child{color:var(--good)}.answerStatus i{width:3px;height:3px;border-radius:50%;background:var(--subtle);margin:0 3px}
+.resultHeader{flex-wrap:wrap;align-items:flex-start}
+.resultHeader>div:first-child{flex:1 1 300px;min-width:0;overflow-wrap:anywhere}
+.resultHeader h2.resultQuestion{font-size:clamp(16px,1.45vw,20px);line-height:1.5;font-weight:650;color:var(--text);text-wrap:pretty}
+.resultHeader :global(.result-top-actions){flex-wrap:wrap;align-items:center;justify-content:flex-start}
+.resultAnswer>:global(.data-toolbar){margin-top:14px}
 .answerLayout{display:grid;gap:22px;min-width:0}.flightLayout{grid-template-columns:minmax(0,1.6fr) minmax(290px,1fr);align-items:start}.visualPrimary{min-width:0}.visualPrimary>:global(.visual-section){margin:0;padding:22px;border-radius:12px;background:var(--quiet)}
 .conclusionPanel{min-width:0;padding:23px 25px;border:1px solid var(--line);border-radius:12px;background:var(--panel);box-shadow:inset 0 1px 0 color-mix(in srgb,var(--text) 6%,transparent)}.conclusionTitle{display:flex;align-items:center;gap:8px;padding-bottom:19px;border-bottom:1px solid var(--line);font-size:13px}.conclusionTitle>svg{color:var(--info)}.conclusionTitle>strong{font-weight:600}.conclusionTitle>button{display:flex;align-items:center;gap:5px;margin-left:auto;background:transparent;border:0;color:var(--muted);font-size:12px;padding:4px}
 .answerSection{padding-top:23px}.answerSection+.answerSection{margin-top:22px;border-top:1px solid var(--line)}.answerSection h3,.sectionKicker{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);font-weight:500;letter-spacing:.02em}.answerSection h3>span{font-size:12px;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-weight:400}
@@ -46,7 +49,7 @@
 @container(max-width:1080px){.turnaroundLayout{grid-template-columns:1fr}.inspectionRail{display:grid;grid-template-columns:minmax(230px,1fr) minmax(0,1.5fr);gap:16px}.objectContext{margin:0;align-self:start}}
 @container(max-width:620px){.inspectionRail{display:block}.objectContext{margin-bottom:16px}.objectContext,.answerRailCard{padding:18px}}
 @container(max-width:900px){.flightLayout{grid-template-columns:1fr}.conclusionPanel{padding:23px}.flightRoute{margin-left:auto}.milestones{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
-@container(max-width:540px){.answerStatus{font-size:12px;align-items:flex-start}.answerStatus>span:last-child{font-size:12px}.answerLayout{gap:17px}.conclusionPanel{padding:20px 17px}.answerText{font-size:13px}.answerSection[data-kind=query_facts] .answerText{font-size:16px}.flightIdentity{padding:20px 17px;gap:17px}.flightNumber{gap:10px}.planeMark{width:39px;height:39px;border-radius:10px}.flightNumber h3{font-size:25px}.flightRoute{margin-left:0;gap:8px}.flightRoute>strong{font-size:15px}.flightRoute>time{text-align:left;font-size:12px}.flightDetails{grid-template-columns:repeat(2,minmax(0,1fr));padding:16px 18px;gap:16px}.milestoneHeading{padding:20px 17px 12px;align-items:flex-start;gap:12px}.milestoneHeading h4{font-size:13px}.milestoneHeading>span{font-size:12px;max-width:130px;line-height:1.8}.nodeLegend{padding:0 17px 15px;gap:8px;font-size:8px}.milestones{grid-template-columns:repeat(2,minmax(0,1fr));padding:0 12px;gap:7px}.milestone{padding:10px 9px}.nodeHeading{gap:4px}.nodeState{font-size:12px;gap:3px}.nodeIndex{font-size:8px}.milestone h5{font-size:12px}.milestone dd{font-size:12px}.milestone dt{font-size:12px}.milestone p{font-size:8px}.recordNote{padding:14px 17px;font-size:12px}.answerActions{gap:7px}.answerActions>button{font-size:12px;gap:6px;padding:10px}.visualPrimary>:global(.visual-section){padding:17px}.flightNumber p{font-size:12px;line-height:1.8}}
+@container(max-width:540px){.answerLayout{gap:17px}.conclusionPanel{padding:20px 17px}.answerText{font-size:13px}.answerSection[data-kind=query_facts] .answerText{font-size:16px}.flightIdentity{padding:20px 17px;gap:17px}.flightNumber{gap:10px}.planeMark{width:39px;height:39px;border-radius:10px}.flightNumber h3{font-size:25px}.flightRoute{margin-left:0;gap:8px}.flightRoute>strong{font-size:15px}.flightRoute>time{text-align:left;font-size:12px}.flightDetails{grid-template-columns:repeat(2,minmax(0,1fr));padding:16px 18px;gap:16px}.milestoneHeading{padding:20px 17px 12px;align-items:flex-start;gap:12px}.milestoneHeading h4{font-size:13px}.milestoneHeading>span{font-size:12px;max-width:130px;line-height:1.8}.nodeLegend{padding:0 17px 15px;gap:8px;font-size:8px}.milestones{grid-template-columns:repeat(2,minmax(0,1fr));padding:0 12px;gap:7px}.milestone{padding:10px 9px}.nodeHeading{gap:4px}.nodeState{font-size:12px;gap:3px}.nodeIndex{font-size:8px}.milestone h5{font-size:12px}.milestone dd{font-size:12px}.milestone dt{font-size:12px}.milestone p{font-size:8px}.recordNote{padding:14px 17px;font-size:12px}.answerActions{gap:7px}.answerActions>button{font-size:12px;gap:6px;padding:10px}.visualPrimary>:global(.visual-section){padding:17px}.flightNumber p{font-size:12px;line-height:1.8}}
 .processPane :global(.execution-process.is-inline){margin:0;border:0;background:none;box-shadow:none;border-radius:0}
 .focusedCard:global(.result-card){border:0;background:transparent;box-shadow:none;overflow:visible}
 .focusedCard :global(.result-content){padding:0}
@@ -71,3 +74,45 @@
 .graphTable>div{flex:1;min-width:0}
 .graphTable strong{display:block;font-size:14px}
 .graphTable code{display:block;margin-top:4px;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+
+.analysisEvidenceDrawer {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 35%, var(--panel));
+  overflow: hidden;
+}
+
+.analysisEvidenceDrawer > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.analysisEvidenceDrawer > summary::-webkit-details-marker { display: none; }
+.analysisEvidenceDrawer[open] > summary svg { transform: rotate(90deg); }
+
+.analysisEvidenceDrawer > summary:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 60%, var(--panel));
+}
+
+.analysisEvidenceDrawer[open] > summary {
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+}
+
+.drawerBody {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}

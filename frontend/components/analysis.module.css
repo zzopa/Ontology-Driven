@@ -1,0 +1,285 @@
+.summary {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.highlights {
+  padding: clamp(12px, 2cqi, 22px);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 4%, var(--paper, var(--panel)));
+}
+
+.period {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.period svg { flex: none; }
+
+.coverageNote { display: flex; align-items: flex-start; gap: 6px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.coverageNote svg { flex: none; margin-top: 2px; }
+
+.benchmarkGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 8px;
+}
+.benchmarkCompact .benchmarkGrid { grid-template-columns: minmax(0, 1fr); }
+.airportCard { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper, var(--panel)); }
+.airportCard h3 { margin: 0; font-size: 14px; font-weight: 650; }
+.airportCard h3 small { font-size: 12px; font-weight: 500; color: var(--muted); }
+.airportMetrics { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 8px 0 0; }
+.airportMetrics dt { font-size: 12px; color: var(--muted); }
+.airportMetrics dd { margin: 0; font-size: 12px; }
+.airportMetrics strong { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.airportMetrics dd.airportCoverage { color: var(--warning); }
+.airportSource { margin: 8px 0 0; font-size: 12px; line-height: 1.6; color: var(--muted); overflow-wrap: anywhere; }
+
+.comparisonTitle { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 14px; font-weight: 650; }
+.comparisonTitle svg { flex: none; color: var(--accent); }
+.comparison .metrics { grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); }
+.comparison .coverageNote { margin-top: 8px; }
+.comparisonCompact { padding: 0; border: 0; background: transparent; }
+.comparisonCompact .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.comparisonCompact .metric { padding: 8px 10px; }
+.comparisonCompact .metric dt { font-size: 13px; }
+.comparisonCompact .metric dd strong { font-size: 19px; }
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.metric {
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--paper, var(--panel));
+}
+
+.metric dt { font-size: 14px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+.metric dt small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; font-weight: 450; }
+.metric dt .metricNote { color: var(--warning); }
+.metric dd { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+.metric dd strong { color: var(--text); font-size: clamp(26px, 4cqi, 38px); line-height: 1.15; font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+.chatHighlights .metrics { grid-template-columns: minmax(0, 1fr); gap: 0; border: 1px solid var(--line); border-radius: 8px; }
+.chatHighlights .metric { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 9px 10px; border: 0; background: transparent; }
+.chatHighlights .metric + .metric { border-top: 1px solid var(--line); border-radius: 0; }
+.chatHighlights .metric dt { font-size: 13px; }
+.chatHighlights .metric dd { margin: 0; }
+.chatHighlights .metric dd strong { font-size: 19px; }
+.chatHighlights .period:last-child { margin: 7px 0 0; }
+
+.charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 16px;
+}
+
+.charts > * {
+  min-width: 0;
+}
+
+.tableCard {
+  border: 1px solid color-mix(in srgb, var(--accent) 15%, var(--line));
+  border-radius: 14px;
+  background: var(--paper, var(--panel));
+  overflow: hidden;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+}
+
+.tableHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 65%, var(--panel));
+}
+
+summary.tableHeader { cursor: pointer; min-height: 44px; border-bottom: 0; list-style: none; }
+summary.tableHeader::-webkit-details-marker { display: none; }
+.tableCard[open] > .tableHeader { border-bottom: 1px solid var(--line); }
+.disclosureIcon { flex: none; color: var(--muted); }
+.tableCard[open] .disclosureIcon { transform: rotate(90deg); }
+
+.tableTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tableIconMark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+  color: var(--accent);
+}
+
+.tableTitle {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.table table {
+  width: 100%;
+  min-width: 540px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table thead th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 10px 18px;
+  background: color-mix(in srgb, var(--surface) 35%, var(--panel));
+  border-bottom: 1px solid var(--line);
+  letter-spacing: 0.02em;
+}
+
+.table tbody tr {
+  transition: background-color 0.15s ease;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.table tbody tr:last-child {
+  border-bottom: 0;
+}
+
+.forecastTable .table table { min-width: 0; font-variant-numeric: tabular-nums; }
+.forecastTable .table th, .forecastTable .table td { padding: 8px 7px; font-size: 12px; }
+.forecastTable .table td small { display: block; margin-top: 3px; color: var(--muted); }
+.forecastMeta, .forecastNotes { font-size: 12px; line-height: 1.55; color: var(--muted); }
+.forecastMeta { margin: 4px 0 0; }
+.forecastNotes { padding: 10px 12px; border-top: 1px solid var(--line); }
+.forecastNotes p { margin: 0; }
+.forecastNotes p + p { margin-top: 4px; }
+
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+}
+
+.table th,
+.table td {
+  text-align: left;
+  vertical-align: middle;
+  padding: 12px 18px;
+  overflow-wrap: anywhere;
+}
+
+.table th[scope="row"] {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 13.5px;
+}
+
+.itemLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.valueCell {
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.valueCell strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.valueCell small {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.sourceCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.subItemAnswer {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.plot {
+  width: 100%;
+  min-height: 180px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.plot text {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.part {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin: 12px 0;
+}
+
+.part > summary {
+  padding: 14px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.part > div {
+  padding: 0 14px 14px;
+}
+
+.chartBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.basisCell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text);
+  max-width: 460px;
+}
+
+.formulaDescText {
+  color: var(--muted);
+}

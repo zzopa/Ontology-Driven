@@ -1,5 +1,6 @@
 """FastAPI HTTP 层；业务逻辑位于 app.core。"""
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 from ipaddress import ip_address, ip_network
 from queue import Queue
 from threading import Thread
@@ -15,6 +16,7 @@ from app import core, llm
 from app.admin import service as admin_service
 from app.admin.api import router as admin_router
 from app.ops.api import router as ops_router
+from app.report_api import router as report_router
 from app.admin.auth import identity, require_role, same_origin
 from app.config import settings
 from app.execution import ExecutionTrace
@@ -35,18 +37,31 @@ def allowed_client(host):
 
 @asynccontextmanager
 async def lifespan(_app):
-    store = admin_service.get_store()
-    llm.set_provider(store.model)
-    stats = await run_in_threadpool(core.initialize)
-    logger.info('知识图谱服务就绪：数据库=%s，业务对象=%s，启动耗时=%ss',
-                stats['database'], stats['queryable_entities'], stats['startup_seconds'])
-    yield
+    async def reap_connections():
+        while True:
+            await asyncio.sleep(60)
+            await run_in_threadpool(core.close_idle_db_connections)
+
+    reaper = asyncio.create_task(reap_connections())
+    try:
+        store = admin_service.get_store()
+        llm.set_provider(store.model)
+        stats = await run_in_threadpool(core.initialize)
+        logger.info('知识图谱服务就绪：数据库=%s，业务对象=%s，启动耗时=%ss',
+                    stats['database'], stats['queryable_entities'], stats['startup_seconds'])
+        yield
+    finally:
+        reaper.cancel()
+        with suppress(asyncio.CancelledError):
+            await reaper
+        await run_in_threadpool(core.close_idle_db_connections, all_connections=True)
 
 
 app = FastAPI(title='知航 · ACDM 智能问询', lifespan=lifespan,
               docs_url=None, redoc_url=None)
 app.include_router(admin_router)
 app.include_router(ops_router)
+app.include_router(report_router)
 
 # Next.js static export; business APIs stay same-origin on the existing FastAPI port.
 app.mount('/_next', StaticFiles(directory=settings.page_path.parent / '_next', check_dir=False), name='next-assets')
@@ -124,12 +139,12 @@ def prepare_question(request, data):
     if not isinstance(question, str) or not question.strip() or len(question) > 4000:
         raise HTTPException(400, '问题需要 1–4000 个字符')
     conversation_id = data.get('conversation_id')
-    if conversation_id is not None and (not isinstance(conversation_id, str) or len(conversation_id) != 32):
+    if conversation_id is not None and (not isinstance(conversation_id, str) or not (1 <= len(conversation_id) <= 64)):
         raise HTTPException(400, '会话标识无效')
     clarification_of, choice_id = data.get('clarification_of'), data.get('choice_id')
-    if clarification_of is not None and (not isinstance(clarification_of,str) or len(clarification_of) != 32 or not conversation_id):
+    if clarification_of is not None and (not isinstance(clarification_of, str) or not (1 <= len(clarification_of) <= 64) or not conversation_id):
         raise HTTPException(400, '澄清消息标识无效')
-    if choice_id is not None and (not isinstance(choice_id,str) or not 1 <= len(choice_id) <= 40 or not clarification_of):
+    if choice_id is not None and (not isinstance(choice_id, str) or not 1 <= len(choice_id) <= 40 or not clarification_of):
         raise HTTPException(400, '澄清选项无效')
     value = business_access.query_identity(request)
     store = admin_service.get_store()
@@ -149,21 +164,25 @@ def prepare_question(request, data):
 def run_question(prepared, on_event=None):
     store = admin_service.get_store()
     trace = ExecutionTrace(on_event)
-    trace.start('connect', '连接业务数据库', '建立只读数据库连接，设置查询超时')
+    trace.start('connect', '获取业务数据库连接', '获取只读数据库连接，设置查询超时')
     try:
         with llm.model_context(prepared['model']):
-            conn = core.connect_db()
+            conn = core.connect_db(repeatable_read=settings.data_source == 'ops_ask')
             trace.finish('connect', '只读数据库连接已就绪', ['业务数据库：' + settings.db['database']])
             try:
                 if settings.data_source in ('acdm', 'ops_ask'):
                     auth_conn = core.connect_db(identity=True)
                     try:
                         account = business_access.load_access(auth_conn, prepared['business_user_id'])
-                        if 'admin' not in account.roles:
+                        rev = getattr(account, 'revision', '')
+                        if rev.startswith('sys_user_'):
+                            if not getattr(account, 'roles', ()):
+                                raise HTTPException(403, '当前账号未分配任何角色')
+                        elif 'admin' not in getattr(account, 'roles', ()):
                             raise HTTPException(403, '运营数据源仅允许原系统管理员访问')
                     finally:
                         auth_conn.close()
-                    access = None
+                    access = account
                 else:
                     access = business_access.load_access(conn, prepared['business_user_id']) if prepared.get('business_user_id') else None
                 previous_plan = store.latest_completed_plan(prepared.get('conversation_id'), prepared.get('owner'))
@@ -180,13 +199,23 @@ def run_question(prepared, on_event=None):
                 if prepared.get('clarification'):
                     options.update(clarification=prepared['clarification'],choice_id=prepared.get('choice_id'))
                 result = core.do_ask(conn, prepared['question'], on_event=on_event, trace=trace, **options)
-                if access and business_access.load_access(conn,access.user_id).revision != access.revision:
-                    raise ValueError('业务权限已变化，请重新提问')
+                if access:
+                    chk_conn = core.connect_db(identity=True) if settings.data_source in ('acdm', 'ops_ask') else conn
+                    try:
+                        if business_access.load_access(chk_conn, access.user_id).revision != access.revision:
+                            raise ValueError('业务权限已变化，请重新提问')
+                    finally:
+                        if chk_conn is not conn:
+                            chk_conn.close()
             finally:
                 conn.close()
         result.update({'conversation_id': prepared['conversation_id'], 'message_id': prepared['message_id'],
-                       'execution_trace': trace.snapshot()})
+                       'execution_trace': trace.snapshot(), 'data_source': settings.data_source})
         result = core.json_safe(result)
+        if settings.data_source == 'ops_ask' and result.get('intent') == 'acdm_report' and result.get('outcome', 'answered') == 'answered':
+            from app.reporting import enqueue_snapshot
+            rid = enqueue_snapshot(store, prepared['owner'], prepared['business_user_id'], result, prepared['message_id'])
+            result['report_id'] = rid
         store.complete_question(prepared['message_id'], result, token_ttl=settings.drill_ttl_seconds)
         return result
     except Exception as exc:
@@ -203,7 +232,7 @@ def stream_question(prepared):
     def work():
         try:
             events.put({'type': 'progress', 'stage': 'connect',
-                        'message': '正在连接业务数据库，准备查询…', 'percent': 5,
+                        'message': '正在准备数据库查询…', 'percent': 5,
                         'conversation_id': prepared['conversation_id']})
             result = run_question(prepared, events.put)
             events.put({'type': 'result', 'data': result})

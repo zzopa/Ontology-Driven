@@ -86,9 +86,10 @@ class OpsGovernanceUnitTests(unittest.TestCase):
         # 1. Synonym + direction -> arr_delay_count
         arr_plan = self.planner.rules('昨天进港晚点多少架次？')
         self.assertEqual(arr_plan['metric'], 'arr_delay_count')
-        self.assertIn({'table': 'std_flight_core', 'col': 'direction', 'op': '=', 'value': 'ARR'}, arr_plan['conditions'])
+        self.assertIn({'table': 'mv_acdm_dyn_flight_detail', 'col': 'direction', 'op': '=', 'value': 'ARR'}, arr_plan['conditions'])
         arr_stmt = self.compiler.aggregate(arr_plan)
-        self.assertIn('std_flight_indicator', arr_stmt.sql)
+        self.assertIn('arr_delay_time', arr_stmt.sql)
+        self.assertIn('real_exec_day', arr_stmt.sql)
 
         # 2. Home airport disambiguation + originCity EXISTS + indicator EXISTS in detail mode
         list_plan = self.planner.rules('昨天从上海来武汉天河的进港延误航班有哪些？')
@@ -105,9 +106,9 @@ class OpsGovernanceUnitTests(unittest.TestCase):
         self.assertIn('EXISTS (SELECT 1 FROM "public"."std_flight_indicator"', list_stmt.sql)
         self.assertIn('%上海%', list_stmt.params)
 
-        # 3. Airline dimension ranking anchors on std_flight_core instead of dim_airline
+        # 3. Airline ranking uses the canonical FIMS-scoped flight population.
         rank_plan = self.planner.rules('今天各个航司出港航班排名')
-        self.assertEqual(rank_plan['subject'], 'std_flight_core')
+        self.assertEqual(rank_plan['subject'], 'mv_acdm_dyn_flight_detail')
         self.assertEqual(rank_plan['intent'], 'metric')
         self.assertEqual(rank_plan['metric'], 'flight_count')
         self.assertEqual(rank_plan['group_by'], ['airline'])

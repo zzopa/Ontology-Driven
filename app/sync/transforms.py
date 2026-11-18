@@ -249,7 +249,7 @@ def map_flight_draft(row, source_system, acdm_profile, *, airport_code='WUH',
                      dep_values=DEFAULT_DEP_VALUES, arr_values=DEFAULT_ARR_VALUES):
     """Map an Oracle FIMS/ACDM TB_DYN_FLIGHT row dict into a standard flight draft dict."""
     direction = map_direction(row.get('IS_OFF_IN'), dep_values, arr_values)
-    if direction is None:
+    if direction is None or row.get('FLIGHT_ID') is None:
         return None
 
     airline_raw = row.get('AIRLINE_TWO_CHAR_CD')
@@ -265,7 +265,8 @@ def map_flight_draft(row, source_system, acdm_profile, *, airport_code='WUH',
 
     airline = upper(airline_raw)
     airport = upper(airport_code) or 'WUH'
-    biz_key = f'{airport}:{flight_date.isoformat()}:{direction}:{flight_no}'
+    # FIMS and ACDM share FLIGHT_ID; a flight number can operate twice on one day.
+    biz_key = f'{airport}:ORACLE:{row["FLIGHT_ID"]}'
 
     if acdm_profile:
         sched_dep = to_shanghai_dt(row.get('SCHEME_TAKEOFF_TIME'))
@@ -512,11 +513,11 @@ def map_flight_draft(row, source_system, acdm_profile, *, airport_code='WUH',
 
 def map_production_draft(row, *, airport_code='WUH', source_system='FORMFILL_ORACLE',
                          dep_values=DEFAULT_DEP_VALUES, arr_values=DEFAULT_ARR_VALUES):
-    """Map an Oracle FORMFILL.SUM_FLIGHT_PRODUCTION_ANALYSIS row dict."""
+    """Map an Oracle FORMFILL.FLIGHT_PRODUCTION_ANALYSIS row dict."""
     direction = map_direction(row.get('IS_OFF_IN'), dep_values, arr_values, production=True)
     exec_date = to_local_date(row.get('EXEC_DATE'))
     raw_fno = trim(row.get('FLIGHT_NO'))
-    if direction is None or exec_date is None or not raw_fno:
+    if direction is None or exec_date is None or not raw_fno or not trim(row.get('UUID')):
         return None
 
     airport = (first_non_blank(row.get('AIRPORT_IATA'), airport_code) or 'WUH').upper()
@@ -525,7 +526,7 @@ def map_production_draft(row, *, airport_code='WUH', source_system='FORMFILL_ORA
     leg = trim(row.get('LEG'))
     leg_seq = resolve_leg_seq(leg, airport, direction)
     leg_key = leg.replace(' ', '_') if leg else str(leg_seq)
-    biz_key = f'{airport}:{exec_date.isoformat()}:{direction}:{flight_no}:L{leg_key}'
+    biz_key = f'{airport}:FORMFILL_FPA:{trim(row["UUID"])}'
 
     parts = split_leg(leg)
     if parts:

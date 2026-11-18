@@ -77,7 +77,7 @@ def probe_oracle_source(cfg):
                 'fims_flights': f'SELECT COUNT(*), MIN(EXEC_DATE), MAX(EXEC_DATE) FROM {fims_schema}.{fims_table}',
                 'acdm_flights': f'SELECT COUNT(*), MIN(EXEC_DATE), MAX(EXEC_DATE) FROM {acdm_schema}.{acdm_table}',
                 'codeshares': f'SELECT COUNT(*), NULL, NULL FROM {fims_schema}.{share_table}',
-                'production': f'SELECT COUNT(*), MIN(EXEC_DATE), MAX(EXEC_DATE) FROM FORMFILL.SUM_FLIGHT_PRODUCTION_ANALYSIS WHERE AIRPORT_IATA = :airport',
+                'production': f'SELECT COUNT(*), MIN(EXEC_DATE), MAX(EXEC_DATE) FROM FORMFILL.FLIGHT_PRODUCTION_ANALYSIS WHERE AIRPORT_IATA = :airport',
                 'calc_total': f'SELECT COUNT(*), MIN(EXEC_DATE), MAX(EXEC_DATE) FROM {fims_schema}.TBH_FIMS_DYN_CALC_TOTAL',
                 'air_bridges': f'SELECT COUNT(*), MIN(CREATE_TIME), MAX(CREATE_TIME) FROM {fims_schema}.TB_DYN_AIR_BRIDGE',
                 'safeguard_nodes': f'SELECT COUNT(*), MIN(CREATE_TIME), MAX(CREATE_TIME) FROM {fims_schema}.TB_DYN_SAFEGUARD_NODE',
@@ -129,7 +129,7 @@ def _to_oracle_naive_ts(dt):
 
 def iter_flight_batches(conn, cfg, source_type, *, mode='BY_EXEC_DATE',
                         exec_date_from=None, exec_date_to=None, updated_since=None,
-                        fetch_size=1000, batch_size=500, cancel_event=None):
+                        fetch_size=1000, batch_size=500, cancel_event=None, source_flight_ids=None):
     """Stream FIMS or ACDM TB_DYN_FLIGHT rows in batches."""
     acdm = 'acdm' in str(source_type).lower()
     if acdm:
@@ -199,6 +199,15 @@ def iter_flight_batches(conn, cfg, source_type, *, mode='BY_EXEC_DATE',
     elif updated_since is not None:
         sql += ' AND UPDATE_TIME >= :updatedSince'
         binds['updatedSince'] = _to_oracle_naive_ts(updated_since)
+    if source_flight_ids is not None:
+        ids = list(dict.fromkeys(int(str(value)) for value in source_flight_ids))
+        if not ids:
+            return iter(())
+        if len(ids) > 1000 or any(value <= 0 for value in ids):
+            raise ValueError('按源航班ID读取限1至1000个正整数')
+        names = [f'flightId{i}' for i in range(len(ids))]
+        sql += ' AND FLIGHT_ID IN (' + ','.join(':' + name for name in names) + ')'
+        binds.update(zip(names, ids))
     sql += ' ORDER BY UPDATE_TIME NULLS LAST, FLIGHT_ID'
 
     return _iter_oracle_dicts(conn, sql, binds, fetch_size=fetch_size, batch_size=batch_size, cancel_event=cancel_event)
@@ -265,7 +274,7 @@ def fetch_share_by_source_flight_ids(conn, cfg, source_flight_ids, *, chunk_size
 def iter_production_batches(conn, cfg, *, mode='BY_EXEC_DATE',
                             exec_date_from=None, exec_date_to=None, updated_since=None,
                             fetch_size=1000, batch_size=500, cancel_event=None):
-    """Stream FORMFILL.SUM_FLIGHT_PRODUCTION_ANALYSIS rows for the configured airport."""
+    """Stream FORMFILL.FLIGHT_PRODUCTION_ANALYSIS rows for the configured airport."""
     airport = str(cfg.get('airport_code') or 'WUH').strip().upper()
     sql = """
         SELECT UUID, EXEC_DATE, AIRLINE_TWO_CHAR_CD, AIRPORT_IATA, AREA_CODE, FLIGHT_NO,
@@ -275,7 +284,7 @@ def iter_production_batches(conn, cfg, *, mode='BY_EXEC_DATE',
                ADULT_COUNT, CHILDREN_COUNT, BABY_COUNT,
                OVER_STATION_ADULT_COUNT, OVER_STATION_CHILDREN_COUNT, OVER_STATION_BABY_COUNT,
                LUGGAGE, MAIL, GOODS, CRAFT_NO, CUSTOM_AIR_LINE_TYPE, CREATE_TIME, UPDATE_TIME
-        FROM FORMFILL.SUM_FLIGHT_PRODUCTION_ANALYSIS
+        FROM FORMFILL.FLIGHT_PRODUCTION_ANALYSIS
         WHERE AIRPORT_IATA = :airport
     """
     binds = {'airport': airport}

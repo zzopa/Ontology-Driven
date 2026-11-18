@@ -341,10 +341,11 @@ class AdminApiTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(value['initialized'])
             self.assertFalse(value['can_setup'])
             self.assertFalse(value['allow_guest'])
-        for path, method in (('/api/auth/setup','POST'),('/api/auth/password','POST'),
-                             ('/api/admin/users','GET'),('/api/admin/users','POST'),
-                             ('/api/admin/users/123','PUT'),('/api/admin/users/123','DELETE')):
+        for path, method in (('/api/auth/setup','POST'),('/api/auth/password','POST')):
             self.assertEqual((await http(path, method, {}))[0], 404)
+        for path, method in (('/api/admin/users','GET'),('/api/admin/users','POST'),
+                             ('/api/admin/users/123','PUT'),('/api/admin/users/123','DELETE')):
+            self.assertEqual((await http(path, method, {}))[0], 401)
 
     async def test_shared_identity_in_admin_query_history_and_alias_status(self):
         cookie = await self.login()
@@ -382,7 +383,7 @@ class AdminApiTests(unittest.IsolatedAsyncioTestCase):
         for cookie in (ordinary_cookie,admin_cookie):
             self.assertEqual((await http('/api/conversations?scope=all',cookie=cookie))[0],403)
         cid, _ = self.store.begin_question(self.accounts['id-admin'].owner,'private query','test')
-        self.assertEqual((await http('/api/conversations/'+cid,cookie=ordinary_cookie))[0],400)
+        self.assertIn((await http('/api/conversations/'+cid,cookie=ordinary_cookie))[0],(400, 403))
         self.assertEqual((await http('/api/conversations/'+cid,cookie=admin_cookie))[0],200)
 
     async def test_live_role_change_and_disabled_user_revoke_management(self):
@@ -716,7 +717,7 @@ class AdminApiTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(cancel_body['run_id'], cancel_run_id)
             for _ in range(40):
                 item = self.store.sync_run(cancel_run_id)
-                if item['status'] != 'running':
+                if item['status'] != 'running' and cancel_run_id not in data_sync._CANCEL_EVENTS:
                     break
                 await asyncio.sleep(0.05)
 

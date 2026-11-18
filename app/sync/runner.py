@@ -186,7 +186,7 @@ def run_flight_sync(pg_conn, oracle_conn, oracle_cfg, sync_cfg, source_type, *,
         for row in raw_rows:
             draft = map_flight_draft(row, source_system, acdm, airport_code=airport, dep_values=dep_vals, arr_values=arr_vals)
             if draft is None:
-                continue
+                raise ValueError('航班源记录缺少身份、日期或方向，水位未推进')
             drafts.append(draft)
             src_upd = draft['source_updated_at']
             if src_upd and (max_source_updated is None or src_upd > max_source_updated):
@@ -195,11 +195,20 @@ def run_flight_sync(pg_conn, oracle_conn, oracle_cfg, sync_cfg, source_type, *,
                 fims_source_ids.append(draft['primary_source_id'])
 
         fetched += len(drafts)
-        counts = pg_sink.upsert_flight_batch(
-            pg_conn, drafts, gate_terminals=gate_terminals, stand_terminals=stand_terminals,
-        )
-        if sync_raw_acdm and raw_rows:
-            pg_sink.upsert_acdm_raw_batch(pg_conn, raw_rows)
+        atomic = pg_sink.AtomicConnection(pg_conn)
+        try:
+            counts = pg_sink.upsert_flight_batch(
+                atomic, drafts, gate_terminals=gate_terminals, stand_terminals=stand_terminals,
+            )
+            if counts['failed'] or counts['skipped']:
+                raise ValueError('航班批次未完整写入，已回滚该批次，水位未推进')
+            if sync_raw_acdm and raw_rows:
+                if pg_sink.upsert_acdm_raw_batch(atomic, raw_rows) != len({r['FLIGHT_ID'] for r in raw_rows}):
+                    raise ValueError('ACDM原始记录未完整写入，已回滚该批次')
+            pg_conn.commit()
+        except Exception:
+            pg_conn.rollback()
+            raise
         inserted += counts['inserted']
         updated += counts['updated']
         skipped += counts['skipped']
@@ -357,61 +366,75 @@ def run_production_sync(pg_conn, oracle_conn, oracle_cfg, sync_cfg, *,
     batch_size = int(sync_cfg.get('batch_size', 500))
     fetched = inserted = updated = failed = 0
     max_source_updated = None
+    source_ids = set()
+    atomic = pg_sink.AtomicConnection(pg_conn)
 
-    for raw_rows in oracle_source.iter_production_batches(
-        oracle_conn, oracle_cfg, mode=mode,
-        exec_date_from=exec_date_from, exec_date_to=exec_date_to,
-        updated_since=effective_since, fetch_size=fetch_size,
-        batch_size=batch_size, cancel_event=cancel_event,
-    ):
-        drafts = []
-        for row in raw_rows:
-            draft = map_production_draft(
-                row, airport_code=airport, source_system=source_system,
-                dep_values=dep_vals, arr_values=arr_vals,
-            )
-            if draft is None:
-                continue
-            drafts.append(draft)
-            src_upd = draft['source_updated_at']
-            if src_upd and (max_source_updated is None or src_upd > max_source_updated):
-                max_source_updated = src_upd
+    try:
+        for raw_rows in oracle_source.iter_production_batches(
+            oracle_conn, oracle_cfg, mode=mode,
+            exec_date_from=exec_date_from, exec_date_to=exec_date_to,
+            updated_since=effective_since, fetch_size=fetch_size,
+            batch_size=batch_size, cancel_event=cancel_event,
+        ):
+            drafts = []
+            for row in raw_rows:
+                draft = map_production_draft(
+                    row, airport_code=airport, source_system=source_system,
+                    dep_values=dep_vals, arr_values=arr_vals,
+                )
+                if draft is None:
+                    raise ValueError('生产源记录缺少身份、日期或方向，已取消发布该批次')
+                drafts.append(draft)
+                source_ids.add(draft['primary_source_id'])
+                src_upd = draft['source_updated_at']
+                if src_upd and (max_source_updated is None or src_upd > max_source_updated):
+                    max_source_updated = src_upd
 
-        fetched += len(drafts)
-        counts = pg_sink.upsert_production_batch(pg_conn, drafts)
-        inserted += counts['inserted']
-        updated += counts['updated']
-        failed += counts['failed']
-        if on_progress:
-            on_progress({
-                'fetched': fetched, 'inserted': inserted, 'updated': updated,
-                'skipped': 0, 'failed': failed,
-                'detail_msg': f'生产量已处理 {fetched:,} 条（新增 {inserted:,} / 更新 {updated:,}）',
-            })
+            fetched += len(drafts)
+            counts = pg_sink.upsert_production_batch(atomic, drafts)
+            inserted += counts['inserted']
+            updated += counts['updated']
+            failed += counts['failed']
+            if counts['failed']:
+                raise ValueError('生产记录写入失败，已回滚整轮源数据更新')
+            if on_progress:
+                on_progress({
+                    'fetched': fetched, 'inserted': inserted, 'updated': updated,
+                    'skipped': 0, 'failed': failed,
+                    'detail_msg': f'生产量已处理 {fetched:,} 条（新增 {inserted:,} / 更新 {updated:,}）',
+                })
 
-    wm_after = max_source_updated or wm_before
-    if mode == 'INCREMENTAL' and wm_after is not None:
-        wm_after = wm_after - timedelta(seconds=1)
+        archived = 0
+        if mode in ('BY_EXEC_DATE', 'FULL') and exec_date_from is not None and exec_date_to is not None:
+            archived = pg_sink.reconcile_production_scope(atomic, airport, source_system, exec_date_from, exec_date_to, source_ids)
 
-    elapsed_ms = int((monotonic() - started) * 1000)
-    wm_before_iso = wm_before.isoformat() if wm_before else None
-    wm_after_iso = wm_after.isoformat() if wm_after else None
-    result_obj = {
-        'mode': mode,
-        'fetched': fetched,
-        'inserted': inserted,
-        'updated': updated,
-        'skipped': 0,
-        'failed': failed,
-        'watermarkBefore': wm_before_iso,
-        'watermarkAfter': wm_after_iso,
-        'message': 'production ok',
-        'elapsedMs': elapsed_ms,
-    }
-    pg_sink.save_watermark(
-        pg_conn, 'flight_production_sync', wm_after if mode == 'INCREMENTAL' else wm_before, result_obj,
-    )
-    pg_sink.refresh_ops_views(pg_conn)
+        wm_after = max_source_updated or wm_before
+        if mode == 'INCREMENTAL' and wm_after is not None:
+            wm_after = wm_after - timedelta(seconds=1)
+
+        elapsed_ms = int((monotonic() - started) * 1000)
+        wm_before_iso = wm_before.isoformat() if wm_before else None
+        wm_after_iso = wm_after.isoformat() if wm_after else None
+        result_obj = {
+            'mode': mode,
+            'fetched': fetched,
+            'inserted': inserted,
+            'updated': updated,
+            'skipped': 0,
+            'failed': failed,
+            'watermarkBefore': wm_before_iso,
+            'watermarkAfter': wm_after_iso,
+            'message': f'production ok;source=FORMFILL.FLIGHT_PRODUCTION_ANALYSIS;archived={archived}',
+            'elapsedMs': elapsed_ms,
+        }
+        pg_sink.save_watermark(
+            atomic, 'flight_production_sync', wm_after if mode == 'INCREMENTAL' or wm_before is None else wm_before, result_obj,
+        )
+        pg_sink.refresh_ops_views(atomic)
+        pg_conn.commit()
+    except Exception:
+        pg_conn.rollback()
+        raise
     return {
         'mode': mode,
         'fetched': fetched,
@@ -422,7 +445,7 @@ def run_production_sync(pg_conn, oracle_conn, oracle_cfg, sync_cfg, *,
         'watermark_before': wm_before_iso or '',
         'watermark_after': wm_after_iso or '',
         'elapsed_ms': elapsed_ms,
-        'message': 'production ok',
+        'message': f'production ok;source=FORMFILL.FLIGHT_PRODUCTION_ANALYSIS;archived={archived}',
     }
 
 

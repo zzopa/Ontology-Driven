@@ -1,9 +1,15 @@
 .card {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--paper, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--accent) 15%, var(--line));
+  border-radius: 14px;
+  background: linear-gradient(175deg, color-mix(in srgb, var(--surface) 35%, var(--panel)), var(--panel));
   padding: 20px 22px;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 5%, transparent);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), inset 0 1px 0 color-mix(in srgb, var(--text) 5%, transparent);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.07), inset 0 1px 0 color-mix(in srgb, var(--text) 7%, transparent);
 }
 
 .header {
@@ -18,20 +24,45 @@
 .titleGroup {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   min-width: 0;
 }
 
 .iconMark {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--info) 25%, var(--line));
-  background: color-mix(in srgb, var(--info) 8%, var(--panel));
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--info) 28%, var(--line));
+  background: color-mix(in srgb, var(--info) 10%, var(--panel));
   color: var(--info);
   flex-shrink: 0;
+  transition: transform 0.18s ease;
+}
+
+.iconMarkBlue {
+  border-color: color-mix(in srgb, #3b82f6 30%, var(--line));
+  background: color-mix(in srgb, #3b82f6 12%, var(--panel));
+  color: #3b82f6;
+}
+
+.iconMarkGreen {
+  border-color: color-mix(in srgb, #10b981 30%, var(--line));
+  background: color-mix(in srgb, #10b981 12%, var(--panel));
+  color: #10b981;
+}
+
+.iconMarkPurple {
+  border-color: color-mix(in srgb, #8b5cf6 30%, var(--line));
+  background: color-mix(in srgb, #8b5cf6 12%, var(--panel));
+  color: #8b5cf6;
+}
+
+.iconMarkDefault {
+  border-color: color-mix(in srgb, var(--info) 25%, var(--line));
+  background: color-mix(in srgb, var(--info) 8%, var(--panel));
+  color: var(--info);
 }
 
 .title {
@@ -49,10 +80,15 @@
 }
 
 /* Hero Stats */
+.statsCard {
+  container-type: inline-size;
+  min-width: 0;
+}
+
 .statsWrap {
   display: grid;
-  grid-template-columns: minmax(220px, 1.35fr) minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 10px;
   align-items: stretch;
 }
 
@@ -64,11 +100,7 @@
   padding: 18px 20px;
   border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--accent) 8%, var(--panel)),
-    color-mix(in srgb, var(--surface) 45%, var(--panel))
-  );
+  background: color-mix(in srgb, var(--accent) 5%, var(--panel));
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -89,12 +121,13 @@
 }
 
 .heroValue {
-  font-size: 36px;
+  font-size: clamp(26px, 8cqi, 36px);
   line-height: 1.15;
   font-weight: 700;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
   color: var(--text);
+  overflow-wrap: anywhere;
 }
 
 .heroUnit {
@@ -125,7 +158,7 @@
 
 .subStatsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
   gap: 10px;
 }
 
@@ -147,6 +180,7 @@
 
 .subStatVal {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 5px;
   font-variant-numeric: tabular-nums;
@@ -156,6 +190,7 @@
   font-size: 22px;
   font-weight: 650;
   color: var(--text);
+  overflow-wrap: anywhere;
 }
 
 .subStatVal small {
@@ -295,12 +330,22 @@
 /* Ranked Bars */
 .barsWrap {
   display: grid;
-  gap: 11px;
+  gap: 12px;
 }
 
 .barRow {
   display: grid;
-  gap: 5px;
+  gap: 7px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface) 35%, transparent);
+  border: 1px solid transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.barRow:hover {
+  background: color-mix(in srgb, var(--surface) 65%, transparent);
+  border-color: color-mix(in srgb, var(--line) 70%, transparent);
 }
 
 .barHead {
@@ -308,7 +353,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .barLabelGroup {
@@ -321,14 +366,14 @@
 .rankPill {
   display: inline-grid;
   place-items: center;
-  min-width: 22px;
-  height: 18px;
-  padding: 0 5px;
+  min-width: 24px;
+  height: 20px;
+  padding: 0 6px;
   border-radius: 5px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 75%, var(--panel));
   color: var(--muted);
   border: 1px solid var(--line);
 }
@@ -340,7 +385,8 @@
 }
 
 .barName {
-  font-weight: 550;
+  font-size: 13.5px;
+  font-weight: 600;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -351,25 +397,43 @@
   font-variant-numeric: tabular-nums;
   color: var(--muted);
   white-space: nowrap;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
 }
 
 .barVal strong {
   color: var(--text);
-  font-weight: 650;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.barVal small {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.barPctTag {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-left: 2px;
 }
 
 .barTrack {
-  height: 8px;
+  height: 10px;
   border-radius: 999px;
-  background: var(--surface);
-  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--text) 6%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
   overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .barFill {
   height: 100%;
   border-radius: 999px;
-  transition: width 0.4s ease;
+  transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 /* Trend Plot */
@@ -387,11 +451,11 @@
 
 .trendPlotArea {
   position: relative;
-  height: 168px;
+  height: 172px;
   display: flex;
   align-items: flex-end;
   gap: 6px;
-  padding: 20px 6px 0;
+  padding: 24px 6px 0;
   border-bottom: 1px solid var(--line);
   overflow-x: auto;
 }
@@ -405,13 +469,13 @@
 }
 
 .trendCol {
+  position: relative;
   flex: 1 0 22px;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  gap: 5px;
   min-width: 0;
   background: transparent;
   border: 0;
@@ -419,13 +483,19 @@
 }
 
 .trendPillarVal {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  line-height: 1.2;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
   white-space: nowrap;
+  pointer-events: none;
 }
 
 .trendPillar {
+  flex-shrink: 0;
   width: min(22px, 78%);
   min-height: 4px;
   border-radius: 4px 4px 0 0;
@@ -904,10 +974,13 @@
   color: var(--muted);
 }
 
-@media (max-width: 720px) {
+@container (max-width: 420px) {
   .statsWrap {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
+}
+
+@media (max-width: 720px) {
   .donutWrap {
     justify-content: center;
   }

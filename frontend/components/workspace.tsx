@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Send,
   Settings2,
+  Sparkles,
   Trash2,
   Users,
 } from "lucide-react";
@@ -42,6 +43,7 @@ import { ConversationsPanel } from "./admin/conversations";
 import { AccountMenu, AuthForm } from "./admin/account";
 import { Badge, Button, Card, Modal, Notice, Shell, Spinner } from "./ui";
 import { ResultView } from "./result-view";
+import { ReportCenter } from "./report-center";
 import { ThemeSettings } from "./theme-settings";
 import { formatDate } from "@/lib/admin";
 import s from "./workspace.module.css";
@@ -68,6 +70,9 @@ const ACDM_QUICK_PROMPTS = [
   { label: "放行正常率", query: "昨天各航司放行正常率前5名", icon: Percent },
   { label: "保障节点", query: "近7天保障节点录入排行与登机桥周转", icon: GitBranch },
 ];
+
+import { BotMessageContent, RichText } from "./bot-message-content";
+import { AirportBenchmark, AnalysisComparisons, AnalysisHighlights, ForecastResults } from "./analysis-summary";
 
 function DataStatus({ status, error, refresh }: { status: Status | null; error: string; refresh: () => void }) {
   return (
@@ -118,6 +123,8 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
   const [auth, setAuth] = useState<Auth | null>(null), [loginOpen, setLoginOpen] = useState(false), [historyError, setHistoryError] = useState("");
   const [systemModal, setSystemModal] = useState(false);
   const [helpModal, setHelpModal] = useState(false);
+  const [reportCenter, setReportCenter] = useState(false), [unreadReports, setUnreadReports] = useState(0);
+  const closeReports = useCallback(() => setReportCenter(false), []);
 
   const abort = useRef<AbortController | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -146,6 +153,14 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
     refreshAuth();
     return () => { mounted.current = false; abort.current?.abort(); };
   }, [refresh, refreshHistory, refreshAuth]);
+
+  useEffect(() => {
+    if (!auth?.user?.can_manage || status?.data_source !== "ops_ask") return;
+    let active = true;
+    const load = () => request<{ unread: number }>("/api/notifications").then(r => { if (active) setUnreadReports(r.unread); }).catch(() => {});
+    load(); const timer = setInterval(load, 30000);
+    return () => { active = false; clearInterval(timer); };
+  }, [auth?.user?.can_manage, status?.data_source, reportCenter]);
 
   useEffect(() => {
     if (!activeTurnId) return;
@@ -295,7 +310,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
   const turnaround = inspectedTurn?.result?.visual_meta?.kind === "turnaround_gantt" ? inspectedTurn.result.visual_meta : null;
   const inspectedTitle = inspectedTurn?.result?.visual_meta?.kind === "turnaround_gantt"
     ? `${inspectedTurn.result.visual_meta.flight_pair} · 过站保障 · ${inspectedTurn.result.visual_meta.flight_date}`
-    : inspectedTurn?.result?.question || inspectedTurn?.displayQuestion || "查询结果";
+    : "查询结果";
 
   const closeSystem = useCallback(() => setSystemModal(false), []);
   const closeHelp = useCallback(() => setHelpModal(false), []);
@@ -371,6 +386,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
             {hasActivity && <Badge tone="green">{turns.length} 轮对话</Badge>}
           </div>
           <div className={s.actions}>
+            {auth?.user?.can_manage && status?.data_source === "ops_ask" && <Button onClick={() => setReportCenter(true)}><BookOpen size={18} aria-hidden="true" />报告中心{unreadReports > 0 && <Badge tone="green">{unreadReports}未读</Badge>}</Button>}
             <Button onClick={() => setSystemModal(true)}><BarChart3 size={18} aria-hidden="true" />运行状态</Button>
             <Button variant="primary" onClick={newQuery} disabled={busy}><MessageSquare size={18} aria-hidden="true" />新对话</Button>
           </div>
@@ -483,24 +499,15 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                         <div
                           className={`${s.botCard} ${isInspected ? s.botCardActive : ""}`}
                           onClick={() => setInspectedTurnId(turn.id)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={e => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              setInspectedTurnId(turn.id);
-                            }
-                          }}
-                          aria-label={`查看第 ${idx + 1} 轮查询结果`}
                         >
                           <div className={s.botHead}>
                             <span className={s.botName}>
+                              <Sparkles size={13} className={s.botSparkleIcon} aria-hidden="true" />
                               知航助手
                               <small>第 {idx + 1} 轮</small>
                             </span>
                             <Badge tone={outcomeTone}>
-                              {outcomeLabel}
-                              {typeof turn.result?.elapsed === "number" && !isTurnBusy ? ` · ${turn.result.elapsed.toFixed(2)}s` : ""}
+                              {turn.result?.partial && outcomeLabel === "已回答" ? "部分结果" : outcomeLabel}
                             </Badge>
                           </div>
 
@@ -508,7 +515,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                             <div className={s.botProgress}>
                               <div className="progress-top"><Spinner /><span>{turn.progress.message}</span><time>{turn.elapsed.toFixed(1)}s</time></div>
                               <div className={s.botProgressTrack}><div className={s.botProgressFill} style={{ transform: `scaleX(${turn.progress.percent / 100})` }} /></div>
-                              {turn.delta && <p className={s.botText}>{turn.delta}</p>}
+                              {turn.delta && <div className={s.botText}><BotMessageContent text={turn.delta} /></div>}
                             </div>
                           )}
 
@@ -528,7 +535,13 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                           )}
 
                           {!isTurnBusy && !turn.error && turn.result && (
-                            <p className={s.botText}>{turn.result.answer || "已完成本轮查询，可查看图表与数据明细。"}</p>
+                            turn.result.forecast ? <ForecastResults forecast={turn.result.forecast} />
+                              : turn.result.comparisons?.length ? <AnalysisComparisons result={turn.result} compact />
+                              : turn.result.airport_sources?.length && turn.result.sections?.length
+                                && new Set(turn.result.sections.map(item => item.period.join(":"))).size === 1
+                              ? <AirportBenchmark result={turn.result} compact />
+                              : turn.result.sections?.length ? <AnalysisHighlights sections={turn.result.sections} compact />
+                              : <div className={s.botText}><BotMessageContent text={turn.result.answer} /></div>
                           )}
 
                           {Boolean(turn.result?.clarification?.options.length) && (
@@ -569,17 +582,21 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
 
                           <div className={s.botFooter}>
                             <span>
-                              {typeof turn.result?.main_total === "number" && turn.result.main_total > 0
+                              {turn.result?.sections?.length ? `${turn.result.sections.length} 项结果`
+                                : typeof turn.result?.main_total === "number" && turn.result.main_total > 0
                                 ? `命中 ${turn.result.main_total.toLocaleString()} 条`
                                 : turn.result?.source || "实时库"}
                             </span>
-                            <span className={`${s.inspectTrigger} ${isInspected ? s.inspectTriggerActive : ""}`}>
+                            <button type="button" className={`${s.inspectTrigger} ${isInspected ? s.inspectTriggerActive : ""}`}
+                              aria-current={isInspected ? "true" : undefined}
+                              aria-label={`查看第 ${idx + 1} 轮查询结果`}
+                              onClick={e => { e.stopPropagation(); setInspectedTurnId(turn.id); }}>
                               {isInspected ? (
                                 <><Check size={12} aria-hidden="true" />当前结果</>
                               ) : (
                                 <>查看结果<ArrowRight size={12} aria-hidden="true" /></>
                               )}
-                            </span>
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -666,9 +683,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                       切回最新轮
                     </Button>
                   )}
-                  <Badge tone={inspectedTurn?.isHistorical ? "neutral" : "green"}>
-                    {inspectedTurn?.isHistorical ? "历史记录" : "查询结果"}
-                  </Badge>
+                  {inspectedTurn?.isHistorical && <Badge>历史记录</Badge>}
                 </div>
               </div>
               <div ref={canvasScrollRef} className={s.canvasBody}>
@@ -732,6 +747,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
           <p className="helper">辅助查询会将条件填入输入框，提交前可继续编辑。</p>
         </Modal>
       )}
+      {reportCenter && <ReportCenter onClose={closeReports} />}
     </Shell>
   );
 }

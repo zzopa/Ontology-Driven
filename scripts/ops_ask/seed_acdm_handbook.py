@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
+import re
 import sys
 from typing import Any
 
@@ -113,8 +114,8 @@ DIMENSIONS: list[dict[str, Any]] = [
         'code': 'peak_hour',
         'name': '起降高峰小时',
         'alias': 'peak_hour',
-        'required_field': 'hour_of_day',
-        'expression': "LPAD(c.hour_of_day::text, 2, '0') || ':00-' || LPAD(MOD(c.hour_of_day + 1, 24)::text, 2, '0') || ':00'",
+        'required_field': 'peak_hour',
+        'expression': "TO_CHAR(c.peak_hour, 'YYYY-MM-DD HH24:MI')",
         'aliases': ['高峰小时', '高峰时段', '起降小时', '最忙小时'],
     },
     {
@@ -491,14 +492,14 @@ METRICS: list[dict[str, Any]] = [
         'availability': 'AVAILABLE',
         'phase': 1,
         'base_table': 'mv_acdm_dyn_flight_detail',
-        'date_field': 'exec_date',
+        'date_field': 'real_exec_day',
         'joins_json': [],
         'aggregate_expression': f'COUNT(*) FILTER (WHERE {_MV_VALID_OP})',
         'value_alias': 'operated_flight_count',
         'default_filters': {},
-        'required_fields': ['exec_date', 'is_operated_flight', 'flight_task_cd'],
+        'required_fields': ['real_exec_day', 'is_operated_flight', 'flight_task_cd'],
         'formula_desc': "is_operated_flight='Y'（进港有实际落地或出港有实际起飞且非CAN）且 flight_task_cd <> 'A/N'。",
-        'description': '实际执飞航班总架次。',
+        'description': '按北京时间实际起降自然日统计；实际执飞航班总架次。',
         'aliases': ['实际执行航班架次', '执行航班量', '实飞架次', '已执行架次', '执飞总架次'],
     },
     {
@@ -534,14 +535,14 @@ METRICS: list[dict[str, Any]] = [
         'availability': 'AVAILABLE',
         'phase': 1,
         'base_table': 'mv_acdm_dyn_flight_detail',
-        'date_field': 'exec_date',
+        'date_field': 'real_exec_day',
         'joins_json': [],
         'aggregate_expression': f"COUNT(*) FILTER (WHERE {_MV_VALID_OP} AND c.is_off_in = 'D')",
         'value_alias': 'dep_flight_count',
         'default_filters': {},
-        'required_fields': ['exec_date', 'is_off_in', 'is_operated_flight'],
+        'required_fields': ['real_exec_day', 'is_off_in', 'is_operated_flight'],
         'formula_desc': "is_off_in='D' 且 actual_takeoff 非空非CAN非A/N。",
-        'description': '出港实际执行架次。',
+        'description': '按北京时间实际起降自然日统计；出港实际执行架次。',
         'aliases': ['出港执飞架次', '出港执行架次', '出港实飞架次'],
     },
     {
@@ -554,14 +555,14 @@ METRICS: list[dict[str, Any]] = [
         'availability': 'AVAILABLE',
         'phase': 1,
         'base_table': 'mv_acdm_dyn_flight_detail',
-        'date_field': 'exec_date',
+        'date_field': 'real_exec_day',
         'joins_json': [],
         'aggregate_expression': f"COUNT(*) FILTER (WHERE {_MV_VALID_OP} AND c.is_off_in = 'A')",
         'value_alias': 'arr_flight_count',
         'default_filters': {},
-        'required_fields': ['exec_date', 'is_off_in', 'is_operated_flight'],
+        'required_fields': ['real_exec_day', 'is_off_in', 'is_operated_flight'],
         'formula_desc': "is_off_in='A' 且 real_landin 非空非CAN非A/N。",
-        'description': '进港实际执行架次。',
+        'description': '按北京时间实际起降自然日统计；进港实际执行架次。',
         'aliases': ['进港执飞架次', '进港执行架次', '进港实飞架次'],
     },
     {
@@ -1124,8 +1125,8 @@ METRICS: list[dict[str, Any]] = [
         'value_alias': 'total_load_factor',
         'default_filters': {},
         'required_fields': ['exec_date', 'fpa_available_seat', 'dep_dpsr_depe_num', 'fpa_adult_count'],
-        'formula_desc': '仅在 fpa_available_seat > 0 同集上计算 旅客吞吐量 ÷ 可用座位数 × 100%，杜绝分母为0。',
-        'description': '进出港综合客座率。',
+        'formula_desc': '仅对已执行且可用座位数大于0的同一批航班，汇总样本旅客量÷样本座位数×100%；分子不是全量旅客吞吐量，座位缺失或非正数的航班同时排除，分母为0返回无有效样本。',
+        'description': '有效座位航班样本的进出港综合客座率，多日按分子分母汇总。',
         'aliases': ['客座率', '综合客座率', '平均客座率'],
     },
     {
@@ -1147,7 +1148,7 @@ METRICS: list[dict[str, Any]] = [
         'value_alias': 'dep_load_factor',
         'default_filters': {},
         'required_fields': ['exec_date', 'is_off_in', 'dep_dpsr_depe_num', 'fpa_available_seat'],
-        'formula_desc': '出港已执飞且可用座位数 > 0 航班的平均客座率。',
+        'formula_desc': '仅对出港已执行且可用座位数大于0的同一批航班，汇总离港旅客量÷可用座位数×100%；缺失或非正数座位的航班同时排除，不平均逐航班客座率。',
         'description': '出港方向客座率。',
         'aliases': ['出港客座率', '离港客座率'],
     },
@@ -1170,7 +1171,7 @@ METRICS: list[dict[str, Any]] = [
         'value_alias': 'arr_load_factor',
         'default_filters': {},
         'required_fields': ['exec_date', 'is_off_in', 'fpa_adult_count', 'fpa_available_seat'],
-        'formula_desc': '进港已执飞且可用座位数 > 0 航班的平均客座率。',
+        'formula_desc': '仅对进港已执行且可用座位数大于0的同一批航班，汇总生产旅客量÷可用座位数×100%；缺失或非正数座位的航班同时排除，不平均逐航班客座率。',
         'description': '进港方向客座率。',
         'aliases': ['进港客座率', '到港客座率'],
     },
@@ -1240,7 +1241,9 @@ METRICS: list[dict[str, Any]] = [
         'required_fields': ['bridge_start_time', 'air_bridge_cd'],
         'formula_desc': 'TB_DYN_AIR_BRIDGE（std_flight_air_bridge）登机桥保障记录数。',
         'description': '登机桥靠接保障总次数。',
-        'aliases': ['登机桥保障次数', '登机桥保障总次', '单桥周转次数'],
+        'aliases': ['登机桥保障次数', '登机桥保障总次', '单桥周转次数',
+                    '登机桥使用次数', '登机桥使用多少次', '登机桥使用了多少次', '登机桥使用几次',
+                    '廊桥使用次数', '廊桥使用多少次', '廊桥使用了多少次', '廊桥使用几次'],
     },
     {
         'code': 'avg_air_bridge_minutes',
@@ -1260,7 +1263,8 @@ METRICS: list[dict[str, Any]] = [
         'required_fields': ['bridge_start_time', 'bridge_duration'],
         'formula_desc': '源表 BRIDGE_DURATION 单位为秒，统计时换算为 bridge_duration / 60.0 分钟。',
         'description': '单次登机桥平均接桥保障分钟数。',
-        'aliases': ['平均接桥时长', '平均登机桥时长', '接桥平均耗时'],
+        'aliases': ['平均接桥时长', '平均登机桥时长', '接桥平均耗时',
+                    '登机桥平均使用时长', '廊桥平均使用时长', '平均登机桥使用时长', '平均廊桥使用时长'],
     },
     {
         'code': 'safeguard_node_recorded_count',
@@ -1701,6 +1705,57 @@ METRICS: list[dict[str, Any]] = [
 ]
 
 
+# Query and report periods use the same native observation dates and denominators.
+for _metric in METRICS:
+    if _metric['base_table'] == 'mv_acdm_dyn_flight_detail':
+        _metric['date_field'] = 'plan_day' if _metric['code'] == 'planned_flight_count' else 'real_exec_day'
+        _metric['required_fields'] = list(dict.fromkeys([
+            _metric['date_field'] if field == 'exec_date' else field for field in _metric.get('required_fields', [])]))
+        _metric['aggregate_expression'] = re.sub(
+            r" AND c\.[a-z_]+ IN \('Y', 'N'\)", '', _metric['aggregate_expression'])
+    if _metric['base_table'] == 'mv_acdm_turnaround_pair' and _metric['code'] != 'key_short_turnaround_count':
+        _metric['date_field'] = 'arr_landin_day'
+        _metric['aggregate_expression'] = _metric['aggregate_expression'].replace(_PAIR_VALID_OP, _PAIR_VALID_OP + ' AND c.valid_block_sequence IS TRUE')
+        _metric['aggregate_expression'] = re.sub(r" AND c\.[a-z_]+ IN \('Y', 'N'\)", '', _metric['aggregate_expression'])
+    if _metric['code'] in ('flight_total_count', 'flight_count', 'cancel_count'):
+        _metric['base_table'] = 'mv_acdm_dyn_flight_detail'
+        _metric['date_field'] = 'plan_day'
+        _metric['joins_json'] = []
+        if _metric['code'] == 'cancel_count':
+            _metric['aggregate_expression'] = "COUNT(*) FILTER (WHERE c.flight_task_cd<>'A/N' AND c.abnormal_flight_stat_cd='CAN')"
+    if _metric['code'] in ('dep_delay_count', 'arr_delay_count'):
+        _metric['base_table'] = 'mv_acdm_dyn_flight_detail'
+        _metric['date_field'] = 'real_exec_day'
+        _metric['default_filters'] = {'direction': 'DEP' if _metric['code'].startswith('dep') else 'ARR'}
+        _delay = 'dep_delay_time' if _metric['code'].startswith('dep') else 'arr_delay_time'
+        _metric['aggregate_expression'] = f"COUNT(*) FILTER (WHERE {_MV_VALID_OP} AND c.{_delay}>0)"
+        _metric['joins_json'] = []
+    if _metric['code'] == 'bridge_stand_rate':
+        _metric['base_table'] = 'mv_acdm_dyn_flight_detail'
+        _metric['date_field'] = 'real_exec_day'
+        _metric['joins_json'] = []
+        _metric['default_filters'] = {'direction': 'ARR'}
+        _metric['aggregate_expression'] = f"ROUND(100.0 * COUNT(*) FILTER (WHERE {_MV_VALID_OP} AND c.craft_site_is_remote='N') / NULLIF(COUNT(*) FILTER (WHERE {_MV_VALID_OP}),0),2)"
+    if _metric['code'] == 'bridge_stand_rate_all':
+        _metric['aggregate_expression'] = f"ROUND(100.0 * COUNT(*) FILTER (WHERE {_MV_VALID_OP} AND c.craft_site_is_remote='N') / NULLIF(COUNT(*) FILTER (WHERE {_MV_VALID_OP}),0),2)"
+    if _metric['code'] == 'flight_execution_rate':
+        _metric['base_table'] = 'mv_acdm_flight_calendar'
+        _metric['date_field'] = 'calendar_day'
+        _metric['aggregate_expression'] = 'ROUND(100.0 * SUM(c.operated_measure) / NULLIF(SUM(c.planned_measure),0),2)'
+        _metric['required_fields'] = ['calendar_day', 'planned_measure', 'operated_measure']
+        _metric['description'] = '实际起降自然日执行量÷计划自然日计划量；多日按分子分母分别汇总，不平均每日比率。'
+    if _metric['code'] == 'night_tail_flight_count':
+        _metric['aggregate_expression'] = _metric['aggregate_expression'].replace('COALESCE(c.real_takeoff_time, c.real_landin_time)', 'c.real_takeoff_landin_time')
+    if _metric['code'] in ('total_load_factor', 'dep_load_factor', 'arr_load_factor'):
+        _metric['default_filters'] = {'is_operated_flight': 'Y', 'fpa_available_seat': {'op': '>', 'value': 0}}
+        if _metric['code'] != 'total_load_factor':
+            _metric['default_filters']['direction'] = 'DEP' if _metric['code'] == 'dep_load_factor' else 'ARR'
+    if _metric['code'] == 'key_short_turnaround_count':
+        _metric['aggregate_expression'] = _metric['aggregate_expression'].replace('c.sched_turnaround_minutes IS NOT NULL', 'c.sched_turnaround_minutes>0')
+    if _metric['code'] == 'block_off_on_time_rate':
+        _metric['aggregate_expression'] = _metric['aggregate_expression'].replace(' AND c.real_block_off_time IS NOT NULL AND c.targt_block_off_time IS NOT NULL', '')
+
+
 CONCEPTS: list[dict[str, Any]] = [
     {'code': 'FlightOnTime', 'name': '航班正常率', 'domain': 'ONTIME', 'conceptType': 'METRIC', 'description': '含起飞/放行/始发/进港/地服正常率及过站放行率'},
     {'code': 'FlightVolume', 'name': '航班量与执行', 'domain': 'FLIGHT', 'conceptType': 'METRIC', 'description': '含计划、执行、执行率、始发、进出港、取消与峰值起降'},
@@ -2096,6 +2151,14 @@ def _preseed_ontology_aliases() -> None:
     """Persist aliases for new metrics and dimensions on disk before PG publish merges them."""
     state = core.ontology_document()
     doc = deepcopy(state['document'])
+    calendar = deepcopy(doc['entities']['mv_acdm_dyn_flight_detail'])
+    calendar.update(name='航班日历指标底表', aliases=['航班日历指标底表'], identity_fields=['pg_flight_id', 'calendar_day'])
+    calendar['bindings']['time'] = 'calendar_day'
+    calendar['query_semantics']['time_label'] = '北京时间自然日；计划与实际分别按各自日期归集'
+    calendar['attributes'].update({'calendar_day': {'label': '统计自然日'},
+                                   'planned_measure': {'label': '计划计数'}, 'operated_measure': {'label': '执行计数'},
+                                   'event_time': {'label': '统计事件时间'}, 'hour_of_day': {'label': '统计小时'}})
+    doc['entities']['mv_acdm_flight_calendar'] = calendar
     m_doc = doc.setdefault('metrics', {})
     for m in METRICS:
         code = m['code']

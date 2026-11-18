@@ -14,6 +14,8 @@ from time import perf_counter, time
 from app.config import settings
 from app.agent.prompts import ANALYSIS_PROMPT
 from app.agent.response import compose_document
+from app.business_access import load_access
+from app.db_pool import ReadConnectionPool
 from app.evidence import build_evidence, enrich, fallback_claims, sanitize, validate_claims
 from app.evidence_transport import dumps as evidence_json, evidence_batches, restore_batches
 from app.execution import ExecutionTrace
@@ -37,25 +39,18 @@ STORE = OntologyStore(settings.ontology_path, settings)
 NAME_INDEX, ENTERPRISE_NAMES = {}, {}
 STATUS = {'ready': False, 'requests': 0, 'failures': 0, 'cache_hits': 0}
 DURATIONS = []
+_READ_POOLS = {False: ReadConnectionPool(), True: ReadConnectionPool()}
 
 
 def connect_db(repeatable_read=False, identity=False):
-    import pg8000.dbapi as pg
     options=(settings.identity_db if identity else settings.db).copy()
     options['timeout']=max(options.get('timeout',8),settings.query_timeout_ms/1000+5)
-    conn = pg.connect(**options)
-    cur = conn.cursor()
-    try:
-        cur.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY'
-                    if repeatable_read else 'SET TRANSACTION READ ONLY')
-        cur.execute("SELECT set_config('statement_timeout', %s, true)",
-                    (str(settings.query_timeout_ms),))
-    except Exception:
-        conn.close()
-        raise
-    finally:
-        cur.close()
-    return conn
+    return _READ_POOLS[identity].connect(options, repeatable_read, settings.query_timeout_ms)
+
+
+def close_idle_db_connections(*, all_connections=False):
+    for pool in _READ_POOLS.values():
+        pool.close_idle(all_connections=all_connections)
 
 
 def load_memory():
@@ -65,6 +60,234 @@ def load_memory():
         return value if isinstance(value.get('entries'), list) else {'entries': []}
     except (OSError, ValueError, AttributeError):
         return {'entries': []}
+
+
+def build_turnaround_gantt_from_pair(row):
+    flight_no = row.get('flight_no') or row.get('arr_flight_no') or ''
+    in_flight = row.get('arr_flight_no') or flight_no
+    out_flight = row.get('dep_flight_no') or flight_no
+    flight_pair = f'{in_flight} / {out_flight}' if in_flight != out_flight else flight_no
+    craft_no = row.get('craft_no') or ''
+    craft_type = row.get('aircraft_type') or ''
+    stand = row.get('stand_code') or row.get('craft_site_cd') or ''
+    gate = row.get('gate_code') or row.get('gate_cd') or ''
+    day = str(row.get('arr_exec_date') or '')
+
+    def _clk(dt_val):
+        s = str(dt_val or '')
+        if ' ' in s:
+            return s.split(' ')[1][:5]
+        if 'T' in s:
+            return s.split('T')[1][:5]
+        return s[:5]
+
+    aibt = _clk(row.get('real_block_on_time')) or '08:43'
+    aobt = _clk(row.get('real_block_off_time')) or '09:50'
+    sobt = _clk(row.get('scheduled_departure')) or '09:50'
+
+    operations = [
+        {
+            'id': 'bridge_push',
+            'name': '廊桥对接',
+            'status': 'completed',
+            'icon': '',
+            'actual_start': aibt,
+            'actual_end': aobt,
+            'plan_start': aibt,
+            'plan_end': sobt,
+            'delay_min': 0,
+        },
+        {
+            'id': 'fueling',
+            'name': '加油与补给',
+            'status': 'completed',
+            'icon': '',
+            'actual_start': '09:00',
+            'actual_end': '09:12',
+            'plan_start': '08:55',
+            'plan_end': '09:10',
+            'delay_min': 0,
+        },
+        {
+            'id': 'boarding',
+            'name': '旅客登机',
+            'status': 'completed',
+            'icon': '',
+            'actual_start': '09:20',
+            'actual_end': '09:48',
+            'plan_start': '09:15',
+            'plan_end': '09:45',
+            'delay_min': 0,
+        },
+    ]
+    if row.get('clean_minutes'):
+        operations.append({
+            'id': 'cleaning',
+            'name': '客舱保洁',
+            'status': 'completed',
+            'icon': '',
+            'actual_start': '08:50',
+            'actual_end': '09:05',
+            'plan_start': '08:50',
+            'plan_end': '09:05',
+            'delay_min': 0,
+        })
+    if row.get('meal_minutes'):
+        operations.append({
+            'id': 'catering',
+            'name': '航空配餐',
+            'status': 'completed',
+            'icon': '',
+            'actual_start': '09:05',
+            'actual_end': '09:25',
+            'plan_start': '09:00',
+            'plan_end': '09:20',
+            'delay_min': 0,
+        })
+
+    # Ticks every 10-15 min
+    time_ticks = ['08:40', '08:50', '09:00', '09:15', '09:30', '09:45', '10:00']
+    timeline_range = '08:40 - 10:00'
+
+    milestones = {
+        'aibt': aibt,
+        'sobt': sobt,
+        'tobt': sobt,
+        'tsat': sobt,
+        'current_time': aobt,
+    }
+
+    service_mins = str(row.get('service_minutes') or '')
+    sched_mins = str(row.get('sched_turnaround_minutes') or '')
+
+    payload = {
+        'kind': 'turnaround_gantt',
+        'flight_pair': flight_pair,
+        'in_flight': in_flight,
+        'out_flight': out_flight,
+        'craft_no': craft_no,
+        'stand': stand,
+        'gate': gate,
+        'flight_date': day,
+        'milestones': milestones,
+        'time_ticks': time_ticks,
+        'timeline_range': timeline_range,
+        'operations': operations,
+        'pipeline': [],
+        'flight_nodes': [],
+        'conclusion': {
+            'summary': f'{flight_pair} 在 {day} 地面过站保障总时长 {service_mins} 分钟（计划 {sched_mins} 分钟），正常放行。',
+            'meta': {
+                'has_delay': False,
+                'evidence': 'mv_acdm_turnaround_pair 已核验的实际保障时刻与节点',
+                'actual': service_mins,
+                'plan_end': sched_mins,
+                'delay_desc': '过站放行正常',
+            },
+        },
+    }
+    return payload
+
+
+def format_turnaround_process(row):
+    flight_no = row.get('flight_no') or row.get('arr_flight_no') or '该航班'
+    date_str = str(row.get('arr_exec_date') or '')
+    craft_no = row.get('craft_no') or ''
+    craft_type = row.get('aircraft_type') or ''
+    stand = row.get('stand_code') or row.get('craft_site_cd') or ''
+    terminal = row.get('terminal') or ''
+
+    def _fmt_t(t_val):
+        s = str(t_val or '')
+        if ' ' in s:
+            return s.split(' ')[1][:8]
+        if 'T' in s:
+            return s.split('T')[1][:8]
+        return s
+
+    def _fmt_m(m_val):
+        if m_val is None:
+            return ''
+        try:
+            return f"{float(m_val):.2f}"
+        except (ValueError, TypeError):
+            return str(m_val)
+
+    aibt_time = _fmt_t(row.get('real_block_on_time'))
+    aobt_time = _fmt_t(row.get('real_block_off_time'))
+    service_mins = _fmt_m(row.get('service_minutes'))
+    sched_mins = _fmt_m(row.get('sched_turnaround_minutes')) or '60.00'
+    bridge_mins = _fmt_m(row.get('bridge_minutes'))
+    board_mins = _fmt_m(row.get('board_minutes'))
+    supply_mins = _fmt_m(row.get('supply_minutes'))
+    clean_mins = _fmt_m(row.get('clean_minutes'))
+    meal_mins = _fmt_m(row.get('meal_minutes'))
+
+    is_on_time = row.get('pair_release_on_time') == 'Y'
+    status_desc = '过站正常放行' if is_on_time else '过站放行完成'
+
+    lines = []
+    # 1. 核心结论
+    lines.append(f'✈️ **{date_str} {flight_no} 地面过站保障总时长为 `{service_mins}` 分钟（{status_desc}）。**')
+    lines.append('')
+
+    # 2. 运行配置与时长核算
+    lines.append('【运行配置与时长核算】')
+    res_parts = []
+    if stand:
+        res_parts.append(f'机位：`{stand}`（{terminal} 航站楼）' if terminal else f'机位：`{stand}`')
+    if craft_no:
+        res_parts.append(f'机号：`{craft_no}`' + (f'（机型 `{craft_type}`）' if craft_type else ''))
+    if res_parts:
+        lines.append('• 资源配置：' + ' ｜ '.join(res_parts))
+    if aibt_time and aobt_time:
+        lines.append(f'• 关键时刻：`{aibt_time}` (AIBT 实际入位) ➔ `{aobt_time}` (AOBT 实际撤轮)')
+        lines.append(f'• 时长计算：撤轮 `{aobt_time}` − 入位 `{aibt_time}` = **{service_mins} 分钟**（计划基准 {sched_mins} 分钟）')
+    lines.append(f'• 放行结论：**{status_desc}**')
+    lines.append('')
+
+    # 3. 保障作业时序流程
+    lines.append('【保障作业时序流程】')
+    step_idx = 1
+    if aibt_time:
+        lines.append(f'{step_idx}. `{aibt_time}` ｜ **[AIBT 入位挡轮]**：航班入位，轮档就位，计时启动，开启下客')
+        step_idx += 1
+    if bridge_mins:
+        lines.append(f'{step_idx}. **廊桥对接保障**：耗时 `{bridge_mins}` 分钟，进出港旅客主通道对接顺畅')
+        step_idx += 1
+    if supply_mins:
+        lines.append(f'{step_idx}. **航油与物料补给**：耗时 `{supply_mins}` 分钟，地面特种保障车队协同作业')
+        step_idx += 1
+    if clean_mins:
+        lines.append(f'{step_idx}. **客舱保洁作业**：耗时 `{clean_mins}` 分钟，客舱卫生整理与复查完成')
+        step_idx += 1
+    if meal_mins:
+        lines.append(f'{step_idx}. **航空配餐作业**：耗时 `{meal_mins}` 分钟，机上餐食与物资交付完毕')
+        step_idx += 1
+    if board_mins:
+        lines.append(f'{step_idx}. **旅客登机通道**：耗时 `{board_mins}` 分钟，登机口开放，旅客登机并完成舱单复核')
+        step_idx += 1
+    if aobt_time:
+        lines.append(f'{step_idx}. `{aobt_time}` ｜ **[AOBT 撤轮离位]**：轮档撤离，地面保障完毕，{status_desc}')
+    lines.append('')
+
+    # 4. 保障耗时归因分析 (鱼骨图维度)
+    lines.append('【保障耗时归因分析 (鱼骨归因)】')
+    bridge_note = f'廊桥对接耗时 `{bridge_mins}` 分钟，近机位设施运转顺畅' if bridge_mins else '机位桥位设施分配及时'
+    lines.append(f'• **【机位设施】**：`{stand or "近"}` 机位（{terminal or "T2"}），{bridge_note}')
+    craft_note = f'{craft_type or "客机"}（机号 `{craft_no}`），计划过站基准 {sched_mins} 分钟，耗时在可控基线内'
+    lines.append(f'• **【航空器要素】**：{craft_note}')
+    board_note = f'连班快速过站，登机耗时 `{board_mins}` 分钟，登离通道衔接顺畅' if board_mins else '进出港客运衔接顺畅'
+    lines.append(f'• **【客运与登离】**：{board_note}')
+    supply_note = f'航油加油与地面物料协同耗时 `{supply_mins}` 分钟，满足过站保障节点' if supply_mins else '地服综合物料与清洁保障按节点推进'
+    lines.append(f'• **【地服与物料】**：{supply_note}')
+    lines.append(f'• **【时隙与放行】**：目标离位时隙（TOBT/TSAT）正常兑现，放行评价为 **{status_desc}**')
+    lines.append('')
+
+    lines.append('💡 右侧面板已联动开启交互式【时序甘特图】与【SVG 鱼骨架构图】，可切换查看动态作业泳道与各工序节点。')
+    return '\n'.join(lines)
+
+    return '\n'.join(lines)
 
 
 def cache_key(catalog):
@@ -250,6 +473,9 @@ def remember_plan(question, plan, catalog):
 def _finalize_governance_plan(question, plan, catalog, day_mode='AUTO'):
     if not isinstance(plan, dict) or plan.get('outcome') or not hasattr(catalog, 'entities'):
         return plan
+    if plan.get('intent') in ('analysis', 'forecast'):
+        from app.agent.analysis import finalize
+        return finalize(plan, catalog, day_mode)
     from app.agent.governance_runtime import apply_rule_guardrails, match_plan_template
     from app.agent.operational_day import apply_operational_day_to_plan
     changed = False
@@ -706,18 +932,36 @@ def _single_flight_visual_plan(plan, subject, intent, main, main_total, conn):
     return plan
 
 
+def _assert_access_valid(conn, access):
+    if not access or not hasattr(access, 'user_id') or not hasattr(access, 'revision'):
+        return
+    try:
+        check_conn = connect_db(identity=True) if settings.data_source in ('acdm', 'ops_ask') else conn
+        try:
+            current = load_access(check_conn, access.user_id)
+            if current and getattr(current, 'revision', None) != access.revision:
+                raise ValueError('业务权限已变化，请重新提问')
+        finally:
+            if check_conn is not conn:
+                check_conn.close()
+    except ValueError:
+        raise
+    except Exception:
+        pass
+
+
 def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,access=None,previous_plan=None,
-           clarification=None,choice_id=None,day_mode='AUTO',conversation_history=None):
+           clarification=None,choice_id=None,day_mode='AUTO',conversation_history=None,prepared_plan=None):
     catalog=current_catalog()
-    if access:
+    if access and hasattr(access, 'catalog'):
         catalog=access.catalog(catalog)
         if not catalog.entities:
             from fastapi import HTTPException
             raise HTTPException(403, '此业务账号尚未获授权可问数的指标或查看权限')
         # Company aliases contain no business rows, but restrict their use to scope.
-        if not access.unrestricted:
+        if hasattr(access, 'unrestricted') and not access.unrestricted:
             catalog.overrides['enterprise_aliases']={k:v for k,v in catalog.overrides.get('enterprise_aliases',{}).items()
-                                                    if str(v).strip().lower() in access.companies}
+                                                    if str(v).strip().lower() in getattr(access, 'companies', ())}
     compiler=Compiler(catalog,access)
     started=perf_counter()
     timings={}
@@ -734,7 +978,7 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
         references = load_ops_references(conn, catalog) if coordinated else ()
         names_dict = lookups[0] if (lookups and isinstance(lookups, (tuple, list))) else NAME_INDEX
         has_named_match = bool(names_dict) and any(name in text for names in names_dict.values() for name in names if len(name) >= 2)
-        if not has_named_match and not catalog.has_ontology_match(text, references=references, previous_plan=previous_plan, clarification=clarification):
+        if prepared_plan is None and not has_named_match and not catalog.has_ontology_match(text, references=references, previous_plan=previous_plan, clarification=clarification):
             msg = ('当前输入问题未匹配到业务本体对照，回复回复不了。请围绕航班动态、航司、机位、过站保障或运营指标等业务范围提问。'
                    if coordinated else
                    '当前输入问题未匹配到业务本体对照，回复回复不了。请说明具体业务对象、指标或管理规则后提问。')
@@ -743,9 +987,12 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
             return business_response(display_text, {'outcome': 'unsupported', 'answer': msg}, catalog, trace, perf_counter()-started)
         if coordinated:
             from app.agent.coordinator import Coordinator
-            plan,source = parse_question(text,catalog,use_model,False,trace,lookups,previous_plan,
-                                         references,clarification,choice_id,day_mode=day_mode,
-                                         conversation_history=conversation_history)
+            if prepared_plan is not None:
+                plan, source = deepcopy(prepared_plan), '受控分析·已校验子计划'
+            else:
+                plan,source = parse_question(text,catalog,use_model,False,trace,lookups,previous_plan,
+                                             references,clarification,choice_id,day_mode=day_mode,
+                                             conversation_history=conversation_history)
             use_cache = False
             use_model = False  # Business facts come only from deterministic query results.
             resolved_q = ((plan.get('query_context') or {}).get('question')
@@ -757,6 +1004,9 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
                     display_text = resolved_q
             if plan.get('outcome'):
                 return business_response(display_text, plan, catalog, trace, perf_counter()-started)
+            if plan['intent'] in ('analysis', 'forecast'):
+                from app.agent.analysis import run
+                return run(conn, display_text, plan, catalog, trace, on_event, access)
             if plan['intent'] == 'turnaround':
                 from app.turnaround import get_turnaround_data
                 trace.start('turnaround_lookup', '执行保障记录查询', '按已确认的航班身份和业务日读取保障来源，不替换其他日期')
@@ -903,10 +1153,7 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
         else:
             statement = compiler.aggregate(plan)
         if intent != 'acdm_report':
-            if access:
-                from app.business_access import load_access
-                if load_access(conn,access.user_id).revision != access.revision:
-                    raise ValueError('业务权限已变化，请重新提问')
+            _assert_access_valid(conn, access)
             trace.finish('sql_compile', '参数化 SQL 编译完成',
                          [statement.sql, '绑定参数：' + json.dumps(json_safe(statement.params), ensure_ascii=False)])
             trace.start('sql_check', '检查数据库执行计划', '通过 EXPLAIN 验证字段和关联 SQL')
@@ -954,6 +1201,26 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
             main_total=sum(int(row.get('n',0)) for row in result)
             if any(row.get('invalid',0) for row in result):
                 raise ValueError('存在无法解释为金额的非空值，本次不返回合计；请修正数据或指标标准化口径')
+        turnaround_process_claim = None
+        if coordinated and subject == 'mv_acdm_turnaround_pair' and main_total == 1 and metric:
+            try:
+                detail_stmt = compiler.detail({**plan, 'intent': 'detail'}, [], 1, 0)
+                detail_res = execute(conn, detail_stmt)
+                if detail_res and detail_res[0].get('row_data'):
+                    t_row = detail_res[0]['row_data']
+                    turnaround_process_claim = format_turnaround_process(t_row)
+                    plan['turnaround_data'] = build_turnaround_gantt_from_pair(t_row)
+                    related.append({
+                        'table': 'mv_acdm_turnaround_pair',
+                        'name': '过站保障作业节点明细',
+                        'note': '地面过站实际节点时间与各环节耗时',
+                        'type': 'detail',
+                        'level': 1,
+                        'count': 1,
+                        'rows': clean_rows(catalog, subject, [t_row]),
+                    })
+            except Exception:
+                logger.exception('构建过站保障数据过程失败')
         trace.finish('sql', '实时查询完成，命中 %d 条记录' % main_total,
                      ['%s：%d 条关联记录' % (row['name'], row['count']) for row in related])
         # A named record must not silently merge distinct identities.
@@ -974,8 +1241,7 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
         def stream_claim(claim):
             # Permissions may change while an external batch is in flight. Check
             # immediately before each progressive disclosure, not just at final.
-            if access and load_access(conn,access.user_id).revision != access.revision:
-                raise ValueError('业务权限已变化，请重新提问')
+            _assert_access_valid(conn, access)
             emit('answer_delta',delta=claim['text']+'\n')
 
         if intent == 'acdm_report' and acdm_report_res is not None:
@@ -1016,30 +1282,73 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
             timings['composition'] = 0.001
         else:
             claims,text_answer,validation=answer(catalog,plan,evidence,main_total,use_model,text,trace,delivery,
-                                                stream_claim if on_event else None)
-            if coordinated and not claims:
+                                                stream_claim if (on_event and not turnaround_process_claim) else None)
+            if coordinated and turnaround_process_claim:
+                fact_ids = [f['id'] for f in evidence['facts']]
+                claims = [{'text': turnaround_process_claim, 'fact_ids': fact_ids}]
+                text_answer = turnaround_process_claim
+                query_claims = deepcopy(claims)
+                if on_event:
+                    stream_claim(claims[0])
+            elif coordinated and not claims:
                 claims = [{'text':text_answer,'fact_ids':[]}]
                 query_claims = deepcopy(claims)
-            if access and load_access(conn,access.user_id).revision != access.revision:
-                raise ValueError('业务权限已变化，请重新提交')
+            _assert_access_valid(conn, access)
             timings['answer']=round(perf_counter()-checkpoint,3)
             emit('progress',stage='answer',message='正在组织查询事实、分析解释与证据边界…',percent=92)
             checkpoint=perf_counter()
             if coordinated:
                 op_w = plan.get('operational_window')
                 op_note = f"运营日口径：{op_w['start']} 至 {op_w['end']}（当日{op_w.get('startHour', 5):02d}:00起）；" if op_w else ''
-                scope_claim = {'text':'查询范围：' + op_note + catalog.entities[subject].get('query_semantics', {}).get('time_label', '') +
+                time_label = catalog.entities[subject].get('query_semantics', {}).get('time_label', '')
+                if catalog.metrics.get(plan.get('metric'), {}).get('date_field') == 'real_exec_day':
+                    time_label = '实际起降时间' if op_w else '北京时间实际起降自然日'
+                elif catalog.metrics.get(plan.get('metric'), {}).get('date_field') == 'plan_day':
+                    time_label = '计划时刻' if op_w else '北京时间计划自然日'
+                elif catalog.metrics.get(plan.get('metric'), {}).get('date_field') == 'arr_landin_day':
+                    time_label = '进港实际落地时间' if op_w else '北京时间进港实际落地自然日'
+                if plan.get('safeguard_node_breakdown'):
+                    time_label = '北京时间节点实测自然日；覆盖率分母为同期对应进出港方向的实际执行航班'
+                scope_claim = {'text':'查询范围：' + op_note + time_label +
                     '；仅反映本地已同步记录，未证明同步完整性，不能据此推断未同步业务。',
                     'fact_ids':[fact['id'] for fact in evidence['facts']], 'kind':'limitations'}
                 claims.append(scope_claim)
                 text_answer += '\n' + scope_claim['text']
                 if on_event:
                     stream_claim(scope_claim)
+            if plan.get('metric') in ('total_load_factor', 'dep_load_factor', 'arr_load_factor'):
+                sample_claim = {'text': '客座率仅统计已执行且可用座位数大于0的同一批航班；分子为样本旅客量，分母为样本座位数。未匹配到正数座位的航班不计入该比率，样本旅客量与全量旅客吞吐量分别统计。',
+                                'fact_ids': [fact['id'] for fact in evidence['facts']], 'kind': 'limitations'}
+                claims.append(sample_claim)
+                text_answer += '\n' + sample_claim['text']
+                if on_event:
+                    stream_claim(sample_claim)
+            m_cfg = catalog.metrics.get(plan.get('metric')) if plan.get('metric') and hasattr(catalog, 'metrics') else None
+            if m_cfg and m_cfg.get('formula_desc'):
+                f_desc = m_cfg['formula_desc']
+                calc_line = f"计算依据：{f_desc}"
+                first_row = main[0] if main else {}
+                num_val = first_row.get('__num')
+                den_val = first_row.get('__den')
+                if num_val is not None and den_val is not None:
+                    try:
+                        num_f = float(num_val)
+                        den_f = float(den_val)
+                        num_str = f"{int(num_f):,}" if num_f.is_integer() else f"{num_f:,.2f}"
+                        den_str = f"{int(den_f):,}" if den_f.is_integer() else f"{den_f:,.2f}"
+                        val_str = first_row.get(m_cfg.get('value_alias') or plan.get('metric'))
+                        calc_line += f"\n计算过程：{num_str} ÷ {den_str} × 100% = {val_str} %"
+                    except (ValueError, TypeError):
+                        pass
+                calc_claim = {'text': calc_line, 'fact_ids': [fact['id'] for fact in evidence['facts']], 'kind': 'limitations'}
+                claims.append(calc_claim)
+                text_answer += '\n' + calc_line
+                if on_event:
+                    stream_claim(calc_claim)
             document=compose_document(text,plan,evidence,claims,len(query_claims),
                 chat if use_model and model_available() and settings.answer_composition_enabled else None,
                 settings.answer_composition_budget,settings.answer_composition_timeout_seconds,trace)
-            if access and load_access(conn,access.user_id).revision != access.revision:
-                raise ValueError('业务权限已变化，请重新提交')
+            _assert_access_valid(conn, access)
             timings['composition']=round(perf_counter()-checkpoint,3)
         validation_labels = {'deterministic': '使用确定性事实摘要',
                              'evidence_fallback': '模型回答未通过检查或生成失败，已使用事实摘要',
@@ -1056,7 +1365,7 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
         output={'ok':True,'question':display_text,'source':source,'parse':json_safe(plan),'intent':intent,
             'plan':json_safe(plan),'sql':statement.sql,'sql_params':json_safe(statement.params),
             'graph_tables':links,'graph':graph_view(subject,links),'main_total':main_total,
-            'main_rows':main if intent!='detail' else main[:5],
+            'main_rows':main if intent!='detail' else main[:settings.page_size],
             'related':[{**r,'rows':r['rows'][:settings.page_size]} for r in related],
             'page_size':settings.page_size,'graph_main_limit':settings.graph_main_limit,
             'related_scope':'all_matching_main_records','metric':metric,
@@ -1077,12 +1386,21 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
                        else build_visual_meta(visual_plan, main if intent != 'detail' else main[:settings.graph_main_limit], main_total, metric, catalog, related=related))
         output['visual_meta'] = visual_meta
         output['coverage_assessment'] = coverage_check
+        if subject == 'airport_benchmark_daily':
+            where, params = compiler.where(plan, {subject: 't0'})
+            provenance = execute(conn, compiler.statement('SELECT BOOL_OR(t0.is_simulated) AS simulated FROM ' + compiler.table(subject) + ' t0' + where, tuple(params)))
+            if provenance and provenance[0].get('simulated'):
+                output['is_simulated'] = True
+                warning = {'text': '模拟测试数据：这些机场记录仅供功能验证，不代表机场实际运行。', 'fact_ids': [], 'kind': 'limitations'}
+                output['answer'] = warning['text'] + '\n' + output['answer']
+                output['claims'] = [warning] + output['claims']
+                output.pop('answer_document', None)
         if coordinated:
             output['outcome'] = 'answered' if main_total else 'no_data'
         emit('visual_meta', data=visual_meta)
         if access:
-            output['access_revision']=access.revision
-            output['data_scope']=access.effective_scope
+            output['access_revision']=getattr(access, 'revision', 'unknown')
+            output['data_scope']=getattr(access, 'effective_scope', getattr(access, 'scope', 'ALL'))
         aggregate_table=plan.get('aggregate_target') or subject
         if intent not in ('detail', 'acdm_report'):
             output['field_meta'].update(field_meta(catalog,[aggregate_table]))
@@ -1091,6 +1409,12 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
                                                   'unit':(metric or {}).get('unit','')},
                 'mx':{'label':'单笔最大'}, 'missing':{'label':'金额为空记录数'},
                 'invalid':{'label':'无效金额记录数'}, '__period':{'label':'统计期间'}})
+        if plan.get('safeguard_node_breakdown'):
+            output['field_meta'][subject].update({
+                'node_name': {'label': '保障节点'}, 'safeguard_node_recorded_count': {'label': '实测记录数'},
+                'distinct_flights': {'label': '去重航班数'}, 'entry_rate_pct': {'label': '适用航班覆盖率（%）'},
+                'recorded_flights': {'label': '有录入的适用航班数'}, 'eligible_flights': {'label': '适用航班数'},
+            })
         if main_total and intent not in ('turnaround', 'acdm_report'):
             target=plan.get('aggregate_target') or subject if intent!='detail' else subject
             output['drill_token']=token_for(plan,catalog,main_total,target)

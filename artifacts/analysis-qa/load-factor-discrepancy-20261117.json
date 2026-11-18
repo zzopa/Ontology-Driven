@@ -1,0 +1,71 @@
+{
+  "start": "2026-11-02",
+  "end": "2026-11-15",
+  "checks": [],
+  "oracle_as_of": "2026-11-17 11:22:07 +08:00",
+  "oracle_calibrated": {
+    "departure_pax": 485355,
+    "arrival_pax": 474805,
+    "total_pax": 960160,
+    "depart_seat": 567210,
+    "arrive_seat": 553757,
+    "total_seat": 1120967,
+    "dep_load_factor": 85.57,
+    "arr_load_factor": 85.74,
+    "total_load_factor": 85.65
+  },
+  "oracle_departure_fields": {
+    "flights": 3499,
+    "psg_arrival_num": 0,
+    "dep_dpsr_checkin_num": 485355,
+    "dep_dpsr_security_num": 423247,
+    "dep_dpsr_boarded_num": 159354,
+    "dep_dpsr_stop_num": 33276,
+    "dep_dpsr_baby_num": 1507,
+    "dep_dpsr_depe_num": 485355,
+    "dep_dpsr_transfer_num": 0,
+    "dep_dpsr_vip_num": 5624,
+    "dep_dpsr_first_class_num": 2904,
+    "psg_walk_mins": 0,
+    "psg_waiting_mins": 0
+  },
+  "oracle_seat_cohorts": [
+    {
+      "cohort": "positive_seats",
+      "flights": 3395,
+      "pax": 481079,
+      "seats": 567210
+    },
+    {
+      "cohort": "no_positive_seats",
+      "flights": 104,
+      "pax": 4276,
+      "seats": 0
+    }
+  ],
+  "postgres_cohorts": [
+    {
+      "direction": "ARR",
+      "flights": 3504,
+      "dep_calc": 0,
+      "fpa_pax": "474805",
+      "seats": "553757",
+      "dep_calc_with_seats": 0
+    },
+    {
+      "direction": "DEP",
+      "flights": 3499,
+      "dep_calc": 485355,
+      "fpa_pax": "451901",
+      "seats": "567210",
+      "dep_calc_with_seats": 481079
+    }
+  ],
+  "recalculated": {
+    "all_departure_rate": "85.56883693869995239858253557",
+    "positive_seat_departure_rate": "84.81497152730029442358209481",
+    "all_total_rate": "85.65461784334418408392040087",
+    "positive_seat_total_rate": "85.27316147576155230261015712",
+    "departure_pax_difference": 4276
+  }
+}

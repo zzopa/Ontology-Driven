@@ -1,5 +1,5 @@
 import type { Message } from "./admin";
-import { stopSteps, updateStep } from "./execution";
+import { stopSteps, updateStep } from "./execution.ts";
 import type { ExecutionStep, QueryResult, StreamEvent } from "./types";
 
 export type ClarificationRef = { clarification_of: string; choice_id?: string };
@@ -64,6 +64,11 @@ export function applyTurnEvent(turn: ChatTurn, event: StreamEvent): ChatTurn {
   if (event.type === "answer_delta") {
     return { ...turn, delta: turn.delta + (event.delta || "") };
   }
+  if (event.type === "query_result" && event.section) {
+    const item = event.section;
+    const text = item.value == null ? item.result.answer : `${item.value} ${item.unit}`;
+    return { ...turn, delta: turn.delta + `${item.label}：${text}${item.is_simulated ? "（模拟测试数据）" : ""}\n` };
+  }
   if (event.type === "answer_error") {
     return {
       ...turn,
@@ -85,7 +90,7 @@ export function failChatTurn(turn: ChatTurn, message: string, interrupted: boole
   return {
     ...turn,
     error: message,
-    steps: stopSteps(turn.steps, message, interrupted),
+    steps: stopSteps(turn.steps, message, interrupted, turn.elapsed),
   };
 }
 

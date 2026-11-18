@@ -1,6 +1,7 @@
 """PostgreSQL write sinks and watermark store ported from airport-ops-data-sync."""
 from datetime import datetime, timezone
 import json
+import re
 
 import pg8000.dbapi as pg
 
@@ -8,6 +9,21 @@ from app.config import settings
 from app.sync.transforms import (
     clip, first_non_blank, first_ts, is_deleted, to_utc_dt, trim, upper, yn_flag,
 )
+
+
+class AtomicConnection:
+    """Let existing sinks share one commit for a consistent source refresh."""
+    def __init__(self, connection):
+        self.connection = connection
+
+    def cursor(self):
+        return self.connection.cursor()
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        self.connection.rollback()
 
 
 def connect_pg_write():
@@ -719,7 +735,7 @@ def ensure_acdm_schema_extensions(pg_conn):
                 ac_start_time TIMESTAMPTZ,
                 ac_end_time TIMESTAMPTZ,
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                UNIQUE (source_flight_id, order_cd)
+                UNIQUE (source_flight_id, order_cd, air_bridge_id, air_bridge_cd)
             )""",
             "CREATE INDEX IF NOT EXISTS idx_std_flight_air_bridge_flight_id ON public.std_flight_air_bridge(flight_id)",
             "CREATE INDEX IF NOT EXISTS idx_std_flight_air_bridge_cd ON public.std_flight_air_bridge(air_bridge_cd)",
@@ -742,6 +758,8 @@ def ensure_acdm_schema_extensions(pg_conn):
             "CREATE INDEX IF NOT EXISTS idx_std_flight_safeguard_flight_id ON public.std_flight_safeguard_node(flight_id)",
             "CREATE INDEX IF NOT EXISTS idx_std_flight_safeguard_code ON public.std_flight_safeguard_node(safeguard_code)",
             "CREATE INDEX IF NOT EXISTS idx_std_flight_core_task_cd ON public.std_flight_core(flight_task_cd)",
+            "ALTER TABLE public.std_flight_air_bridge DROP CONSTRAINT IF EXISTS std_flight_air_bridge_source_flight_id_order_cd_key",
+            "CREATE UNIQUE INDEX IF NOT EXISTS uk_air_bridge_source_identity ON public.std_flight_air_bridge(source_flight_id,order_cd,air_bridge_id,air_bridge_cd)",
         ]
         for s in stmts:
             cur.execute(s)
@@ -758,53 +776,20 @@ def refresh_ops_views(pg_conn):
     cur = pg_conn.cursor()
     try:
         cur.execute("""
-            CREATE OR REPLACE VIEW ops_ask_views.flight_execution AS
-            SELECT
-                id, flight_no, flight_date, direction,
-                scheduled_departure, actual_departure, scheduled_arrival, actual_arrival,
-                flight_status, source_system, vendor_code, created_at, updated_at,
-                aircraft_type, aircraft_reg, stand_code, link_id, partner_flight_no,
-                is_link_turn, origin_city, flight_nature, airline_code, terminal,
-                dest_city, via_city, estimated_departure, estimated_arrival, board_time, cobt,
-                airport_code, biz_key, flight_identity, airline_icao, primary_source_id,
-                flight_country_type, caac_service_type, iata_service_type,
-                aircraft_iata, aircraft_icao, call_sign, agency,
-                is_transit, is_overnight, is_origin, is_divert, is_virtual, is_ferry,
-                origin_airport, previous_airport, next_airport, dest_airport, full_route,
-                aircraft_terminal, gate_code, runway, baggage_reclaim, flight_scheduled_datetime,
-                operation_status, delay_code, delay_reason_text,
-                diversion_airport, change_landing_airport, display_code, public_comment,
-                deleted_at, row_version, last_event_time,
-                CASE
-                    WHEN direction::text = 'DEP'::text THEN actual_departure
-                    WHEN direction::text = 'ARR'::text THEN actual_arrival
-                    ELSE NULL::timestamp with time zone
-                END AS execution_time
-            FROM public.std_flight_core f
-            WHERE deleted_at IS NULL
-              AND COALESCE(flight_status, ''::character varying)::text <> '取消'::text
-              AND COALESCE(flight_task_cd, ''::character varying)::text <> 'A/N'::text
-              AND NOT COALESCE(is_virtual, false)
-              AND (
-                  (direction::text = 'DEP'::text AND actual_departure IS NOT NULL)
-                  OR (direction::text = 'ARR'::text AND actual_arrival IS NOT NULL)
-              )
-        """)
-        cur.execute("""
             CREATE OR REPLACE VIEW public.mv_acdm_dyn_flight_detail AS
             WITH fpa_agg AS (
                 SELECT
-                    flight_id,
+                    airport_code,flight_date,aircraft_reg,flight_no,leg,
                     SUM(CASE WHEN COALESCE(available_seat, 0) <> 0 THEN available_seat ELSE 0 END) AS fpa_available_seat,
                     SUM(CASE WHEN COALESCE(available_seat, 0) <> 0 THEN adult_count ELSE 0 END) AS fpa_adult_count,
                     SUM(CASE WHEN COALESCE(available_seat, 0) <> 0 THEN child_count ELSE 0 END) AS fpa_children_count,
                     SUM(CASE WHEN COALESCE(available_seat, 0) <> 0 THEN infant_count ELSE 0 END) AS fpa_baby_count,
-                    SUM(COALESCE(goods_weight_alias.cargo_weight, 0)) AS fpa_goods,
-                    SUM(COALESCE(goods_weight_alias.mail_weight, 0)) AS fpa_mail,
-                    SUM(COALESCE(goods_weight_alias.baggage_weight, 0)) AS fpa_luggage
+                    SUM(CASE WHEN COALESCE(available_seat, 0) <> 0 THEN COALESCE(cargo_weight, 0) ELSE 0 END) AS fpa_goods,
+                    SUM(CASE WHEN COALESCE(available_seat, 0) <> 0 THEN COALESCE(mail_weight, 0) ELSE 0 END) AS fpa_mail,
+                    SUM(CASE WHEN COALESCE(available_seat, 0) <> 0 THEN COALESCE(baggage_weight, 0) ELSE 0 END) AS fpa_luggage
                 FROM public.std_flight_production goods_weight_alias
-                WHERE deleted_at IS NULL AND flight_id IS NOT NULL
-                GROUP BY flight_id
+                WHERE deleted_at IS NULL
+                GROUP BY airport_code,flight_date,aircraft_reg,flight_no,leg
             ),
             turn_agg AS (
                 SELECT DISTINCT ON (flight_id)
@@ -829,7 +814,7 @@ def refresh_ops_views(pg_conn):
             SELECT
                 c.id AS pg_flight_id,
                 CAST(NULLIF(c.primary_source_id, '') AS BIGINT) AS flight_id,
-                CAST(NULLIF(c.link_id, '') AS BIGINT) AS associated_flight_id,
+                raw_acdm."ASSOCIATED_FLIGHT_ID"::bigint AS associated_flight_id,
                 turn.linked_flight_id AS linked_pg_flight_id,
                 c.airport_code,
                 (c.flight_date AT TIME ZONE 'Asia/Shanghai')::date AS exec_date,
@@ -845,87 +830,87 @@ def refresh_ops_views(pg_conn):
                 c.agency,
                 c.aircraft_type AS craft_type_icao_cd,
                 c.aircraft_reg AS craft_no,
-                c.stand_code AS craft_site_cd,
+                (raw_acdm."CRAFT_SITE_CD"::varchar(16)) AS craft_site_cd,
                 CASE WHEN st.is_remote IS TRUE THEN 'Y' WHEN st.is_remote IS FALSE THEN 'N' ELSE NULL END AS craft_site_is_remote,
-                c.gate_code AS gate_cd,
+                (raw_acdm."GATE_CD"::varchar(16)) AS gate_cd,
                 c.terminal,
-                c.origin_airport AS takeoff_airport_iata,
-                c.dest_airport AS arrival_airport_iata,
-                c.flight_status,
+                (raw_acdm."TAKEOFF_AIRPORT_IATA"::varchar(8)) AS takeoff_airport_iata,
+                (raw_acdm."ARRIVAL_AIRPORT_IATA"::varchar(8)) AS arrival_airport_iata,
+                (COALESCE(raw_acdm."ABNORMAL_FLIGHT_STAT_CD",raw_acdm."NORMAL_FLIGHT_STAT_CD")::varchar(32)) AS flight_status,
                 c.operation_status AS normal_flight_stat_cd,
-                CASE WHEN c.flight_status = '取消' THEN 'CAN' ELSE c.flight_status END AS abnormal_flight_stat_cd,
+                raw_acdm."ABNORMAL_FLIGHT_STAT_CD"::varchar AS abnormal_flight_stat_cd,
                 c.cancel_period AS s_cnl_stauts,
                 c.delay_code AS abnormal_reason_cd,
-                c.scheduled_departure AS scheme_takeoff_time,
-                c.estimated_departure AS alterate_takeoff_time,
-                c.actual_departure AS real_takeoff_time,
-                c.scheduled_arrival AS scheme_landin_time,
-                c.estimated_arrival AS alterate_landin_time,
-                c.actual_arrival AS real_landin_time,
-                CASE WHEN c.direction = 'DEP' THEN c.actual_departure WHEN c.direction = 'ARR' THEN c.actual_arrival END AS real_takeoff_landin_time,
-                (((CASE WHEN c.direction = 'DEP' THEN c.actual_departure WHEN c.direction = 'ARR' THEN c.actual_arrival END) AT TIME ZONE 'Asia/Shanghai') - INTERVAL '5 hours')::date AS operation_real_takeoff_landin_time,
+                (raw_acdm."SCHEME_TAKEOFF_TIME" AT TIME ZONE 'Asia/Shanghai') AS scheme_takeoff_time,
+                (raw_acdm."ALTERATE_TAKEOFF_TIME" AT TIME ZONE 'Asia/Shanghai') AS alterate_takeoff_time,
+                (raw_acdm."REAL_TAKEOFF_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_takeoff_time,
+                (raw_acdm."SCHEME_LANDIN_TIME" AT TIME ZONE 'Asia/Shanghai') AS scheme_landin_time,
+                (raw_acdm."ALTERATE_LANDIN_TIME" AT TIME ZONE 'Asia/Shanghai') AS alterate_landin_time,
+                (raw_acdm."REAL_LANDIN_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_landin_time,
+                CASE WHEN c.direction = 'DEP' THEN (raw_acdm."REAL_TAKEOFF_TIME" AT TIME ZONE 'Asia/Shanghai') WHEN c.direction = 'ARR' THEN (raw_acdm."REAL_LANDIN_TIME" AT TIME ZONE 'Asia/Shanghai') END AS real_takeoff_landin_time,
+                (((CASE WHEN c.direction = 'DEP' THEN (raw_acdm."REAL_TAKEOFF_TIME" AT TIME ZONE 'Asia/Shanghai') WHEN c.direction = 'ARR' THEN (raw_acdm."REAL_LANDIN_TIME" AT TIME ZONE 'Asia/Shanghai') END) AT TIME ZONE 'Asia/Shanghai') - INTERVAL '5 hours')::date AS operation_real_takeoff_landin_time,
                 ((COALESCE(c.plan_time, c.flight_scheduled_datetime) AT TIME ZONE 'Asia/Shanghai') - INTERVAL '5 hours')::date AS operation_plan_time,
                 CASE
                     WHEN c.deleted_at IS NULL
-                     AND COALESCE(c.flight_status, '') <> '取消'
+                     AND COALESCE(raw_acdm."ABNORMAL_FLIGHT_STAT_CD", '') <> 'CAN'
                      AND COALESCE(c.flight_task_cd, '') <> 'A/N'
                      AND NOT COALESCE(c.is_virtual, false)
-                     AND ((c.direction = 'DEP' AND c.actual_departure IS NOT NULL)
-                       OR (c.direction = 'ARR' AND c.actual_arrival IS NOT NULL))
+                     AND ((c.direction = 'DEP' AND (raw_acdm."REAL_TAKEOFF_TIME" AT TIME ZONE 'Asia/Shanghai') IS NOT NULL)
+                       OR (c.direction = 'ARR' AND (raw_acdm."REAL_LANDIN_TIME" AT TIME ZONE 'Asia/Shanghai') IS NOT NULL))
                     THEN 'Y' ELSE 'N'
                 END AS is_operated_flight,
                 CASE WHEN EXISTS (
                     SELECT 1 FROM public.std_flight_source_ref sr
                     WHERE sr.flight_id = c.id AND sr.source_system = 'FIMS_ORACLE'
                 ) THEN 'Y' ELSE 'N' END AS has_fims_source,
-                CASE WHEN COALESCE(ind.ori_act, c.is_origin) IS TRUE THEN 'Y' WHEN COALESCE(ind.ori_act, c.is_origin) IS FALSE THEN 'N' END AS ori_act,
-                CASE WHEN ind.flight_first_on_time IS TRUE THEN 'Y' WHEN ind.flight_first_on_time IS FALSE THEN 'N' END AS flight_first_on_time,
-                CASE WHEN ind.release_on_time IS TRUE THEN 'Y' WHEN ind.release_on_time IS FALSE THEN 'N' END AS release_on_time,
-                CASE WHEN ind.takeoff_on_time IS TRUE THEN 'Y' WHEN ind.takeoff_on_time IS FALSE THEN 'N' END AS takeoff_on_time,
-                CASE WHEN ind.dep_on_time IS TRUE THEN 'Y' WHEN ind.dep_on_time IS FALSE THEN 'N' END AS dep_on_time,
-                CASE WHEN ind.land_on_time IS TRUE THEN 'Y' WHEN ind.land_on_time IS FALSE THEN 'N' END AS land_on_time,
-                CASE WHEN ind.arr_on_time IS TRUE THEN 'Y' WHEN ind.arr_on_time IS FALSE THEN 'N' END AS arr_on_time,
-                CASE WHEN ind.flight_on_time IS TRUE THEN 'Y' WHEN ind.flight_on_time IS FALSE THEN 'N' END AS flight_on_time,
-                ind.release_delay_minutes AS clearance_delay_time,
-                ind.flight_delay_minutes AS flight_delay_time,
-                ind.takeoff_delay_minutes AS takeoff_delay_time,
-                ind.dep_delay_minutes AS dep_delay_time,
-                ind.land_delay_minutes AS land_delay_time,
-                ind.arr_delay_minutes AS arr_delay_time,
-                p.actual_on_block AS real_block_on_time,
-                p.actual_off_block AS real_block_off_time,
-                p.estimated_off_block AS alterate_block_off_time,
-                p.tobt AS targt_block_off_time,
-                p.tsat AS targt_drive_time,
-                p.ttot AS targt_take_off_time,
-                p.cobt AS count_block_off_time,
-                p.ctot AS count_take_off_time,
-                p.boarding_start AS real_begin_board_time,
-                p.boarding_end AS real_end_board_time,
-                p.last_call AS urge_board_time,
-                p.checkin_act_begin AS checkin_start_realtime,
-                p.checkin_act_end AS checkin_end_realtime,
-                p.real_by_bridge_time,
-                p.real_off_bridge_time,
-                p.departure_start_time,
-                p.departure_end_time,
-                p.alterate_open_cabin_time,
-                p.real_open_cabin_time,
-                p.alterate_close_cabin_time,
-                p.real_close_cabin_time,
-                p.real_start_clean_time,
-                p.real_end_clean_time,
-                p.real_meal_start_time,
-                p.real_meal_end_time,
-                p.real_start_supply_time,
-                p.real_end_supply_time,
-                p.real_start_deice_time,
-                p.real_end_deicie_time,
-                p.request_launch_time,
-                p.real_launch_time,
-                p.real_drive_time,
-                p.real_taxi_in_time,
-                p.real_taxi_out_time,
+                raw_acdm."ORI_ACT"::text AS ori_act,
+                raw_acdm."FLIGHT_FIRST_ON_TIME"::text AS flight_first_on_time,
+                raw_acdm."RELEASE_ON_TIME"::text AS release_on_time,
+                raw_acdm."TAKEOFF_ON_TIME"::text AS takeoff_on_time,
+                raw_acdm."DEP_ON_TIME"::text AS dep_on_time,
+                raw_acdm."LAND_ON_TIME"::text AS land_on_time,
+                raw_acdm."ARR_ON_TIME"::text AS arr_on_time,
+                raw_acdm."FLIGHT_ON_TIME"::text AS flight_on_time,
+                raw_acdm."CLEARANCE_DELAY_TIME"::integer AS clearance_delay_time,
+                raw_acdm."FLIGHT_DELAY_TIME"::integer AS flight_delay_time,
+                raw_acdm."TAKEOFF_DELAY_TIME"::integer AS takeoff_delay_time,
+                raw_acdm."DEP_DELAY_TIME"::integer AS dep_delay_time,
+                raw_acdm."LAND_DELAY_TIME"::integer AS land_delay_time,
+                raw_acdm."ARR_DELAY_TIME"::integer AS arr_delay_time,
+                (raw_acdm."REAL_BLOCK_ON_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_block_on_time,
+                (raw_acdm."REAL_BLOCK_OFF_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_block_off_time,
+                (raw_acdm."ALTERATE_BLOCK_OFF_TIME" AT TIME ZONE 'Asia/Shanghai') AS alterate_block_off_time,
+                (raw_acdm."TARGT_BLOCK_OFF_TIME" AT TIME ZONE 'Asia/Shanghai') AS targt_block_off_time,
+                (raw_acdm."TARGT_DRIVE_TIME" AT TIME ZONE 'Asia/Shanghai') AS targt_drive_time,
+                (raw_acdm."TARGT_TAKE_OFF_TIME" AT TIME ZONE 'Asia/Shanghai') AS targt_take_off_time,
+                (raw_acdm."COUNT_BLOCK_OFF_TIME" AT TIME ZONE 'Asia/Shanghai') AS count_block_off_time,
+                (raw_acdm."COUNT_TAKE_OFF_TIME" AT TIME ZONE 'Asia/Shanghai') AS count_take_off_time,
+                (raw_acdm."REAL_BEGIN_BOARD_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_begin_board_time,
+                (raw_acdm."REAL_END_BOARD_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_end_board_time,
+                (raw_acdm."URGE_BOARD_TIME" AT TIME ZONE 'Asia/Shanghai') AS urge_board_time,
+                (raw_acdm."CHECKIN_START_TIME" AT TIME ZONE 'Asia/Shanghai') AS checkin_start_realtime,
+                (raw_acdm."CHECKIN_END_TIME" AT TIME ZONE 'Asia/Shanghai') AS checkin_end_realtime,
+                (raw_acdm."REAL_BY_BRIDGE_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_by_bridge_time,
+                (raw_acdm."REAL_OFF_BRIDGE_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_off_bridge_time,
+                (raw_acdm."DEPARTURE_START_TIME" AT TIME ZONE 'Asia/Shanghai') AS departure_start_time,
+                (raw_acdm."DEPARTURE_END_TIME" AT TIME ZONE 'Asia/Shanghai') AS departure_end_time,
+                (raw_acdm."ALTERATE_OPEN_CABIN_TIME" AT TIME ZONE 'Asia/Shanghai') AS alterate_open_cabin_time,
+                (raw_acdm."REAL_OPEN_CABIN_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_open_cabin_time,
+                (raw_acdm."ALTERATE_CLOSE_CABIN_TIME" AT TIME ZONE 'Asia/Shanghai') AS alterate_close_cabin_time,
+                (raw_acdm."REAL_CLOSE_CABIN_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_close_cabin_time,
+                (raw_acdm."REAL_START_CLEAN_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_start_clean_time,
+                (raw_acdm."REAL_END_CLEAN_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_end_clean_time,
+                (raw_acdm."REAL_MEAL_START_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_meal_start_time,
+                (raw_acdm."REAL_MEAL_END_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_meal_end_time,
+                (raw_acdm."REAL_START_SUPPLY_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_start_supply_time,
+                (raw_acdm."REAL_END_SUPPLY_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_end_supply_time,
+                (raw_acdm."REAL_START_DEICE_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_start_deice_time,
+                (raw_acdm."REAL_END_DEICIE_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_end_deicie_time,
+                (raw_acdm."REQUEST_LAUNCH_TIME" AT TIME ZONE 'Asia/Shanghai') AS request_launch_time,
+                (raw_acdm."REAL_LAUNCH_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_launch_time,
+                (raw_acdm."REAL_DRIVE_TIME" AT TIME ZONE 'Asia/Shanghai') AS real_drive_time,
+                raw_acdm."REAL_TAXI_IN_TIME"::numeric(10,2) AS real_taxi_in_time,
+                raw_acdm."REAL_TAXI_OUT_TIME"::numeric(10,2) AS real_taxi_out_time,
                 ct.dep_dpsr_depe_num,
                 ct.psg_arrival_num,
                 ct.bag_num,
@@ -939,40 +924,134 @@ def refresh_ops_views(pg_conn):
                 fpa.fpa_luggage,
                 c.flight_date,
                 (COALESCE(c.plan_time, c.flight_scheduled_datetime) AT TIME ZONE 'Asia/Shanghai')::date AS plan_day,
-                (c.actual_departure AT TIME ZONE 'Asia/Shanghai')::date AS real_takeoff_day,
-                (c.actual_arrival AT TIME ZONE 'Asia/Shanghai')::date AS real_landin_day,
-                ((CASE WHEN c.direction = 'DEP' THEN c.actual_departure ELSE c.actual_arrival END) AT TIME ZONE 'Asia/Shanghai')::date AS real_exec_day,
+                ((raw_acdm."REAL_TAKEOFF_TIME" AT TIME ZONE 'Asia/Shanghai') AT TIME ZONE 'Asia/Shanghai')::date AS real_takeoff_day,
+                ((raw_acdm."REAL_LANDIN_TIME" AT TIME ZONE 'Asia/Shanghai') AT TIME ZONE 'Asia/Shanghai')::date AS real_landin_day,
+                ((CASE WHEN c.direction = 'DEP' THEN (raw_acdm."REAL_TAKEOFF_TIME" AT TIME ZONE 'Asia/Shanghai') ELSE (raw_acdm."REAL_LANDIN_TIME" AT TIME ZONE 'Asia/Shanghai') END) AT TIME ZONE 'Asia/Shanghai')::date AS real_exec_day,
                 c.airline_code,
-                c.aircraft_type,
-                c.stand_code,
-                c.gate_code,
-                c.origin_airport,
+                c.aircraft_type AS aircraft_type,
+                (raw_acdm."CRAFT_SITE_CD"::varchar(16)) AS stand_code,
+                (raw_acdm."GATE_CD"::varchar(16)) AS gate_code,
+                (raw_acdm."TAKEOFF_AIRPORT_IATA"::varchar(8)) AS origin_airport,
                 c.origin_city,
-                c.dest_airport,
+                (raw_acdm."ARRIVAL_AIRPORT_IATA"::varchar(8)) AS dest_airport,
                 c.dest_city,
-                c.scheduled_departure,
-                c.scheduled_arrival,
-                c.actual_departure,
-                c.actual_arrival,
+                (raw_acdm."SCHEME_TAKEOFF_TIME" AT TIME ZONE 'Asia/Shanghai') AS scheduled_departure,
+                (raw_acdm."SCHEME_LANDIN_TIME" AT TIME ZONE 'Asia/Shanghai') AS scheduled_arrival,
+                (raw_acdm."REAL_TAKEOFF_TIME" AT TIME ZONE 'Asia/Shanghai') AS actual_departure,
+                (raw_acdm."REAL_LANDIN_TIME" AT TIME ZONE 'Asia/Shanghai') AS actual_arrival,
                 ind.is_delayed,
                 ind.delay_reason,
                 c.deleted_at,
                 c.is_virtual
             FROM public.std_flight_core c
+            LEFT JOIN acdm.tb_dyn_flight raw_acdm ON raw_acdm."FLIGHT_ID" = CAST(NULLIF(c.primary_source_id, '') AS numeric)
             LEFT JOIN public.std_flight_indicator ind ON ind.flight_id = c.id
             LEFT JOIN public.std_flight_process p ON p.flight_id = c.id
-            LEFT JOIN public.dim_stand st ON st.airport_code = c.airport_code AND st.stand_code = c.stand_code AND st.deleted_at IS NULL
-            LEFT JOIN fpa_agg fpa ON fpa.flight_id = c.id
+            LEFT JOIN public.dim_stand st ON st.airport_code = c.airport_code AND st.stand_code = (raw_acdm."CRAFT_SITE_CD"::varchar(16)) AND st.deleted_at IS NULL
+            -- Production has no FLIGHT_ID; retain the handbook's native date/aircraft/number/segment join.
+            LEFT JOIN fpa_agg fpa ON fpa.airport_code=c.airport_code AND fpa.flight_date=raw_acdm."EXEC_DATE"::date
+                AND fpa.aircraft_reg=c.aircraft_reg AND fpa.flight_no=c.flight_no
+                AND fpa.leg=raw_acdm."TAKEOFF_AIRPORT_IATA"||'-'||raw_acdm."ARRIVAL_AIRPORT_IATA"
             LEFT JOIN ct_agg ct ON ct.flight_id = c.id
             LEFT JOIN turn_agg turn ON turn.flight_id = c.id
+            WHERE c.deleted_at IS NULL AND EXISTS (
+                SELECT 1 FROM public.std_flight_source_ref fims_source
+                WHERE fims_source.flight_id = c.id AND fims_source.source_system = 'FIMS_ORACLE'
+            )
+        """)
+        cur.execute("""
+            CREATE OR REPLACE VIEW ops_ask_views.flight_execution AS
+            SELECT f.id,
+                   f.flight_no,
+                   f.flight_date,
+                   f.direction,
+                   m.scheduled_departure,
+                   m.actual_departure,
+                   m.scheduled_arrival,
+                   m.actual_arrival,
+                   m.flight_status,
+                   f.source_system,
+                   f.vendor_code,
+                   f.created_at,
+                   f.updated_at,
+                   m.aircraft_type,
+                   m.craft_no AS aircraft_reg,
+                   m.stand_code,
+                   f.link_id,
+                   f.partner_flight_no,
+                   f.is_link_turn,
+                   f.origin_city,
+                   f.flight_nature,
+                   f.airline_code,
+                   f.terminal,
+                   f.dest_city,
+                   f.via_city,
+                   f.estimated_departure,
+                   f.estimated_arrival,
+                   f.board_time,
+                   f.cobt,
+                   f.airport_code,
+                   f.biz_key,
+                   f.flight_identity,
+                   f.airline_icao,
+                   f.primary_source_id,
+                   f.flight_country_type,
+                   f.caac_service_type,
+                   f.iata_service_type,
+                   f.aircraft_iata,
+                   f.aircraft_icao,
+                   f.call_sign,
+                   f.agency,
+                   f.is_transit,
+                   f.is_overnight,
+                   f.is_origin,
+                   f.is_divert,
+                   f.is_virtual,
+                   f.is_ferry,
+                   m.origin_airport,
+                   f.previous_airport,
+                   f.next_airport,
+                   m.dest_airport,
+                   f.full_route,
+                   f.aircraft_terminal,
+                   m.gate_code,
+                   f.runway,
+                   f.baggage_reclaim,
+                   f.flight_scheduled_datetime,
+                   f.operation_status,
+                   f.delay_code,
+                   f.delay_reason_text,
+                   f.diversion_airport,
+                   f.change_landing_airport,
+                   f.display_code,
+                   f.public_comment,
+                   f.deleted_at,
+                   f.row_version,
+                   f.last_event_time,
+                   m.real_takeoff_landin_time AS execution_time
+            FROM public.std_flight_core f JOIN public.mv_acdm_dyn_flight_detail m ON m.pg_flight_id=f.id
+            WHERE m.is_operated_flight='Y'
+        """)
+        cur.execute("""
+            CREATE OR REPLACE VIEW public.mv_acdm_flight_calendar AS
+            SELECT f.*, (event.event_time AT TIME ZONE 'Asia/Shanghai')::date AS calendar_day,
+                   event.planned_measure, event.operated_measure, event.event_time,
+                   EXTRACT(HOUR FROM (event.event_time AT TIME ZONE 'Asia/Shanghai'))::integer AS hour_of_day
+            FROM public.mv_acdm_dyn_flight_detail f
+            CROSS JOIN LATERAL (VALUES
+                (COALESCE(f.plan_time,CASE WHEN f.is_off_in='D' THEN f.scheme_takeoff_time ELSE f.scheme_landin_time END),
+                 CASE WHEN f.flight_task_cd<>'A/N' THEN 1 ELSE 0 END,0),
+                (f.real_takeoff_landin_time,0,CASE WHEN f.is_operated_flight='Y' THEN 1 ELSE 0 END)
+            ) event(event_time,planned_measure,operated_measure)
+            WHERE event.event_time IS NOT NULL AND (event.planned_measure>0 OR event.operated_measure>0)
         """)
         cur.execute("DROP VIEW IF EXISTS public.mv_acdm_turnaround_pair")
         cur.execute("""
             CREATE VIEW public.mv_acdm_turnaround_pair AS
             SELECT
-                l.id AS pair_id,
-                a.id AS arr_pg_flight_id,
-                d.id AS dep_pg_flight_id,
+                a.pg_flight_id AS pair_id,
+                a.pg_flight_id AS arr_pg_flight_id,
+                d.pg_flight_id AS dep_pg_flight_id,
                 a.flight_no AS arr_flight_no,
                 d.flight_no AS dep_flight_no,
                 d.flight_no AS flight_no,
@@ -984,31 +1063,19 @@ def refresh_ops_views(pg_conn):
                 a.flight_date AS flight_date,
                 a.airport_code AS airport_code,
                 'DEP'::text AS direction,
-                CASE
-                    WHEN a.deleted_at IS NULL
-                     AND COALESCE(a.flight_status, '') <> '取消'
-                     AND COALESCE(a.flight_task_cd, '') <> 'A/N'
-                     AND NOT COALESCE(a.is_virtual, false)
-                     AND a.actual_arrival IS NOT NULL
-                     AND d.deleted_at IS NULL
-                     AND COALESCE(d.flight_status, '') <> '取消'
-                     AND COALESCE(d.flight_task_cd, '') <> 'A/N'
-                     AND NOT COALESCE(d.is_virtual, false)
-                     AND d.actual_departure IS NOT NULL
-                    THEN 'Y' ELSE 'N'
-                END AS is_both_operated,
+                CASE WHEN a.is_operated_flight='Y' AND d.is_operated_flight='Y' THEN 'Y' ELSE 'N' END AS is_both_operated,
                 COALESCE(d.airline_code, a.airline_code) AS airline_two_char_cd,
                 COALESCE(d.airline_code, a.airline_code) AS airline_code,
                 COALESCE(d.aircraft_type, a.aircraft_type) AS craft_type_icao_cd,
                 COALESCE(d.aircraft_type, a.aircraft_type) AS aircraft_type,
-                COALESCE(d.aircraft_reg, a.aircraft_reg) AS craft_no,
+                COALESCE(d.craft_no, a.craft_no) AS craft_no,
                 COALESCE(d.terminal, a.terminal) AS terminal,
                 COALESCE(d.stand_code, a.stand_code) AS craft_site_cd,
                 COALESCE(d.stand_code, a.stand_code) AS stand_code,
                 COALESCE(d.gate_code, a.gate_code) AS gate_cd,
                 COALESCE(d.gate_code, a.gate_code) AS gate_code,
                 d.agency,
-                d.flight_attribute AS attribute,
+                d.attribute AS attribute,
                 d.flight_task_cd,
                 d.origin_airport AS takeoff_airport_iata,
                 d.origin_airport AS origin_airport,
@@ -1018,65 +1085,63 @@ def refresh_ops_views(pg_conn):
                 d.dest_city AS dest_city,
                 d.scheduled_departure AS scheduled_departure,
                 a.scheduled_arrival AS scheduled_arrival,
-                CASE WHEN id_d.takeoff_on_time IS TRUE THEN 'Y' WHEN id_d.takeoff_on_time IS FALSE THEN 'N' END AS pair_release_on_time,
+                d.release_on_time AS pair_release_on_time,
                 a.scheduled_arrival AS arr_scheme_landin_time,
                 d.scheduled_departure AS dep_scheme_takeoff_time,
-                pa.actual_on_block AS real_block_on_time,
-                pd.actual_off_block AS real_block_off_time,
-                (pa.actual_on_block IS NOT NULL AND pd.actual_off_block IS NOT NULL AND pd.actual_off_block > pa.actual_on_block) AS valid_block_sequence,
+                a.real_block_on_time AS real_block_on_time,
+                d.real_block_off_time AS real_block_off_time,
+                (a.real_block_on_time IS NOT NULL AND d.real_block_off_time IS NOT NULL AND d.real_block_off_time > a.real_block_on_time) AS valid_block_sequence,
                 CASE
-                    WHEN pd.actual_off_block > pa.actual_on_block
-                    THEN ROUND((EXTRACT(EPOCH FROM (pd.actual_off_block - pa.actual_on_block)) / 60.0)::numeric, 2)
+                    WHEN d.real_block_off_time > a.real_block_on_time
+                    THEN ROUND((EXTRACT(EPOCH FROM (d.real_block_off_time - a.real_block_on_time)) / 60.0)::numeric, 2)
                 END AS service_minutes,
                 CASE
-                    WHEN pa.real_off_bridge_time > pa.real_by_bridge_time
-                    THEN ROUND((EXTRACT(EPOCH FROM (pa.real_off_bridge_time - pa.real_by_bridge_time)) / 60.0)::numeric, 2)
+                    WHEN a.real_off_bridge_time > a.real_by_bridge_time
+                    THEN ROUND((EXTRACT(EPOCH FROM (a.real_off_bridge_time - a.real_by_bridge_time)) / 60.0)::numeric, 2)
                 END AS bridge_minutes,
                 CASE
-                    WHEN pa.departure_end_time > pa.departure_start_time
-                    THEN ROUND((EXTRACT(EPOCH FROM (pa.departure_end_time - pa.departure_start_time)) / 60.0)::numeric, 2)
+                    WHEN a.departure_end_time > a.departure_start_time
+                    THEN ROUND((EXTRACT(EPOCH FROM (a.departure_end_time - a.departure_start_time)) / 60.0)::numeric, 2)
                 END AS departure_minutes,
                 CASE
-                    WHEN pd.boarding_end > pd.boarding_start
-                    THEN ROUND((EXTRACT(EPOCH FROM (pd.boarding_end - pd.boarding_start)) / 60.0)::numeric, 2)
+                    WHEN d.real_end_board_time > d.real_begin_board_time
+                    THEN ROUND((EXTRACT(EPOCH FROM (d.real_end_board_time - d.real_begin_board_time)) / 60.0)::numeric, 2)
                 END AS board_minutes,
                 CASE
-                    WHEN pd.real_end_clean_time > pd.real_start_clean_time
-                    THEN ROUND((EXTRACT(EPOCH FROM (pd.real_end_clean_time - pd.real_start_clean_time)) / 60.0)::numeric, 2)
+                    WHEN d.real_end_clean_time > d.real_start_clean_time
+                    THEN ROUND((EXTRACT(EPOCH FROM (d.real_end_clean_time - d.real_start_clean_time)) / 60.0)::numeric, 2)
                 END AS clean_minutes,
                 CASE
-                    WHEN pd.real_meal_end_time > pd.real_meal_start_time
-                    THEN ROUND((EXTRACT(EPOCH FROM (pd.real_meal_end_time - pd.real_meal_start_time)) / 60.0)::numeric, 2)
+                    WHEN d.real_meal_end_time > d.real_meal_start_time
+                    THEN ROUND((EXTRACT(EPOCH FROM (d.real_meal_end_time - d.real_meal_start_time)) / 60.0)::numeric, 2)
                 END AS meal_minutes,
                 CASE
-                    WHEN pd.real_end_supply_time > pd.real_start_supply_time
-                    THEN ROUND((EXTRACT(EPOCH FROM (pd.real_end_supply_time - pd.real_start_supply_time)) / 60.0)::numeric, 2)
+                    WHEN d.real_end_supply_time > d.real_start_supply_time
+                    THEN ROUND((EXTRACT(EPOCH FROM (d.real_end_supply_time - d.real_start_supply_time)) / 60.0)::numeric, 2)
                 END AS supply_minutes,
                 CASE
-                    WHEN pd.real_end_deicie_time > pd.real_start_deice_time
-                    THEN ROUND((EXTRACT(EPOCH FROM (pd.real_end_deicie_time - pd.real_start_deice_time)) / 60.0)::numeric, 2)
+                    WHEN d.real_end_deicie_time > d.real_start_deice_time
+                    THEN ROUND((EXTRACT(EPOCH FROM (d.real_end_deicie_time - d.real_start_deice_time)) / 60.0)::numeric, 2)
                 END AS deicie_minutes,
                 CASE
                     WHEN d.scheduled_departure IS NOT NULL AND a.scheduled_arrival IS NOT NULL
                     THEN ROUND((EXTRACT(EPOCH FROM (d.scheduled_departure - a.scheduled_arrival)) / 60.0)::numeric, 2)
                 END AS sched_turnaround_minutes,
-                (UPPER(COALESCE(d.aircraft_type, a.aircraft_type, '')) IN ('B738', 'B788', 'A320', 'A321', 'A320/1', 'C919')) AS is_key_turnaround_aircraft
-            FROM public.std_flight_link l
-            JOIN public.std_flight_core a
-              ON a.id = l.flight_id AND a.direction = 'ARR'
-            JOIN public.std_flight_core d
-              ON d.id = l.linked_flight_id AND d.direction = 'DEP'
-            LEFT JOIN public.std_flight_process pa ON pa.flight_id = a.id
-            LEFT JOIN public.std_flight_process pd ON pd.flight_id = d.id
-            LEFT JOIN public.std_flight_indicator id_d ON id_d.flight_id = d.id
-            WHERE l.link_type = 'TURNAROUND'
-              AND (a.aircraft_reg IS NULL OR d.aircraft_reg IS NULL OR a.aircraft_reg = d.aircraft_reg)
+                (UPPER(COALESCE(d.aircraft_type, a.aircraft_type, '')) IN ('B738', 'B788', 'A320', 'A321', 'A320/1', 'C919')) AS is_key_turnaround_aircraft,
+                a.actual_arrival AS actual_arrival
+            FROM public.mv_acdm_dyn_flight_detail a
+            JOIN public.mv_acdm_dyn_flight_detail d
+              ON d.flight_id = a.associated_flight_id AND d.direction = 'DEP'
+            WHERE a.direction = 'ARR'
+              AND a.craft_no = d.craft_no
+              AND a.flight_task_cd<>'A/N' AND d.flight_task_cd<>'A/N'
+              AND COALESCE(a.abnormal_flight_stat_cd,'')<>'CAN' AND COALESCE(d.abnormal_flight_stat_cd,'')<>'CAN'
         """)
         cur.execute("DROP VIEW IF EXISTS ops_ask_views.flight_hourly_movements")
         cur.execute("""
             CREATE VIEW ops_ask_views.flight_hourly_movements AS
             SELECT
-                c.id,
+                c.pg_flight_id AS id,
                 c.flight_no,
                 c.airport_code,
                 c.flight_date,
@@ -1090,7 +1155,7 @@ def refresh_ops_views(pg_conn):
                 c.airline_code AS airline_two_char_cd,
                 c.airline_code,
                 c.agency,
-                c.flight_attribute AS attribute,
+                c.attribute AS attribute,
                 c.flight_task_cd,
                 c.aircraft_type AS craft_type_icao_cd,
                 c.aircraft_type,
@@ -1105,15 +1170,8 @@ def refresh_ops_views(pg_conn):
                 c.dest_airport AS arrival_airport_iata,
                 c.dest_airport,
                 c.dest_city
-            FROM public.std_flight_core c
-            WHERE c.deleted_at IS NULL
-              AND COALESCE(c.flight_status, '') <> '取消'
-              AND COALESCE(c.flight_task_cd, '') <> 'A/N'
-              AND NOT COALESCE(c.is_virtual, false)
-              AND (
-                  (c.direction = 'DEP' AND c.actual_departure IS NOT NULL)
-                  OR (c.direction = 'ARR' AND c.actual_arrival IS NOT NULL)
-              )
+            FROM public.mv_acdm_dyn_flight_detail c
+            WHERE c.is_operated_flight='Y'
         """)
         pg_conn.commit()
     except Exception:
@@ -1305,23 +1363,23 @@ def _flight_proc_row(d, flight_id):
     )
 
 
-def _partition_flight_pass(drafts, by_source, by_triple, gate_terminals, stand_terminals):
+def _partition_flight_pass(drafts, by_source, by_occurrence, gate_terminals, stand_terminals):
     """Split a batch into a conflict-free bulk pass plus remaining items for later passes."""
     pass_items = []
     next_remaining = []
     seen_ids = set()
-    seen_triples = set()
+    seen_occurrences = set()
     seen_sources = set()
     seen_biz = set()
     for d in drafts:
-        triple_key = (d['airport_code'], d['flight_date'], d['direction'], d['flight_no'])
+        occurrence_key = (d['airport_code'], d['primary_source_id'])
         source_key = (d['source_system'], d['primary_source_id'])
-        existing_id = by_source.get(source_key) or by_triple.get(triple_key)
+        existing_id = by_source.get(source_key) or by_occurrence.get(occurrence_key)
         biz_key = d.get('biz_key')
         src_valid = bool(source_key[0] and source_key[1])
         conflict = (
             (existing_id is not None and existing_id in seen_ids)
-            or (triple_key in seen_triples)
+            or (occurrence_key in seen_occurrences)
             or (src_valid and source_key in seen_sources)
             or (bool(biz_key) and biz_key in seen_biz)
         )
@@ -1330,16 +1388,16 @@ def _partition_flight_pass(drafts, by_source, by_triple, gate_terminals, stand_t
             continue
         if existing_id is not None:
             seen_ids.add(existing_id)
-        seen_triples.add(triple_key)
+        seen_occurrences.add(occurrence_key)
         if src_valid:
             seen_sources.add(source_key)
         if biz_key:
             seen_biz.add(biz_key)
-        pass_items.append((d, triple_key, source_key, _resolve_terminal(d, gate_terminals, stand_terminals), existing_id))
+        pass_items.append((d, occurrence_key, source_key, _resolve_terminal(d, gate_terminals, stand_terminals), existing_id))
     return pass_items, next_remaining
 
 
-def _upsert_flight_pass_bulk(cur, pass_items, *, by_source, by_triple, has_indicator, has_process):
+def _upsert_flight_pass_bulk(cur, pass_items, *, by_source, by_occurrence, has_indicator, has_process):
     """Execute one conflict-free pass of flight core + satellites using multi-row SQL."""
     inserted = updated = 0
     resolved_ids = []
@@ -1359,7 +1417,7 @@ def _upsert_flight_pass_bulk(cur, pass_items, *, by_source, by_triple, has_indic
         for (idx, item), fid_row in zip(chunk, returned):
             flight_id = int(fid_row[0])
             fid_by_idx[idx] = flight_id
-            by_triple[item[1]] = flight_id
+            by_occurrence[item[1]] = flight_id
             by_source[item[2]] = flight_id
             inserted += 1
 
@@ -1585,16 +1643,16 @@ def _upsert_flight_pass_bulk(cur, pass_items, *, by_source, by_triple, has_indic
     return inserted, updated
 
 
-def _upsert_flight_batch_rowwise(cur, drafts, *, by_source, by_triple, has_indicator, has_process,
+def _upsert_flight_batch_rowwise(cur, drafts, *, by_source, by_occurrence, has_indicator, has_process,
                                  gate_terminals, stand_terminals):
     """Fallback row-by-row flight upsert with per-row savepoints so bad rows never abort a batch."""
     inserted = updated = skipped = failed = 0
     for d in drafts:
         cur.execute('SAVEPOINT row_sp')
         try:
-            triple_key = (d['airport_code'], d['flight_date'], d['direction'], d['flight_no'])
+            occurrence_key = (d['airport_code'], d['primary_source_id'])
             source_key = (d['source_system'], d['primary_source_id'])
-            existing_id = by_source.get(source_key) or by_triple.get(triple_key)
+            existing_id = by_source.get(source_key) or by_occurrence.get(occurrence_key)
             terminal = _resolve_terminal(d, gate_terminals, stand_terminals)
 
             if existing_id is None:
@@ -1603,7 +1661,7 @@ def _upsert_flight_batch_rowwise(cur, drafts, *, by_source, by_triple, has_indic
                     _flight_core_insert_row(d, terminal),
                 )
                 flight_id = int(cur.fetchone()[0])
-                by_triple[triple_key] = flight_id
+                by_occurrence[occurrence_key] = flight_id
                 by_source[source_key] = flight_id
                 inserted += 1
             else:
@@ -1796,34 +1854,62 @@ def upsert_flight_batch(pg_conn, drafts, *, gate_terminals=None, stand_terminals
     cur = pg_conn.cursor()
     inserted = updated = skipped = failed = 0
     try:
-        source_systems = sorted({d['source_system'] for d in drafts if d.get('source_system')})
+        cur.execute("SELECT pg_advisory_xact_lock(hashtext('airport:oracle-flight-ingestion'))")
+        source_systems = sorted({d['source_system'] for d in drafts if d.get('source_system')} | {'FIMS_ORACLE', 'ACDM_ORACLE'})
         source_ids = sorted({d['primary_source_id'] for d in drafts if d.get('primary_source_id')})
         by_source = {}
         if source_systems and source_ids:
             cur.execute("""
-                SELECT source_system, source_flight_id, flight_id
-                FROM std_flight_source_ref
-                WHERE source_system = ANY(%s) AND source_flight_id = ANY(%s)
+                SELECT sr.source_system, sr.source_flight_id, sr.flight_id
+                FROM std_flight_source_ref sr
+                JOIN std_flight_core c ON c.id = sr.flight_id
+                WHERE sr.source_system = ANY(%s) AND sr.source_flight_id = ANY(%s)
+                  AND c.deleted_at IS NULL AND c.primary_source_id = sr.source_flight_id
             """, (source_systems, source_ids))
             for ss, sid, fid in cur.fetchall():
                 by_source[(ss, sid)] = int(fid)
 
+        # Each source owns its fields; a later FIMS poll must not overwrite ACDM observations.
+        prepared = []
+        acdm_fields = {'scheduled_departure', 'estimated_departure', 'actual_departure',
+                       'scheduled_arrival', 'estimated_arrival', 'actual_arrival', 'flight_scheduled_datetime',
+                       'stand_code', 'gate_code',
+                       'flight_status', 'operation_status', 'delay_code', 'delay_reason_text', 'cancel_period',
+                       'is_origin', 'is_origin_flight', 'ori_act', 'flight_first_on_time', 'release_on_time',
+                       'takeoff_on_time', 'dep_on_time', 'land_on_time', 'arr_on_time', 'flight_on_time',
+                       'is_delayed', 'delay_minutes', 'release_delay_minutes', 'takeoff_delay_minutes',
+                       'dep_delay_minutes', 'land_delay_minutes', 'arr_delay_minutes', 'flight_delay_minutes'}
+        fims_fields = {'airline_code', 'flight_task_cd', 'flight_attribute', 'flight_country_type',
+                       'plan_time', 'is_virtual', 'aircraft_type', 'aircraft_reg', 'aircraft_icao',
+                       'flight_nature', 'is_ferry'}
+        for original in drafts:
+            d = dict(original)
+            sid = d['primary_source_id']
+            masked = acdm_fields if d['source_system'] == 'FIMS_ORACLE' and ('ACDM_ORACLE', sid) in by_source else (
+                fims_fields if d['source_system'] == 'ACDM_ORACLE' and ('FIMS_ORACLE', sid) in by_source else ())
+            for field in masked:
+                d[field] = None
+            prepared.append(d)
+        drafts = prepared
+
         airports = sorted({d['airport_code'] for d in drafts})
-        dates = sorted({d['flight_date'] for d in drafts})
-        by_triple = {}
-        if airports and dates:
+        by_occurrence = {}
+        if airports and source_ids:
             cur.execute("""
-                SELECT id, airport_code, (flight_date AT TIME ZONE 'Asia/Shanghai')::date, direction, flight_no
+                SELECT id, airport_code, primary_source_id
                 FROM std_flight_core
                 WHERE deleted_at IS NULL
-                  AND airport_code = ANY(%s)
-                  AND (flight_date AT TIME ZONE 'Asia/Shanghai')::date = ANY(%s)
+                  AND airport_code = ANY(%s) AND primary_source_id = ANY(%s)
+                  AND source_system = ANY(%s)
                 ORDER BY id
-            """, (airports, dates))
-            for fid, ap, fd, dir_val, fno in cur.fetchall():
-                by_triple.setdefault((ap, fd, dir_val, fno), int(fid))
+            """, (airports, source_ids, sorted(set(source_systems) | {'FIMS_ORACLE', 'ACDM_ORACLE'})))
+            for fid, ap, sid in cur.fetchall():
+                key = (ap, sid)
+                if key in by_occurrence:
+                    raise ValueError('同一Oracle FLIGHT_ID对应多条本地航班，请先修复源记录关联')
+                by_occurrence[key] = int(fid)
 
-        candidate_ids = sorted(set(by_source.values()) | set(by_triple.values()))
+        candidate_ids = sorted(set(by_source.values()) | set(by_occurrence.values()))
         has_indicator = set()
         has_process = set()
         if candidate_ids:
@@ -1835,10 +1921,10 @@ def upsert_flight_batch(pg_conn, drafts, *, gate_terminals=None, stand_terminals
         remaining = list(drafts)
         while remaining:
             pass_items, remaining = _partition_flight_pass(
-                remaining, by_source, by_triple, gate_terminals, stand_terminals
+                remaining, by_source, by_occurrence, gate_terminals, stand_terminals
             )
             snap_by_source = dict(by_source)
-            snap_by_triple = dict(by_triple)
+            snap_by_occurrence = dict(by_occurrence)
             snap_ind = set(has_indicator)
             snap_proc = set(has_process)
             cur.execute('SAVEPOINT batch_sp')
@@ -1847,7 +1933,7 @@ def upsert_flight_batch(pg_conn, drafts, *, gate_terminals=None, stand_terminals
                     cur,
                     pass_items,
                     by_source=by_source,
-                    by_triple=by_triple,
+                    by_occurrence=by_occurrence,
                     has_indicator=has_indicator,
                     has_process=has_process,
                 )
@@ -1858,14 +1944,14 @@ def upsert_flight_batch(pg_conn, drafts, *, gate_terminals=None, stand_terminals
                 cur.execute('ROLLBACK TO SAVEPOINT batch_sp')
                 cur.execute('RELEASE SAVEPOINT batch_sp')
                 by_source = snap_by_source
-                by_triple = snap_by_triple
+                by_occurrence = snap_by_occurrence
                 has_indicator = snap_ind
                 has_process = snap_proc
                 r_ins, r_upd, r_skip, r_fail = _upsert_flight_batch_rowwise(
                     cur,
                     [item[0] for item in pass_items],
                     by_source=by_source,
-                    by_triple=by_triple,
+                    by_occurrence=by_occurrence,
                     has_indicator=has_indicator,
                     has_process=has_process,
                     gate_terminals=gate_terminals,
@@ -2082,6 +2168,42 @@ def _prod_update_fields(d, flight_id, ext_json):
     )
 
 
+def _production_flight_id(draft, flight_lookup):
+    key = (draft['airport_code'], draft['flight_date'], draft['direction'], draft['flight_no'])
+    candidates = flight_lookup.get(key, [])
+    leg = (draft.get('leg') or '').strip().upper()
+    if not leg or not draft.get('aircraft_reg'):
+        return None
+    if leg:
+        candidates = [c for c in candidates if len(c) > 3 and c[3] == leg]
+    aircraft = (draft.get('aircraft_reg') or '').replace('-', '').upper()
+    if aircraft:
+        candidates = [c for c in candidates if (c[1] or '').replace('-', '').upper() == aircraft]
+    if len(candidates) == 1:
+        return candidates[0][0]
+    clock = re.search(r'(?<!\d)([0-2]\d:[0-5]\d)', str(draft.get('movement_time_text') or ''))
+    if clock:
+        candidates = [c for c in candidates if c[2] == clock[1]]
+    return candidates[0][0] if len(candidates) == 1 else None
+
+
+def reconcile_production_scope(pg_conn, airport, source_system, start, end, source_ids):
+    """Archive superseded source rows only after a nonempty complete read succeeds."""
+    if not source_ids:
+        return 0
+    cur = pg_conn.cursor()
+    try:
+        cur.execute("""UPDATE public.std_flight_production SET deleted_at=now(),updated_at=now()
+            WHERE deleted_at IS NULL AND airport_code=%s AND source_system=%s
+              AND flight_date BETWEEN %s AND %s AND NOT (COALESCE(primary_source_id,'')=ANY(%s))""",
+            (airport, source_system, start, end, list(source_ids)))
+        archived = cur.rowcount
+        pg_conn.commit()
+        return archived
+    finally:
+        cur.close()
+
+
 def _partition_production_pass(drafts, by_source, by_biz, flight_lookup):
     pass_items = []
     next_remaining = []
@@ -2106,7 +2228,7 @@ def _partition_production_pass(drafts, by_source, by_biz, flight_lookup):
             seen_sources.add(src_key)
         if biz_key:
             seen_biz.add(biz_key)
-        flight_id = flight_lookup.get((d['airport_code'], d['flight_date'], d['direction'], d['flight_no']))
+        flight_id = _production_flight_id(d, flight_lookup)
         pass_items.append((d, src_key, existing_id, flight_id, _prod_ext_json(d)))
     return pass_items, next_remaining
 
@@ -2136,7 +2258,7 @@ def _upsert_production_pass_bulk(cur, pass_items, *, by_source, by_biz):
         rows = [(item[2],) + _prod_update_fields(item[0], item[3], item[4]) for item in chunk]
         cur.execute(f"""
             UPDATE std_flight_production AS t SET
-                flight_id = COALESCE(v.flight_id, t.flight_id),
+                flight_id = v.flight_id,
                 airline_code = v.airline_code,
                 flight_identity = v.flight_identity,
                 aircraft_type = v.aircraft_type,
@@ -2188,7 +2310,7 @@ def _upsert_production_batch_rowwise(cur, drafts, *, by_source, by_biz, flight_l
         try:
             src_key = (d['source_system'], d['primary_source_id']) if d.get('primary_source_id') else None
             existing_id = (by_source.get(src_key) if src_key else None) or by_biz.get(d['biz_key'])
-            flight_id = flight_lookup.get((d['airport_code'], d['flight_date'], d['direction'], d['flight_no']))
+            flight_id = _production_flight_id(d, flight_lookup)
             ext_json = _prod_ext_json(d)
 
             if existing_id is None:
@@ -2204,7 +2326,7 @@ def _upsert_production_batch_rowwise(cur, drafts, *, by_source, by_biz, flight_l
             else:
                 cur.execute("""
                     UPDATE std_flight_production SET
-                        flight_id = COALESCE(%s, flight_id),
+                        flight_id = %s,
                         airline_code = %s,
                         flight_identity = %s,
                         aircraft_type = %s,
@@ -2288,15 +2410,19 @@ def upsert_production_batch(pg_conn, drafts):
         flight_lookup = {}
         if airports and dates:
             cur.execute("""
-                SELECT id, airport_code, (flight_date AT TIME ZONE 'Asia/Shanghai')::date, direction, flight_no
-                FROM std_flight_core
-                WHERE deleted_at IS NULL
+                SELECT id, airport_code, (flight_date AT TIME ZONE 'Asia/Shanghai')::date, direction, flight_no,
+                       aircraft_reg, to_char((CASE WHEN direction='DEP' THEN actual_departure ELSE actual_arrival END)
+                                             AT TIME ZONE 'Asia/Shanghai', 'HH24:MI'),
+                       a."TAKEOFF_AIRPORT_IATA" || '-' || a."ARRIVAL_AIRPORT_IATA"
+                FROM std_flight_core c
+                LEFT JOIN acdm.tb_dyn_flight a ON a."FLIGHT_ID"=CAST(NULLIF(c.primary_source_id,'') AS numeric)
+                WHERE c.deleted_at IS NULL
                   AND airport_code = ANY(%s)
                   AND (flight_date AT TIME ZONE 'Asia/Shanghai')::date = ANY(%s)
                 ORDER BY id
             """, (airports, dates))
-            for fid, ap, fd, dir_val, fno in cur.fetchall():
-                flight_lookup.setdefault((ap, fd, dir_val, fno), int(fid))
+            for fid, ap, fd, dir_val, fno, aircraft, clock, leg in cur.fetchall():
+                flight_lookup.setdefault((ap, fd, dir_val, fno), []).append((int(fid), aircraft, clock, leg))
 
         remaining = list(drafts)
         while remaining:
@@ -2512,7 +2638,7 @@ def upsert_flight_air_bridge_batch(pg_conn, drafts):
         return {'inserted': 0, 'updated': 0, 'failed': 0}
     cur = pg_conn.cursor()
     try:
-        dedup = {(d['source_flight_id'], d['order_cd']): d for d in drafts}
+        dedup = {(d['source_flight_id'], d['order_cd'], d.get('air_bridge_id'), d.get('air_bridge_cd')): d for d in drafts}
         items = list(dedup.values())
         fid_map = _resolve_pg_flight_ids_by_source(cur, [d['source_flight_id'] for d in items])
         tpl = '(' + ', '.join(['%s'] * 12) + ', now())'
@@ -2533,7 +2659,7 @@ def upsert_flight_air_bridge_batch(pg_conn, drafts):
                     bridge_start_time, bridge_end_time, bridge_duration,
                     power_start_time, power_end_time, ac_start_time, ac_end_time, updated_at
                 ) VALUES {_values_placeholders(tpl, len(chunk))}
-                ON CONFLICT (source_flight_id, order_cd) DO UPDATE SET
+                ON CONFLICT (source_flight_id, order_cd, air_bridge_id, air_bridge_cd) DO UPDATE SET
                     flight_id = COALESCE(EXCLUDED.flight_id, std_flight_air_bridge.flight_id),
                     air_bridge_id = EXCLUDED.air_bridge_id,
                     air_bridge_cd = EXCLUDED.air_bridge_cd,

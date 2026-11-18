@@ -1,6 +1,7 @@
 """Validated query plans compiled to parameterized, read-only PostgreSQL SELECTs."""
 from copy import deepcopy
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal, InvalidOperation
 import json
 import re
@@ -55,7 +56,7 @@ class Compiler:
         if name not in self.catalog.entities:
             raise ValueError('查询主体未开放或不存在：' + str(name))
         table = self.catalog.tables[name]
-        if self.access:
+        if self.access and hasattr(self.access, 'source'):
             source, values = self.access.source(name, self.catalog)
             ordinary = iter(values)
             def marker(_match):
@@ -164,7 +165,7 @@ class Compiler:
 
     def metric(self, plan):
         key = plan.get('metric')
-        if hasattr(self.catalog, 'metrics') and key and key in self.catalog.metrics:
+        if hasattr(self.catalog, 'metrics') and key and isinstance(key, str) and key in self.catalog.metrics:
             m = deepcopy(self.catalog.metrics[key])
             target = m.get('base_table') or plan.get('aggregate_target') or plan['subject']
             val_alias = m.get('value_alias') or key
@@ -363,6 +364,20 @@ class Compiler:
     def aggregate(self, plan):
         self.validate(plan)
         metric = self.metric(plan) if (plan.get('intent') in ('sum', 'metric') or plan.get('metric')) else None
+        if plan.get('safeguard_node_breakdown'):
+            from app.acdm_reports import safeguard_node_counts_sql
+
+            subject = plan['subject']
+            days = tuple(map(date.fromisoformat, plan['query_context']['slots']['period']))
+            where, params = self.where(plan, {subject: 's'})
+            counts = safeguard_node_counts_sql(
+                self.table(subject), self.table('mv_acdm_dyn_flight_detail'), self.table('dim_safeguard_node'), where,
+            )
+            return self.statement(
+                'SELECT node_name, real_recorded_cnt AS safeguard_node_recorded_count, distinct_flights, entry_rate_pct, '
+                'recorded_flights, eligible_flights, safeguard_code, total_records AS n '
+                f'FROM ({counts}) grouped ORDER BY n DESC, safeguard_code', (*days, *days, *params),
+            )
         if metric and metric.get('is_global'):
             target = metric.get('target') or plan.get('aggregate_target') or plan['subject']
             for f_col, f_spec in metric.get('default_filters', {}).items():
@@ -408,6 +423,19 @@ class Compiler:
                 if hasattr(self.catalog, 'dimensions') and f in self.catalog.dimensions:
                     dim = self.catalog.dimensions[f]
                     expr = dim['expression']
+                    if f in ('date', 'exec_date', 'month', 'week') and metric.get('date_field'):
+                        op_window = plan.get('operational_window') or {}
+                        period_field = op_window.get('field') or metric['date_field']
+                        period_expr = self.expression(target, period_field, 'c')
+                        if 'timestamp' in self.catalog.attribute(target, period_field).get('type', ''):
+                            period_expr = '(' + period_expr + " AT TIME ZONE 'Asia/Shanghai')"
+                            if op_window:
+                                hour = op_window['startHour']
+                                if type(hour) is not int or not 0 <= hour <= 23:
+                                    raise ValueError('运营日日切小时无效')
+                                period_expr = '(' + period_expr + " - INTERVAL '" + str(hour) + " hours')"
+                        expr = ("to_char(" + period_expr + ", 'YYYY-MM')" if f == 'month' else
+                                "date_trunc('week', " + period_expr + ')::date' if f == 'week' else period_expr + '::date')
                     alias = dim.get('alias', f)
                     selection.append(f"{expr} AS {identifier(alias)}")
                     grouping.append(expr)
@@ -416,10 +444,29 @@ class Compiler:
                     selection.append(f"{expr} AS {identifier(f)}")
                     grouping.append(expr)
 
+            bucket = plan.get('time_bucket')
+            if bucket:
+                fmt = {'year': 'YYYY', 'month': 'YYYY-MM', 'day': 'YYYY-MM-DD'}[bucket['grain']]
+                source_expr = self.expression(target, bucket['field'], 'c')
+                op_window = plan.get('operational_window') or {}
+                if op_window and 'timestamp' in self.catalog.attribute(target, bucket['field']).get('type', ''):
+                    hour = op_window.get('startHour', 5)
+                    if type(hour) is not int or not 0 <= hour <= 23:
+                        raise ValueError('运营日日切小时无效')
+                    source_expr = '(' + source_expr + " AT TIME ZONE 'Asia/Shanghai' - INTERVAL '" + str(hour) + " hours')"
+                expr = "to_char(" + source_expr + ", '" + fmt + "')"
+                selection.append(expr + ' AS __period')
+                grouping.append(expr)
+
             agg_expr = metric.get('aggregate_expression', 'COUNT(*)')
             val_alias = metric.get('value_alias') or metric.get('field') or 'total'
             selection.append(f"{agg_expr} AS {identifier(val_alias)}")
             selection.append("COUNT(*) AS n")
+            rate_pat = re.compile(r'ROUND\s*\(\s*100(?:\.0)?\s*\*\s*(.+?)\s*/\s*NULLIF\s*\(\s*(.+?)\s*,\s*0\s*\)\s*,\s*2\s*\)', re.I | re.DOTALL)
+            m_rate = rate_pat.search(agg_expr)
+            if m_rate:
+                selection.append(f"({m_rate.group(1)}) AS __num")
+                selection.append(f"({m_rate.group(2)}) AS __den")
 
             sql = f"SELECT {', '.join(selection)} FROM {self.table(target)} c"
             if join_clauses:
@@ -428,9 +475,19 @@ class Compiler:
             if grouping:
                 sql += f" GROUP BY {', '.join(grouping)}"
                 sort_dir = str(plan.get('sort_dir') or '').upper()
-                temporal_dims = {'date', 'month', 'week', 'hour', 'exec_date', 'hour_of_day', 'peak_hour', 'operation_plan_day', 'operation_exec_day'}
-                if len(groups) == 1 and groups[0] in temporal_dims and not plan.get('limit') and not sort_dir:
-                    sql += f" ORDER BY {grouping[0]} ASC"
+                temporal_dims = {
+                    'date', 'day', 'month', 'week', 'year', 'quarter',
+                    'hour', 'exec_date', 'flight_date', 'movement_date',
+                    'plan_day', 'real_exec_day', 'arr_landin_day',
+                    'hour_of_day', 'peak_hour', 'operation_plan_day', 'operation_exec_day',
+                }
+                all_temporal_groups = bool(groups) and all(g in temporal_dims for g in groups)
+                if bucket and not groups:
+                    sql += ' ORDER BY __period ASC'
+                elif bucket and all_temporal_groups and not plan.get('limit') and not sort_dir:
+                    sql += ' ORDER BY __period ASC, ' + ', '.join(f'{g} ASC' for g in grouping[:-1])
+                elif all_temporal_groups and not plan.get('limit') and not sort_dir:
+                    sql += ' ORDER BY ' + ', '.join(f'{g} ASC' for g in grouping)
                 else:
                     dir_sql = sort_dir if sort_dir in ('ASC', 'DESC') else 'DESC'
                     sql += f" ORDER BY {identifier(val_alias)} {dir_sql} NULLS LAST, {grouping[0]} ASC"

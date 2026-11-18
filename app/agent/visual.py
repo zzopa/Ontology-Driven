@@ -8,7 +8,116 @@ Generates structured chart and KPI specifications (visual_meta) for:
 """
 from decimal import Decimal
 import json
-from typing import Any, Dict, List, Optional
+import re
+from typing import Any, Dict, List, Optional, Tuple
+
+
+TEMPORAL_KEYS: Tuple[str, ...] = (
+    '__period', 'hour', 'hour_of_day', 'peak_hour',
+    'movement_date', 'flight_date', 'exec_date', 'plan_day', 'real_exec_day', 'arr_landin_day',
+    'date', 'day', 'month', 'week', 'quarter', 'year',
+    'operation_plan_day', 'operation_exec_day',
+)
+
+TEMPORAL_DATE_FIELDS: Tuple[str, ...] = (
+    'movement_date', 'flight_date', 'exec_date', 'plan_day', 'real_exec_day', 'arr_landin_day',
+    'operation_plan_day', 'operation_exec_day', 'date', 'day',
+)
+
+NON_TEMPORAL_DIMENSION_KEYS: Tuple[str, ...] = (
+    'airline_code', 'aircraft_type', 'agency', 'attribute', 'flight_task_cd',
+    'terminal', 'craft_site_cd', 'stand_code', 'gate_cd', 'gate_code',
+    'stand_type', 'delay_reason', 'abnormal_reason', 'origin_airport', 'dest_airport',
+)
+
+
+def parse_temporal_sort_key(raw_value: Any) -> Optional[Tuple[int, int, int, int, int, int, int]]:
+    """Parse common date/datetime/month/week/quarter/hour labels into a chronologically sortable tuple."""
+    if raw_value is None:
+        return None
+    if isinstance(raw_value, bool):
+        return None
+    if isinstance(raw_value, int):
+        if 0 <= raw_value <= 23:
+            return (8, 0, 0, 0, raw_value, 0, 0)
+        if 1900 <= raw_value <= 2100:
+            return (5, raw_value, 0, 0, 0, 0, 0)
+        return None
+    if isinstance(raw_value, float) and raw_value.is_integer():
+        return parse_temporal_sort_key(int(raw_value))
+
+    text = str(raw_value).strip()
+    if not text or text in ('未标注', '—', '-'):
+        return None
+
+    # Full datetime: 2026-11-09 12:00(:00) / 2026-11-09T12:00:00+08:00 / 2026-11-09 12时
+    m = re.match(
+        r'^(\d{4})[-/\.](\d{1,2})[-/\.](\d{1,2})[T\s]+(\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?|时|点)',
+        text,
+    )
+    if m:
+        return (0, int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4)), int(m.group(5) or 0), int(m.group(6) or 0))
+
+    # Date: 2026-11-09 / 2026年11月9日
+    m = re.match(r'^(\d{4})[-/\.年](\d{1,2})[-/\.月](\d{1,2})[日号]?$', text)
+    if m:
+        return (1, int(m.group(1)), int(m.group(2)), int(m.group(3)), 0, 0, 0)
+
+    # Year-Month: 2026-11 / 2026年11月
+    m = re.match(r'^(\d{4})[-/\.年](\d{1,2})月?$', text)
+    if m:
+        mo = int(m.group(2))
+        if 1 <= mo <= 12:
+            return (2, int(m.group(1)), mo, 0, 0, 0, 0)
+
+    # Year-Week: 2026-W45 / 2026年第45周
+    m = re.match(r'^(\d{4})(?:[-\s]?W|年第?)(\d{1,2})周?$', text, re.I)
+    if m:
+        return (3, int(m.group(1)), int(m.group(2)), 0, 0, 0, 0)
+
+    # Year-Quarter: 2026-Q1 / 2026年第1季度
+    m = re.match(r'^(\d{4})(?:[-\s]?Q|年第?)([1-4])(?:季度|季)?$', text, re.I)
+    if m:
+        return (4, int(m.group(1)), int(m.group(2)), 0, 0, 0, 0)
+
+    # Year: 2026 / 2026年
+    m = re.match(r'^(\d{4})年?$', text)
+    if m:
+        yr = int(m.group(1))
+        if 1900 <= yr <= 2100:
+            return (5, yr, 0, 0, 0, 0, 0)
+
+    # Month-Day: 11-09 / 11月9日
+    m = re.match(r'^(\d{1,2})[-/\.月](\d{1,2})[日号]?$', text)
+    if m:
+        mo, da = int(m.group(1)), int(m.group(2))
+        if 1 <= mo <= 12 and 1 <= da <= 31:
+            return (6, 0, mo, da, 0, 0, 0)
+
+    # Month only: 11月
+    m = re.match(r'^(\d{1,2})月$', text)
+    if m:
+        mo = int(m.group(1))
+        if 1 <= mo <= 12:
+            return (7, 0, mo, 0, 0, 0, 0)
+
+    # Time / Hour: 12:00 / 12:00:00 / 12:00-13:00 / 12时 / 12点 / pure 0..23
+    m = re.match(r'^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*[-~～]\s*\d{1,2}:\d{2})?$', text)
+    if m:
+        hr, mn, sc = int(m.group(1)), int(m.group(2)), int(m.group(3) or 0)
+        if 0 <= hr <= 23 and 0 <= mn <= 59:
+            return (8, 0, 0, 0, hr, mn, sc)
+    m = re.match(r'^(\d{1,2})\s*[时点](?:\s*[-~～]\s*\d{1,2}\s*[时点])?$', text)
+    if m:
+        hr = int(m.group(1))
+        if 0 <= hr <= 23:
+            return (8, 0, 0, 0, hr, 0, 0)
+    if re.fullmatch(r'\d{1,2}', text):
+        hr = int(text)
+        if 0 <= hr <= 23:
+            return (8, 0, 0, 0, hr, 0, 0)
+
+    return None
 
 
 PALETTE = [
@@ -489,26 +598,46 @@ def build_visual_meta(
 
     # Case 1: Temporal Trend (e.g. __period in rows, hour, or date)
     val_alias = (metric or {}).get('value_alias') or (metric or {}).get('field') or ('total' if intent in ('sum', 'metric') else 'n')
-    temporal_keys = ('__period', 'hour', 'hour_of_day', 'peak_hour', 'flight_date', 'exec_date', 'month', 'week', 'operation_plan_day', 'operation_exec_day')
-    is_temporal = any(k in r for r in main_rows for k in temporal_keys) and not any(k in r for r in main_rows for k in ('airline_code', 'aircraft_type', 'agency', 'attribute', 'flight_task_cd', 'terminal', 'craft_site_cd', 'stand_code', 'gate_cd', 'gate_code', 'stand_type', 'delay_reason', 'abnormal_reason', 'origin_airport', 'dest_airport'))
+    is_temporal = any(k in r for r in main_rows for k in TEMPORAL_KEYS) and not any(k in r for r in main_rows for k in NON_TEMPORAL_DIMENSION_KEYS)
     if intent in ('count', 'sum', 'metric') and len(main_rows) > 1 and is_temporal:
-        series = []
+        series_with_keys: List[Tuple[Tuple[Any, ...], Dict[str, Any]]] = []
         unit = (metric or {}).get('unit', '架次' if intent in ('count', 'metric') else '')
-        for r in main_rows:
+        pk_dates = {str(r['peak_hour'])[:10] for r in main_rows if r.get('peak_hour') is not None and len(str(r['peak_hour'])) >= 10}
+        multi_day_pk = len(pk_dates) > 1
+        for idx, r in enumerate(main_rows):
+            row_date = next((str(r.get(k))[:10] for k in TEMPORAL_DATE_FIELDS if r.get(k) is not None), None)
+            raw_time_key: Any = None
             if r.get('__period') is not None:
                 period_label = str(r['__period'])
+                raw_time_key = period_label
             elif r.get('peak_hour') is not None:
                 pk_str = str(r['peak_hour'])
-                period_label = pk_str[11:16] if len(pk_str) >= 16 and ('T' in pk_str or ' ' in pk_str) else pk_str
+                raw_time_key = pk_str
+                if len(pk_str) >= 16 and ('T' in pk_str or ' ' in pk_str):
+                    period_label = pk_str[:16].replace('T', ' ') if multi_day_pk else pk_str[11:16]
+                else:
+                    period_label = pk_str
             elif r.get('hour') is not None:
-                period_label = f"{int(r['hour']):02d}时"
+                hr_int = int(r['hour'])
+                period_label = f"{row_date} {hr_int:02d}时" if row_date else f"{hr_int:02d}时"
+                raw_time_key = f"{row_date} {hr_int:02d}:00" if row_date else f"{hr_int:02d}:00"
             elif r.get('hour_of_day') is not None:
-                period_label = f"{int(r['hour_of_day']):02d}时"
+                hr_int = int(r['hour_of_day'])
+                period_label = f"{row_date} {hr_int:02d}时" if row_date else f"{hr_int:02d}时"
+                raw_time_key = f"{row_date} {hr_int:02d}:00" if row_date else f"{hr_int:02d}:00"
             else:
-                first_t = next((r.get(k) for k in ('flight_date', 'exec_date', 'month', 'week', 'operation_plan_day', 'operation_exec_day') if r.get(k) is not None), None)
+                first_t = next((r.get(k) for k in (*TEMPORAL_DATE_FIELDS, 'month', 'week', 'quarter', 'year') if r.get(k) is not None), None)
+                raw_time_key = str(first_t) if first_t is not None else None
                 period_label = str(first_t)[:10] if first_t is not None else '未标注'
             val = safe_num(r.get(val_alias, r.get('total', r.get('n', 0))))
-            series.append({'label': period_label, 'value': val})
+            sort_tuple = parse_temporal_sort_key(raw_time_key) or parse_temporal_sort_key(period_label)
+            point: Dict[str, Any] = {'label': period_label, 'value': val}
+            if raw_time_key is not None and str(raw_time_key) != period_label:
+                point['time_key'] = str(raw_time_key)
+            order_key = (0, sort_tuple, idx) if sort_tuple is not None else (1, (), idx)
+            series_with_keys.append((order_key, point))
+        series_with_keys.sort(key=lambda pair: pair[0])
+        series = [point for _, point in series_with_keys]
         return {
             'kind': 'trend',
             'title': f"{(metric or {}).get('name') or subject_name}分布趋势",
@@ -568,8 +697,29 @@ def build_visual_meta(
                 'count': int(r.get('n', 0))
             })
 
-        # Sort descending by value
-        items.sort(key=lambda x: -x['value'])
+        temporal_parsed = [parse_temporal_sort_key(item['label']) for item in items]
+        is_temporal_items = (
+            (group_key in TEMPORAL_KEYS)
+            or (
+                sum(1 for k in temporal_parsed if k is not None) >= 2
+                and all(k is not None or item['label'] == '未标注' for k, item in zip(temporal_parsed, items))
+            )
+        )
+        if is_temporal_items:
+            items = [
+                item
+                for _, item in sorted(
+                    enumerate(items),
+                    key=lambda pair: (
+                        (0, temporal_parsed[pair[0]], pair[0])
+                        if temporal_parsed[pair[0]] is not None
+                        else (1, (), pair[0])
+                    ),
+                )
+            ]
+        else:
+            # Sort descending by value
+            items.sort(key=lambda x: -x['value'])
 
         if 2 <= len(items) <= 6 and not is_rate_or_avg and not is_ranking:
             return {
@@ -594,6 +744,22 @@ def build_visual_meta(
     if intent in ('count', 'sum', 'metric') and len(main_rows) == 1:
         row = main_rows[0]
         stats = []
+        if plan.get('group_by'):
+            ignore_k = {'total', 'mx', 'n', 'missing', 'invalid', val_alias, '__num', '__den',
+                        (metric or {}).get('value_alias'), (metric or {}).get('field'),
+                        (metric or {}).get('code'), (metric or {}).get('key')}
+            for gk, gv in row.items():
+                if gk in ignore_k or (isinstance(gk, str) and gk.startswith('__')):
+                    continue
+                if gv is None:
+                    continue
+                if hasattr(catalog, 'dimensions') and gk in catalog.dimensions:
+                    glbl = catalog.dimensions[gk].get('name') or gk
+                elif catalog and target in catalog.entities and gk in catalog.entities[target].get('attributes', {}):
+                    glbl = catalog.entities[target]['attributes'][gk].get('label') or gk
+                else:
+                    glbl = gk
+                stats.append({'label': glbl, 'value': str(gv), 'unit': ''})
         if intent == 'count':
             count_unit = '班' if ('航班' in subject_name or 'flight' in target.lower()) else '条'
             stats.append({
@@ -604,20 +770,22 @@ def build_visual_meta(
         elif intent == 'metric':
             unit = (metric or {}).get('unit', '')
             metric_name = (metric or {}).get('name', '统计指标')
-            raw_val = row.get(val_alias)
-            if raw_val is None:
-                for cand in ((metric or {}).get('code'), 'total', 'n'):
-                    if cand and row.get(cand) is not None:
+            if val_alias in row:
+                raw_val = row[val_alias]
+            else:
+                raw_val = None
+                for cand in ((metric or {}).get('code'), 'total'):
+                    if cand and cand in row:
                         raw_val = row[cand]
                         break
             stats.append({
                 'label': metric_name,
-                'value': str(raw_val if raw_val is not None else '—'),
-                'unit': unit
+                'value': str(raw_val) if raw_val is not None else '无有效样本',
+                'unit': unit if raw_val is not None else ''
             })
             if row.get('n') is not None:
                 stats.append({
-                    'label': '统计样本数',
+                    'label': '统计样本数' if raw_val is not None else '扫描记录数',
                     'value': str(row['n']),
                     'unit': '条'
                 })
@@ -627,8 +795,8 @@ def build_visual_meta(
             metric_name = (metric or {}).get('name', '总金额')
             stats.append({
                 'label': metric_name,
-                'value': str(tot),
-                'unit': unit
+                'value': str(tot) if tot is not None else '无有效样本',
+                'unit': unit if tot is not None else ''
             })
             stats.append({
                 'label': '参与记录数',

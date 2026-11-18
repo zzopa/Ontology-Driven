@@ -20,8 +20,8 @@ export type AnswerDocument = {
 };
 export type VisualStatItem = { label: string; value: string; unit?: string };
 export type VisualDonutSlice = { label: string; value: number; percent: number; color: string; count?: number };
-export type VisualBarItem = { label: string; value: number; percent: number; color?: string; count?: number };
-export type VisualTrendPoint = { label: string; value: number };
+export type VisualBarItem = { label: string; value: number; percent: number; color?: string; count?: number; time_key?: string };
+export type VisualTrendPoint = { label: string; value: number; time_key?: string };
 export type VisualDetailColumn = { key: string; label: string; unit?: string };
 export type VisualDetailFlightRow = {
   flight_no: string;
@@ -172,6 +172,15 @@ export type VisualMeta =
   | VisualFishbone
   | VisualTurnaround;
 export type QueryResult = {
+  data_source?: string;
+  sections?: AnalysisSection[];
+  airport_sources?: { airport_code: string; airport_name: string; sources: string[] }[];
+  comparisons?: { current_id: string; baseline_id: string; difference: number | null; growth_pct: number | null; difference_unit: string }[];
+  forecast?: Forecast;
+  partial?: boolean;
+  is_simulated?: boolean;
+  data_origin?: "simulated" | "observed";
+  report_id?: string;
   outcome?: "answered" | "clarification_needed" | "unsupported" | "no_data" | "out_of_coverage";
   clarification?: { question: string; options: { id: string; label: string }[] };
   coverage_assessment?: { status: string; complete?: boolean; message?: string; table?: string; coverage_start?: string | null; coverage_end?: string | null };
@@ -183,7 +192,7 @@ export type QueryResult = {
   related: { table: string; name: string; note: string; type: string; level: number; count: number; rows: Row[] }[];
   graph: { nodes: { id: string; main: boolean; level: number }[]; edges: Edge[] };
   graph_tables: unknown[]; drill_token?: string; related_token?: string; page_size: number;
-  metric?: { name: string; unit: string; description: string; target: string };
+  metric?: { name: string; unit: string; description: string; target: string; formula_desc?: string; aggregate_expression?: string };
   applied_rules?: Array<{ code: string; name: string; ruleType?: string; versionNo?: number; domain?: string; description?: string }>;
   plan_template?: { code: string; name: string; planType?: string; requiredCaps?: string[] } | null;
   capability_gate?: { allowed: boolean; status: string; capabilityCode?: string; message?: string; alternatives?: string[] } | null;
@@ -195,6 +204,8 @@ export type QueryResult = {
   evidence?: { facts: Fact[]; queried_at: string; coverage: { table: string; name: string; total: number; provided: number; complete: boolean }[] };
   timings?: Record<string, number>;
 };
+export type AnalysisSection = { id: string; label: string; metric_key: string; period_index: number; object: string; period: string[]; value: number | null; unit: string; is_simulated: boolean; result: QueryResult; formula_desc?: string; calculation_process?: string; sample_count?: number; num_val?: number; den_val?: number };
+export type Forecast = { metric: string; unit: string; as_of: string; training_start: string; training_end: string; quality: "experimental"; warning: string; methodology?: string; history: { date: string; value: number }[]; points: { date: string; value: number; lower: number; upper: number; method: string; mae: number; backtest_origins: number; distance_days: number; planned_value?: number | null }[] };
 export type PageData = { rows: Row[]; field_meta: FieldMeta; subject?: string; table?: string; total: number; page: number; page_size: number };
 export type Status = {
   data_source?: string; external_models_enabled?: boolean;
@@ -229,4 +240,4 @@ export type Ontology = {
     graph: { links_all: { source: string; target: string; from_table: string; to_table: string; note: string; cardinality: string; validation: string; status: string; type?: string }[] }
   };
 };
-export type StreamEvent = { type: string; stage?: string; message?: string; percent?: number; delta?: string; data?: QueryResult; conversation_id?: string; step?: ExecutionStep };
+export type StreamEvent = { type: string; stage?: string; message?: string; percent?: number; delta?: string; data?: QueryResult; conversation_id?: string; step?: ExecutionStep; query_id?: string; section?: AnalysisSection };

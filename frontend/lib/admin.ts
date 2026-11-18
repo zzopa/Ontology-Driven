@@ -157,7 +157,7 @@ export function formatBytes(bytes?: number) {
   return `${value >= 10 || idx === 0 ? Math.round(value) : value.toFixed(1)} ${units[idx]}`;
 }
 
-export function roleLabel(user: User) { return (user.role_names.length ? user.role_names : user.roles).join("、") || "业务账号"; }
+export function roleLabel(user: User) { return (user.role_names?.length ? user.role_names : (user.roles || [])).join("、") || "业务账号"; }
 export const TERM_NAMES = { company_alias: "企业简称", entity_alias: "对象别名", field: "字段解释", metric: "统计指标" };
 export function formatDate(value?: string | null) { return value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "—"; }
 
@@ -381,3 +381,54 @@ export function govStatusBadge(status?: string): { label: string; tone: "green" 
   };
   return { label: labels[s] || s || "未知", tone: "neutral" };
 }
+
+export type SysRole = {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+};
+
+export type SysDataScope = {
+  id?: number;
+  scope_type: string;
+  scope_value?: string | null;
+};
+
+export type SysUserItem = {
+  id: number;
+  username: string;
+  display_name: string;
+  enabled: boolean;
+  overview_profile: string;
+  created_at?: string;
+  updated_at?: string;
+  roles: SysRole[];
+  data_scopes: SysDataScope[];
+};
+
+export type ScopeOptionItem = {
+  code: string;
+  name: string;
+};
+
+export type ScopeOptionsData = {
+  ok: boolean;
+  airlines: ScopeOptionItem[];
+  terminals: ScopeOptionItem[];
+  airports: ScopeOptionItem[];
+  directions: ScopeOptionItem[];
+};
+
+export type SysProfileItem = {
+  code: string;
+  name: string;
+  description: string;
+  target_audience: string;
+  focus_metrics: string;
+  default_scenarios: string;
+  system_prompt_hint: string;
+  is_builtin: boolean;
+  enabled: boolean;
+  updated_at?: string;
+};

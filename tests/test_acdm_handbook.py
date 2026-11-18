@@ -62,7 +62,8 @@ class AcdmHandbookOntologyAndSqlTests(unittest.TestCase):
         self.assertNotIn('fpa_luggage', cargo_expr)
 
         peak_expr = self.catalog.dimensions['peak_hour']['expression']
-        self.assertIn('MOD(', peak_expr)
+        self.assertIn('c.peak_hour', peak_expr)
+        self.assertIn('YYYY-MM-DD', peak_expr)
         self.assertNotIn('%', peak_expr)
 
     def test_planner_slots_topn_and_sql_compilation(self):
@@ -101,7 +102,7 @@ class AcdmHandbookOntologyAndSqlTests(unittest.TestCase):
         self.assertEqual(p_peak_dist['group_by'], ['peak_hour'])
         stmt_pk = self.compiler.aggregate(p_peak_dist)
         self.assertIn('flight_hourly_movements', stmt_pk.sql)
-        self.assertIn('MOD(c.hour_of_day + 1, 24)', stmt_pk.sql)
+        self.assertIn("TO_CHAR(c.peak_hour, 'YYYY-MM-DD HH24:MI')", stmt_pk.sql)
 
         p_peak_max, _ = self.planner.parse('2026-11-10 哪个小时起降架次最多？')
         self.assertEqual(p_peak_max['metric'], 'peak_hour_movements')
@@ -127,6 +128,38 @@ class AcdmHandbookOntologyAndSqlTests(unittest.TestCase):
         self.assertEqual(vis['kind'], 'stats')
         self.assertEqual(vis['stats'][0]['value'], '95.52')
         self.assertEqual(vis['stats'][0]['unit'], '%')
+
+    def test_temporal_groups_follow_each_metric_date_including_operational_days(self):
+        from app.agent.operational_day import apply_operational_day_to_plan
+        for code, field in [('operated_flight_count', 'real_exec_day'), ('planned_flight_count', 'plan_day'),
+                            ('flight_execution_rate', 'calendar_day')]:
+            metric = self.catalog.metrics[code]
+            plan = {'subject': metric['base_table'], 'intent': 'metric', 'metric': code, 'group_by': ['date'],
+                    'conditions': [{'col': field, 'op': '>=', 'value': '2026-11-09'},
+                                   {'col': field, 'op': '<', 'value': '2026-11-10'}], 'focus_tables': []}
+            with self.subTest(metric=code):
+                stmt = self.compiler.aggregate(plan)
+                self.assertIn('c."' + field + '"::date', stmt.sql)
+                op = apply_operational_day_to_plan(plan, self.catalog, day_mode='OPERATIONAL')
+                stmt = self.compiler.aggregate(op)
+                self.assertIn("AT TIME ZONE 'Asia/Shanghai'", stmt.sql)
+                self.assertIn("hours'", stmt.sql)
+
+    def test_actual_flight_counts_use_actual_beijing_date_and_keep_plan_date_separate(self):
+        from app.agent.coordinator import Coordinator
+        coordinator = Coordinator(self.catalog)
+        for question, metric in [('2026-11-09实际执行航班架次', 'operated_flight_count'),
+                                 ('2026-11-09出港执飞架次', 'dep_flight_count'),
+                                 ('2026-11-09进港执飞架次', 'arr_flight_count')]:
+            self.assertEqual(self.catalog.metrics[metric]['date_field'], 'real_exec_day')
+            for plan in [coordinator.plan(question), self.planner.parse(question)[0]]:
+                self.assertEqual(plan['metric'], metric)
+                dates = [c for c in plan['conditions'] if c['op'] in ('>=', '<', 'prefix')]
+                self.assertTrue(dates)
+                self.assertEqual({c['col'] for c in dates}, {'real_exec_day'})
+                self.assertIn('real_exec_day', self.compiler.aggregate(plan).sql)
+                self.assertFalse(any(c['col'] in ('destCity', 'originCity') for c in plan['conditions']))
+        self.assertEqual(self.catalog.metrics['planned_flight_count']['date_field'], 'plan_day')
 
     def test_acdm_report_intent_and_planned_capability_boundary(self):
         from app.agent.coordinator import Coordinator
@@ -179,7 +212,8 @@ class _FakeReportCursor:
     def execute(self, sql, params=()):
         import re
         s = ' '.join(str(sql).split())
-        m_start = re.search(r'\bSELECT\b', s, re.I)
+        counts_select = re.search(r'\bcounts AS \(\s*SELECT\b', s, re.I)
+        m_start = counts_select or re.search(r'\bSELECT\b', s, re.I)
         aliases = []
         if m_start:
             # Split top-level (depth==0) SELECT columns until top-level FROM
@@ -210,6 +244,8 @@ class _FakeReportCursor:
                     m_col = re.search(r'([A-Za-z_][A-Za-z0-9_]*)\s*$', p)
                     if m_col:
                         aliases.append(m_col.group(1))
+        if counts_select:
+            aliases.extend(('eligible_flights', 'entry_rate_pct'))
         if 'AS start_date' in s and 'start_date' in aliases:
             self.description = [(c,) for c in aliases]
             row = ('2026-10-12', '2026-11-12', 15599)
@@ -266,6 +302,20 @@ class _FakeConn:
 
 
 class AcdmReportsAndApiTests(unittest.IsolatedAsyncioTestCase):
+    def test_ground_briefing_shows_both_rate_numerators_and_denominators(self):
+        q_one = acdm_reports._q_one
+        counts = {'all_dep_22': 238, 'all_release_norm_22': 233, 'all_takeoff_norm_22': 229,
+                  'gh_dep_22': 66, 'gh_release_norm_22': 64, 'gh_takeoff_norm_22': 62, 'gh_release_delay_22': 2}
+
+        def read_one(cur, sql, params=()):
+            return dict(counts) if 'AS all_dep_22' in sql else q_one(cur, sql, params)
+
+        with patch.object(acdm_reports, '_q_one', side_effect=read_one):
+            report = acdm_reports.build_ground_briefing(_FakeConn(), target_date=date(2026, 11, 9))
+        for text in ('97.90%（分子 233，分母 238）', '96.22%（分子 229，分母 238）',
+                     '96.97%（分子 64，分母 66）', '93.94%（分子 62，分母 66）'):
+            self.assertIn(text, report['text'])
+
     def test_three_special_reports_render_complete_sections_and_unit_conversions(self):
         conn = _FakeConn()
         gen = acdm_reports.build_general_report(conn, period_type='day', start_date=date(2026, 11, 10), end_date=date(2026, 11, 10))

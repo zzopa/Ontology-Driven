@@ -97,11 +97,11 @@ class Access:
                 'roles': list(self.roles), 'role_names': list(self.role_names)}
 
     def allowed(self, table):
+        if self.unrestricted:
+            return True
         spec = POLICY['tables'].get(table)
         if not spec:
-            return False
-        if 'admin' in self.roles:
-            return True
+            return getattr(settings, 'data_source', '') in ('ops_ask', 'acdm')
         grant = spec['indicator']
         base = grant.split('.segment.')[0]
         indicator_ok = self.indicators is None or grant in self.indicators or base in self.indicators
@@ -111,8 +111,12 @@ class Access:
 
     def source(self, table, catalog, seen=(), authorize=True):
         """Derived sources enforce scope even on intermediate joins and EXISTS."""
-        if table in seen or table not in POLICY['tables'] or (authorize and not self.allowed(table)):
+        if table in seen or (authorize and not self.allowed(table)):
             raise HTTPException(403, '当前账号无权查询该业务数据')
+        if table not in POLICY['tables']:
+            meta = catalog.tables[table]
+            raw = identifier(meta.get('schema', 'public')) + '.' + identifier(meta.get('name', table))
+            return raw, []
         spec = POLICY['tables'][table]
         meta = catalog.tables[table]
         raw = identifier(meta.get('schema', 'public')) + '.' + identifier(meta.get('name', table))
@@ -236,6 +240,39 @@ def payroll_hidden(access, table, columns):
 
 
 def load_access(conn, user_id):
+    if getattr(settings, 'data_source', '') == 'ops_ask':
+        try:
+            from app.sync.pg_sink import connect_pg_write
+            pg_conn = connect_pg_write()
+            try:
+                pg_cur = pg_conn.cursor()
+                pg_cur.execute('SELECT id, username, display_name, enabled FROM sys_user WHERE id = %s', (int(user_id),))
+                u = pg_cur.fetchone()
+                if u:
+                    if not u[3]:
+                        raise HTTPException(401, '业务账号已停用或不存在，请重新登录')
+                    pg_cur.execute('SELECT r.code, r.name FROM sys_user_role ur JOIN sys_role r ON r.id = ur.role_id WHERE ur.user_id = %s', (u[0],))
+                    r_rows = pg_cur.fetchall()
+                    roles_list = [r[0].lower() for r in r_rows]
+                    role_names = [r[1] for r in r_rows]
+                    return Access(
+                        user_id=str(u[0]),
+                        username=u[1],
+                        display_name=u[2] or u[1],
+                        scope='ALL' if 'admin' in roles_list else 'CUSTOM',
+                        roles=tuple(roles_list),
+                        indicators=None,
+                        permissions=None,
+                        companies=frozenset(),
+                        revision=f"sys_user_{u[0]}",
+                        role_names=tuple(role_names),
+                    )
+            finally:
+                pg_conn.close()
+        except HTTPException:
+            raise
+        except Exception:
+            pass
     users = execute(conn, Statement('SELECT u.id,u.username,u.display_name,u.enabled,u.data_scope,u.department_id,d.tree_path,d.owner_org_scc '
                                   'FROM app_user u LEFT JOIN department d ON d.id=u.department_id WHERE u.id=%s', (user_id,)))
     if not users or not users[0]['enabled']:
@@ -327,8 +364,27 @@ def login(username, password, client):
                 raise HTTPException(429, '登录尝试过多，请稍后重试')
     conn = core.connect_db(identity=True)
     try:
-        users = execute(conn, Statement('SELECT id,password_hash,enabled FROM app_user WHERE username=%s', (username,)))
-        row = users[0] if users else None
+        row = None
+        is_sys_user = False
+        if getattr(settings, 'data_source', '') == 'ops_ask':
+            try:
+                from app.sync.pg_sink import connect_pg_write
+                pg_conn = connect_pg_write()
+                try:
+                    pg_cur = pg_conn.cursor()
+                    pg_cur.execute('SELECT id, password_hash, enabled, display_name FROM sys_user WHERE username = %s', (username,))
+                    pg_row = pg_cur.fetchone()
+                    if pg_row:
+                        row = {'id': str(pg_row[0]), 'password_hash': pg_row[1], 'enabled': bool(pg_row[2]), 'display_name': pg_row[3]}
+                        is_sys_user = True
+                finally:
+                    pg_conn.close()
+            except Exception:
+                pass
+        if not row:
+            users = execute(conn, Statement('SELECT id,password_hash,enabled FROM app_user WHERE username=%s', (username,)))
+            row = users[0] if users else None
+            is_sys_user = False
         hashed = row['password_hash'] if row else None
         try:
             valid = bcrypt.checkpw(password.encode(), (hashed or DUMMY_HASH).encode())
@@ -341,7 +397,35 @@ def login(username, password, client):
                                'failures=CASE WHEN ?-window>=900 THEN 1 ELSE failures+1 END,'
                                'window=CASE WHEN ?-window>=900 THEN ? ELSE window END', (scope, time(), time(), time(), time()))
             raise HTTPException(401, '账号或密码错误，或账号已停用')
-        access = load_access(conn, row['id'])
+        if is_sys_user:
+            roles_list, role_names = [], []
+            try:
+                from app.sync.pg_sink import connect_pg_write
+                pg_conn = connect_pg_write()
+                try:
+                    pg_cur = pg_conn.cursor()
+                    pg_cur.execute('SELECT r.code, r.name FROM sys_user_role ur JOIN sys_role r ON r.id = ur.role_id WHERE ur.user_id = %s', (int(row['id']),))
+                    r_rows = pg_cur.fetchall()
+                    roles_list = [r[0].lower() for r in r_rows]
+                    role_names = [r[1] for r in r_rows]
+                finally:
+                    pg_conn.close()
+            except Exception:
+                pass
+            access = Access(
+                user_id=row['id'],
+                username=username,
+                display_name=row.get('display_name') or username,
+                scope='ALL' if 'admin' in roles_list else 'CUSTOM',
+                roles=tuple(roles_list),
+                indicators=None,
+                permissions=None,
+                companies=frozenset(),
+                revision=f"sys_user_{row['id']}",
+                role_names=tuple(role_names),
+            )
+        else:
+            access = load_access(conn, row['id'])
     finally:
         conn.close()
     token = secrets.token_urlsafe(32)
@@ -366,7 +450,15 @@ def logout(token):
 def query_identity(request):
     value = identity(request)
     if settings.data_source in ('acdm', 'ops_ask'):
-        if 'admin' not in value['access'].roles:
+        roles = getattr(value['access'], 'roles', ())
+        rev = getattr(value['access'], 'revision', '')
+        if rev.startswith('sys_user_'):
+            if not roles:
+                raise HTTPException(403, '当前账号未分配任何角色')
+            if 'admin' in roles:
+                value['access'] = None
+            return value
+        if 'admin' not in roles:
             raise HTTPException(403, '运营数据源仅允许原系统管理员访问')
         value['access'] = None
     return value

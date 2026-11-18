@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from datetime import date, timedelta
 from typing import Any
 
 
@@ -56,7 +57,7 @@ def match_rules_for_plan(catalog: Any, plan: dict[str, Any]) -> list[dict[str, A
     if not rules:
         return []
     metric_key = plan.get('metric')
-    metric_cfg = (getattr(catalog, 'metrics', {}) or {}).get(metric_key or '') if metric_key else None
+    metric_cfg = (getattr(catalog, 'metrics', {}) or {}).get(metric_key or '') if isinstance(metric_key, str) else None
     metric_rule_code = (metric_cfg or {}).get('rule_code')
     subject = plan.get('subject')
     metric_domain = str((metric_cfg or {}).get('domain') or '').upper()
@@ -95,7 +96,7 @@ def apply_rule_guardrails(catalog: Any, plan: dict[str, Any]) -> list[dict[str, 
     filters_map = getattr(catalog, 'filters', {}) or {}
     attrs = (getattr(catalog, 'entities', {}).get(subject) or {}).get('attributes', {})
     conditions = plan.setdefault('conditions', [])
-    existing_cols = {c.get('col') for c in conditions if isinstance(c, dict)}
+    existing_cols = {c.get('col') for c in conditions if isinstance(c, dict) and isinstance(c.get('col'), str)}
 
     for rule in matched:
         req = rule.get('outputMapping', {}).get('required_filters')
@@ -130,7 +131,7 @@ def check_capability_gate(catalog: Any, plan: dict[str, Any], template: dict[str
     subject = plan.get('subject') or ''
     intent = plan.get('intent', 'detail')
     metric_key = plan.get('metric')
-    metric_cfg = (getattr(catalog, 'metrics', {}) or {}).get(metric_key or '') if metric_key else None
+    metric_cfg = (getattr(catalog, 'metrics', {}) or {}).get(metric_key or '') if isinstance(metric_key, str) else None
 
     def _blocked(status: str, message: str, cap: dict[str, Any] | None = None, code: str = '') -> dict[str, Any]:
         alts = list((cap or {}).get('alternatives') or [])
@@ -183,7 +184,7 @@ def check_capability_gate(catalog: Any, plan: dict[str, Any], template: dict[str
             return _blocked(rpt_cap['status'], msg, rpt_cap, 'acdm.reports')
 
     requested_cols = {
-        *(c.get('col') for c in (plan.get('conditions') or []) if isinstance(c, dict) and c.get('col')),
+        *(c.get('col') for c in (plan.get('conditions') or []) if isinstance(c, dict) and isinstance(c.get('col'), str)),
         *(g for g in (plan.get('group_by') or []) if isinstance(g, str)),
     }
     for cap in caps:
@@ -205,9 +206,19 @@ def check_capability_gate(catalog: Any, plan: dict[str, Any], template: dict[str
 
 
 def _period_label(plan: dict[str, Any]) -> str:
+    period = plan.get('query_context', {}).get('slots', {}).get('period')
+    if isinstance(period, (list, tuple)) and len(period) == 2:
+        start, end = date.fromisoformat(period[0]), date.fromisoformat(period[1]) - timedelta(days=1)
+        return str(start) if start == end else f'{start}至{end}'
     conditions = plan.get('conditions') or []
     starts = [str(c.get('value') or '')[:10] for c in conditions if c.get('op') in ('>=', 'prefix') and re.match(r'^\d{4}-\d{2}-\d{2}', str(c.get('value') or ''))]
     if starts:
+        boundary = next((str(c.get('value'))[:10] for c in conditions if c.get('op') == '<'
+                         and re.match(r'^\d{4}-\d{2}-\d{2}', str(c.get('value') or ''))), None)
+        if boundary:
+            end = date.fromisoformat(boundary) - timedelta(days=1)
+            if str(end) != starts[0]:
+                return f'{starts[0]}至{end}'
         return starts[0]
     prefixes = [str(c.get('value') or '') for c in conditions if c.get('op') == 'prefix' and str(c.get('value') or '')]
     return prefixes[0] if prefixes else ''

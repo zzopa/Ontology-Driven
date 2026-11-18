@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRight, ArrowUpRight, BarChart3, ChartGantt, Clock3, PieChart, Plane, Search, Table2, TrendingUp } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BarChart3, CalendarClock, CalendarDays, ChartGantt, Clock3, PieChart, Plane, Search, Table2, TrendingUp, Users } from "lucide-react";
 import { formatValue } from "@/lib/query";
+import { sortTemporalItems } from "@/lib/time-sort";
 import type { Row, VisualDetailFlightRow, VisualDetailTable, VisualMeta } from "@/lib/types";
 import { Badge, Button } from "./ui";
 import v from "./visual-views.module.css";
@@ -30,6 +31,21 @@ function parseNumeric(raw: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function getBarGradient(barColor?: string, title?: string, idx = 0) {
+  if (/计划/.test(title || "")) return "linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%)";
+  if (/实际|执行|执飞/.test(title || "")) return "linear-gradient(90deg, #10b981 0%, #34d399 100%)";
+  if (/率|%/.test(title || "")) return "linear-gradient(90deg, #8b5cf6 0%, #a855f7 100%)";
+  if (barColor) return `linear-gradient(90deg, ${barColor} 0%, color-mix(in srgb, ${barColor} 70%, #ffffff) 100%)`;
+  const palette = [
+    "linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%)",
+    "linear-gradient(90deg, #10b981 0%, #34d399 100%)",
+    "linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)",
+    "linear-gradient(90deg, #8b5cf6 0%, #a855f7 100%)",
+    "linear-gradient(90deg, #ec4899 0%, #f472b6 100%)",
+  ];
+  return palette[idx % palette.length];
+}
+
 export function StatsVisual({ meta }: { meta: StatsMeta }) {
   const primary = meta.stats[0];
   const secondary = meta.stats.slice(1);
@@ -37,18 +53,27 @@ export function StatsVisual({ meta }: { meta: StatsMeta }) {
   const pctNum = primary.unit === "%" ? parseNumeric(primary.value) : null;
   const showGauge = pctNum !== null && pctNum >= 0 && pctNum <= 100;
 
+  const HeaderIcon = /率|%|环比|同比/.test(meta.title)
+    ? TrendingUp
+    : /航班|起降|执飞|实际/.test(meta.title)
+    ? Plane
+    : /计划/.test(meta.title)
+    ? CalendarClock
+    : /旅客|座位/.test(meta.title)
+    ? Users
+    : BarChart3;
+
   return (
-    <section className={v.card} aria-label={meta.title}>
+    <section className={`${v.card} ${v.statsCard}`} aria-label={meta.title}>
       <div className={v.header}>
         <div className={v.titleGroup}>
-          <span className={v.iconMark}><BarChart3 size={15} aria-hidden="true" /></span>
+          <span className={v.iconMark}><HeaderIcon size={15} aria-hidden="true" /></span>
           <h4 className={v.title}>{meta.title}</h4>
         </div>
-        <Badge tone="green">核心指标</Badge>
       </div>
       <div className={`${v.statsWrap} ${secondary.length === 0 ? v.statsWrapSingle : ""}`}>
         <div className={v.heroStat}>
-          <span className={v.heroLabel}>{primary.label}</span>
+          {primary.label !== meta.title && <span className={v.heroLabel}>{primary.label}</span>}
           <div className={v.heroValueRow}>
             <strong className={v.heroValue}>{primary.value}</strong>
             {primary.unit && <span className={v.heroUnit}>{primary.unit}</span>}
@@ -162,23 +187,47 @@ export function DonutVisual({ meta }: { meta: DonutMeta }) {
 }
 
 export function BarVisual({ meta }: { meta: BarMeta }) {
-  const maxVal = Math.max(...meta.bars.map(b => b.value), 1);
+  const orderedBars = useMemo(
+    () => sortTemporalItems(meta.bars, b => b.time_key || b.label, b => b.label),
+    [meta.bars],
+  );
+  const maxVal = Math.max(...orderedBars.map(b => b.value), 1);
   const scaleBase = (meta.is_rate || meta.unit === "%") && maxVal <= 100 ? 100 : maxVal;
+
+  const HeaderIcon = /计划/.test(meta.title)
+    ? CalendarClock
+    : /实际|执行|执飞|起飞|到达|航班/.test(meta.title)
+    ? Plane
+    : /率|%|环比|同比/.test(meta.title)
+    ? TrendingUp
+    : /旅客|座位|吞吐/.test(meta.title)
+    ? Users
+    : BarChart3;
+
+  const iconTone = /计划/.test(meta.title)
+    ? v.iconMarkBlue
+    : /实际|执行|执飞/.test(meta.title)
+    ? v.iconMarkGreen
+    : /率|%/.test(meta.title)
+    ? v.iconMarkPurple
+    : "";
+
+  const badgeTone = /实际|执行|执飞/.test(meta.title) ? "green" : undefined;
 
   return (
     <section className={v.card} aria-label={meta.title}>
       <div className={v.header}>
         <div className={v.titleGroup}>
-          <span className={v.iconMark}><BarChart3 size={15} aria-hidden="true" /></span>
+          <span className={`${v.iconMark} ${iconTone}`}><HeaderIcon size={15} aria-hidden="true" /></span>
           <h4 className={v.title}>{meta.title}</h4>
         </div>
-        <Badge>{meta.bars.length} 个{meta.group_label || "分类"}</Badge>
+        <Badge tone={badgeTone}>{orderedBars.length} 个{meta.group_label || "项目"}</Badge>
       </div>
       <div className={v.barsWrap}>
-        {meta.bars.map((bar, i) => {
-          const widthPct = Math.min(100, Math.max(2, (bar.value / scaleBase) * 100));
-          const fill = bar.color || FALLBACK_PALETTE[i % FALLBACK_PALETTE.length];
+        {orderedBars.map((bar, i) => {
+          const widthPct = Math.min(100, Math.max(3, (bar.value / scaleBase) * 100));
           const showPct = bar.percent > 0 && meta.unit !== "%";
+          const barBg = getBarGradient(bar.color, meta.title, i);
           return (
             <div key={i} className={v.barRow}>
               <div className={v.barHead}>
@@ -187,12 +236,13 @@ export function BarVisual({ meta }: { meta: BarMeta }) {
                   <span className={v.barName} title={bar.label}>{bar.label}</span>
                 </div>
                 <span className={v.barVal}>
-                  <strong>{bar.value.toLocaleString()}</strong> {meta.unit}
-                  {showPct ? ` (${bar.percent}%)` : ""}
+                  <strong>{bar.value.toLocaleString("zh-CN", { maximumFractionDigits: 2 })}</strong>
+                  <small>{meta.unit}</small>
+                  {showPct ? <span className={v.barPctTag}>({bar.percent}%)</span> : null}
                 </span>
               </div>
               <div className={v.barTrack}>
-                <div className={v.barFill} style={{ width: `${widthPct}%`, backgroundColor: fill }} />
+                <div className={v.barFill} style={{ width: `${widthPct}%`, background: barBg }} />
               </div>
             </div>
           );
@@ -204,16 +254,20 @@ export function BarVisual({ meta }: { meta: BarMeta }) {
 
 export function TrendVisual({ meta }: { meta: TrendMeta }) {
   const [hovered, setHovered] = useState<number | null>(null);
-  const maxVal = Math.max(...meta.series.map(s => s.value), 1);
-  const avgVal = meta.series.length
-    ? Math.round((meta.series.reduce((sum, s) => sum + s.value, 0) / meta.series.length) * 10) / 10
-    : 0;
-  const peakPoint = meta.series.reduce(
-    (best, pt) => (pt.value > best.value ? pt : best),
-    meta.series[0] || { label: "—", value: 0 },
+  const series = useMemo(
+    () => sortTemporalItems(meta.series, pt => pt.time_key || pt.label, pt => pt.label),
+    [meta.series],
   );
-  const activePoint = hovered !== null ? meta.series[hovered] : null;
-  const dense = meta.series.length > 14;
+  const maxVal = Math.max(...series.map(s => s.value), 1);
+  const avgVal = series.length
+    ? Math.round((series.reduce((sum, s) => sum + s.value, 0) / series.length) * 10) / 10
+    : 0;
+  const peakPoint = series.reduce(
+    (best, pt) => (pt.value > best.value ? pt : best),
+    series[0] || { label: "—", value: 0 },
+  );
+  const activePoint = hovered !== null ? series[hovered] : null;
+  const dense = series.length > 14;
 
   return (
     <section className={v.card} aria-label={meta.title}>
@@ -224,7 +278,7 @@ export function TrendVisual({ meta }: { meta: TrendMeta }) {
         </div>
         <div className={v.trendStats}>
           <Badge>{meta.metric_label || "趋势"}</Badge>
-          {meta.series.length > 0 && (
+          {series.length > 0 && (
             <>
               <Badge tone="green">峰值 {peakPoint.value.toLocaleString()} {meta.unit} ({peakPoint.label})</Badge>
               <Badge>均值 {avgVal.toLocaleString()} {meta.unit}</Badge>
@@ -236,8 +290,8 @@ export function TrendVisual({ meta }: { meta: TrendMeta }) {
         <div className={v.trendPlotArea}>
           <span className={v.trendGridLine} style={{ top: 20 }} aria-hidden="true" />
           <span className={v.trendGridLine} style={{ top: "55%" }} aria-hidden="true" />
-          {meta.series.map((pt, i) => {
-            const heightPct = Math.min(100, Math.max(4, (pt.value / maxVal) * 100));
+          {series.map((pt, i) => {
+            const heightPct = Math.min(100, Math.max(pt.value > 0 ? 4 : 0, (pt.value / maxVal) * 100));
             const isPeak = pt.value === peakPoint.value && pt.value > 0;
             const showValueAbove = !dense || isPeak || hovered === i;
             return (
@@ -251,15 +305,19 @@ export function TrendVisual({ meta }: { meta: TrendMeta }) {
                 onBlur={() => setHovered(null)}
                 aria-label={`${pt.label}: ${pt.value.toLocaleString()} ${meta.unit}`}
               >
-                {showValueAbove && <span className={v.trendPillarVal}>{pt.value.toLocaleString()}</span>}
+                {showValueAbove && (
+                  <span className={v.trendPillarVal} style={{ bottom: `calc(${heightPct}% + 4px)` }}>
+                    {pt.value.toLocaleString()}
+                  </span>
+                )}
                 <div className={v.trendPillar} style={{ height: `${heightPct}%` }} />
               </button>
             );
           })}
         </div>
         <div className={v.trendLabelsRow}>
-          {meta.series.map((pt, i) => {
-            const showLabel = !dense || i === 0 || i === meta.series.length - 1 || i % 2 === 0 || hovered === i;
+          {series.map((pt, i) => {
+            const showLabel = !dense || i === 0 || i === series.length - 1 || i % 2 === 0 || hovered === i;
             return (
               <span key={i} className={v.trendLabelCell} title={pt.label}>
                 {showLabel ? pt.label : ""}
@@ -433,7 +491,7 @@ export function DetailTableVisual({
         }));
       }
     }
-    return summary?.hourly_distribution || [];
+    return [...(summary?.hourly_distribution || [])].sort((a, b) => a.hour - b.hour);
   }, [meta.is_flight, meta.rows, summary?.hourly_distribution]);
   const maxHourCount = Math.max(...hourly.map(h => h.count), 1);
   const peakHour = hourly.reduce(

@@ -10,8 +10,9 @@ export function updateStep(steps: ExecutionStep[], step: ExecutionStep): Executi
   return steps.map((item, i) => i === index ? step : item);
 }
 
-export function stopSteps(steps: ExecutionStep[], message: string, interrupted = false): ExecutionStep[] {
+export function stopSteps(steps: ExecutionStep[], message: string, interrupted = false, elapsed?: number): ExecutionStep[] {
   return steps.map(step => step.state === "running" ? {
     ...step, state: interrupted ? "interrupted" : "failed", message,
+    elapsed: elapsed === undefined ? step.elapsed : Math.max(step.elapsed, elapsed - step.started_at, 0),
   } : step);
 }

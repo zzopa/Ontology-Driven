@@ -2110,6 +2110,36 @@ def dry_run_plan(question: str, day_mode: str = 'AUTO') -> dict[str, Any]:
                 **plan,
             }
         compiler = Compiler(catalog)
+        if plan.get('intent') in ('analysis', 'forecast'):
+            if plan.get('analysis_kind') == 'cross_day_reconciliation':
+                from app.agent.cross_day import build_statements
+                summary_stmt, detail_stmt = build_statements(catalog, plan)
+                previews = [
+                    {'id': 'summary', 'label': '计划/取消/实际执行跨日口径对账汇总', 'sql': summary_stmt.sql, 'params': core.json_safe(summary_stmt.params)},
+                    {'id': 'details', 'label': '窗口边界跨日航班明细', 'sql': detail_stmt.sql, 'params': core.json_safe(detail_stmt.params)},
+                ]
+                return {'ok': True, 'resolved': True, 'question': q, 'source': source, 'hints': hints,
+                        'plan': core.json_safe(plan), 'sql': '\n\n'.join('-- ' + p['label'] + '\n' + p['sql'] for p in previews),
+                        'params': [v for p in previews for v in p['params']], 'subqueries': previews,
+                        'capabilityStatus': 'AVAILABLE', 'matchedRules': [], 'trace': trace.snapshot(),
+                        'coverageCheck': {'status': 'UNKNOWN', 'complete': False, 'message': '模拟规划不执行取数；实际覆盖在运行时核验'}}
+            children = plan.get('queries') or [{'id': 'history', 'label': '预测历史日序列', 'plan': deepcopy(plan['base_plan'])}]
+            previews = []
+            for item in children:
+                child = deepcopy(item['plan'])
+                if plan['intent'] == 'forecast':
+                    child['time_bucket'] = {'field': (child.get('operational_window') or {}).get('field') or catalog.metrics[child['metric']]['date_field'], 'grain': 'day'}
+                compiler.validate(child)
+                gate = check_capability_gate(catalog, child, template=child.get('plan_template'))
+                if not gate['allowed']:
+                    return {'ok': True, 'resolved': False, 'question': q, 'plan': core.json_safe(plan), 'capabilityGate': gate, 'error': gate['message'], 'trace': trace.snapshot()}
+                statement = compiler.detail(child, [], 5, 20) if child['intent'] == 'detail' else compiler.aggregate(child)
+                previews.append({'id': item['id'], 'label': item['label'], 'sql': statement.sql, 'params': core.json_safe(statement.params)})
+            return {'ok': True, 'resolved': True, 'question': q, 'source': source, 'hints': hints,
+                    'plan': core.json_safe(plan), 'sql': '\n\n'.join('-- ' + p['label'] + '\n' + p['sql'] for p in previews),
+                    'params': [v for p in previews for v in p['params']], 'subqueries': previews,
+                    'capabilityStatus': 'AVAILABLE', 'matchedRules': [], 'trace': trace.snapshot(),
+                    'coverageCheck': {'status': 'UNKNOWN', 'complete': False, 'message': '模拟规划不执行取数；实际覆盖在运行时逐项核验'}}
         compiler.validate(plan)
         gate = check_capability_gate(catalog, plan, template=plan.get('plan_template'))
         if not gate['allowed']:

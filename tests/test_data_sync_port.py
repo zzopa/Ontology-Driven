@@ -2,8 +2,9 @@
 from datetime import date, datetime
 from decimal import Decimal
 import unittest
+from unittest.mock import MagicMock, patch
 
-from app.sync import oracle_source, pg_sink, transforms
+from app.sync import oracle_source, pg_sink, transforms, runner
 
 
 class SyncTransformTests(unittest.TestCase):
@@ -38,7 +39,7 @@ class SyncTransformTests(unittest.TestCase):
         self.assertIsNotNone(draft)
         self.assertEqual(draft['direction'], 'DEP')
         self.assertEqual(draft['flight_no'], 'MU2501')
-        self.assertEqual(draft['biz_key'], 'WUH:2026-08-05:DEP:MU2501')
+        self.assertEqual(draft['biz_key'], 'WUH:ORACLE:1001')
         self.assertEqual(draft['airport_code'], 'WUH')
         self.assertEqual(draft['flight_date'], date(2026, 8, 5))
         self.assertEqual(draft['flight_date_utc'], datetime(2026, 8, 5, 0, 0, tzinfo=transforms.timezone.utc))
@@ -98,7 +99,7 @@ class SyncTransformTests(unittest.TestCase):
         self.assertEqual(d['dest_airport'], 'CAN')
         self.assertIs(d['is_local_leg'], True)
         self.assertEqual(d['baggage_weight'], Decimal('720'))
-        self.assertEqual(d['biz_key'], 'WUH:2026-08-05:DEP:MU9600:LWUH-CAN')
+        self.assertEqual(d['biz_key'], 'WUH:FORMFILL_FPA:u1')
 
     def test_codeshare_mapping_and_identifier_validation(self):
         cs = transforms.map_codeshare_draft({'FLIGHT_ID': 999, 'AIRLINE_TWO_CHAR_CD': 'MF', 'FLIGHT_NO': '8101'})
@@ -114,6 +115,16 @@ class SyncTransformTests(unittest.TestCase):
         self.assertEqual(pg_sink._resolve_terminal({'terminal': 'T1', 'gate_code': 'A12', 'stand_code': '101'}, gates, stands), 'T1')
         self.assertEqual(pg_sink._resolve_terminal({'terminal': None, 'gate_code': 'A12', 'stand_code': '101'}, gates, stands), 'T3')
         self.assertEqual(pg_sink._resolve_terminal({'terminal': None, 'gate_code': None, 'stand_code': '101'}, gates, stands), 'T2')
+
+    def test_oracle_occurrence_lookup_binds_ids_and_rejects_invalid_input(self):
+        from unittest.mock import patch
+        with patch.object(oracle_source, '_iter_oracle_dicts', return_value=iter(())) as read:
+            oracle_source.iter_flight_batches(None, {}, 'fims', mode='BY_SOURCE_ID', source_flight_ids=['4826291', 4827375])
+            args = read.call_args
+            self.assertIn('FLIGHT_ID IN (:flightId0,:flightId1)', args.args[1])
+            self.assertEqual(args.args[2], {'flightId0': 4826291, 'flightId1': 4827375})
+            with self.assertRaises(ValueError):
+                oracle_source.iter_flight_batches(None, {}, 'fims', source_flight_ids=['1 OR 1=1'])
 
 
 class _FakeSyncCursor:
@@ -202,7 +213,7 @@ class BulkPgSinkTests(unittest.TestCase):
         conn = _FakeSyncConn(handler)
         d1 = self._sample_flight_draft(101, 'MU2501')
         d2 = self._sample_flight_draft(102, 'CZ3101')
-        d3_dup = self._sample_flight_draft(103, 'MU2501')  # collides on triple_key with d1
+        d3_dup = self._sample_flight_draft(101, 'MU2501')
 
         res = pg_sink.upsert_flight_batch(conn, [d1, d2, d3_dup])
         self.assertEqual(res, {'inserted': 2, 'updated': 1, 'skipped': 0, 'failed': 0})
@@ -212,6 +223,34 @@ class BulkPgSinkTests(unittest.TestCase):
         core_updates = [q for q, _ in executed if q.startswith('UPDATE std_flight_core AS t SET')]
         self.assertEqual(len(core_inserts), 1)  # d1 + d2 inserted in one multi-row statement
         self.assertEqual(len(core_updates), 1)  # d3_dup updated in Pass 1
+
+    def test_same_day_same_flight_number_keeps_distinct_oracle_occurrences(self):
+        first = self._sample_flight_draft(4826291, 'MU2632', is_dep=False)
+        second = self._sample_flight_draft(4827375, 'MU2632', is_dep=False)
+        acdm = self._sample_flight_draft(4826291, 'MU2632', is_dep=False, source_system='ACDM_ORACLE')
+        self.assertNotEqual(first['biz_key'], second['biz_key'])
+        self.assertEqual(first['biz_key'], acdm['biz_key'])
+        items, remaining = pg_sink._partition_flight_pass([first, second], {}, {}, {}, {})
+        self.assertEqual(len(items), 2)
+        self.assertEqual(remaining, [])
+        existing = {('WUH', '4826291'): 10, ('WUH', '4827375'): 11}
+        items, _ = pg_sink._partition_flight_pass([acdm, second], {}, existing, {}, {})
+        self.assertEqual([item[4] for item in items], [10, 11])
+
+    def test_production_matches_the_actual_occurrence_instead_of_first_same_number(self):
+        draft = self._sample_prod_draft('mu2632', 'MU2632')
+        key = ('WUH', date(2026, 11, 9), 'DEP', 'MU2632')
+        lookup = {key: [(10, 'B7301', '00:35', 'WUH-CAN'), (11, 'B7301', '17:48', 'WUH-CAN')]}
+        draft.update(movement_time_text='17:48', aircraft_reg='B7301')
+        self.assertEqual(pg_sink._production_flight_id(draft, lookup), 11)
+        draft['movement_time_text'] = None
+        self.assertIsNone(pg_sink._production_flight_id(draft, lookup))
+        draft['movement_time_text'] = '19:00'
+        self.assertIsNone(pg_sink._production_flight_id(draft, lookup))
+        lookup[key] = [(10, 'B7301', '19:02', 'WUH-CAN'), (11, 'B1234', '19:00', 'WUH-CAN')]
+        self.assertEqual(pg_sink._production_flight_id(draft, lookup), 10)
+        draft['leg'] = 'WUH-PEK'
+        self.assertIsNone(pg_sink._production_flight_id(draft, lookup))
 
     def test_upsert_flight_batch_falls_back_to_rowwise_on_bulk_error(self):
         executed = []
@@ -259,7 +298,7 @@ class BulkPgSinkTests(unittest.TestCase):
 
         conn = _FakeSyncConn(handler)
         p1 = self._sample_prod_draft('u1', 'MU2501')
-        p2_dup = self._sample_prod_draft('u2', 'MU2501')  # same biz_key -> Pass 1 update
+        p2_dup = self._sample_prod_draft('u1', 'MU2501')
         p3_bad = self._sample_prod_draft('u3', 'CA9999')
 
         res = pg_sink.upsert_production_batch(conn, [p1, p2_dup, p3_bad])
@@ -402,6 +441,55 @@ class BulkPgSinkTests(unittest.TestCase):
         self.assertEqual(sg['source_flight_id'], 12345)
         self.assertEqual(sg['safeguard_order_cd'], 2)
         self.assertEqual(sg['safeguard_code'], 'SG09')
+
+    def test_dual_bridge_rows_keep_the_full_oracle_primary_key(self):
+        inserted = []
+        def handler(sql, params):
+            if sql.startswith('INSERT INTO std_flight_air_bridge'):
+                inserted.extend(params)
+            return []
+        first = transforms.map_air_bridge_draft({'FLIGHT_ID': 123, 'ORDER_CD': 2, 'AIR_BRIDGE_ID': '114', 'AIR_BRIDGE_CD': '335'})
+        second = transforms.map_air_bridge_draft({'FLIGHT_ID': 123, 'ORDER_CD': 2, 'AIR_BRIDGE_ID': '114', 'AIR_BRIDGE_CD': '335B'})
+        pg_sink.upsert_flight_air_bridge_batch(_FakeSyncConn(handler), [first, second])
+        self.assertEqual(len(inserted), 24)
+        self.assertIn('335', inserted)
+        self.assertIn('335B', inserted)
+
+    def test_flight_raw_failure_rolls_back_core_and_does_not_advance_watermark(self):
+        conn = MagicMock()
+        row = {'FLIGHT_ID': 123, 'FLIGHT_NO': '3101', 'AIRLINE_TWO_CHAR_CD': 'CZ',
+               'EXEC_DATE': datetime(2026, 11, 9), 'IS_OFF_IN': 'D'}
+        with patch.object(pg_sink, 'ensure_acdm_schema_extensions'), \
+             patch.object(pg_sink, 'get_watermark', return_value=None), \
+             patch.object(pg_sink, 'load_terminal_lookups', return_value=({}, {})), \
+             patch.object(pg_sink, 'table_exists', return_value=True), \
+             patch.object(oracle_source, 'iter_flight_batches', return_value=iter([[row]])), \
+             patch.object(pg_sink, 'upsert_flight_batch', return_value={'inserted': 1, 'updated': 0, 'skipped': 0, 'failed': 0}), \
+             patch.object(pg_sink, 'upsert_acdm_raw_batch', side_effect=OSError('raw write failed')), \
+             patch.object(pg_sink, 'save_watermark') as watermark:
+            with self.assertRaisesRegex(OSError, 'raw write failed'):
+                runner.run_flight_sync(conn, MagicMock(), {}, {'source_system_acdm': 'ACDM_ORACLE'}, 'acdm')
+        conn.rollback.assert_called()
+        conn.commit.assert_not_called()
+        watermark.assert_not_called()
+
+    def test_production_read_failure_rolls_back_previous_batches_without_reconciliation(self):
+        conn = MagicMock()
+        def batches(*args, **kwargs):
+            yield [{'UUID': 'u1'}]
+            raise OSError('source disconnected')
+        with patch.object(pg_sink, 'get_watermark', return_value=None), \
+             patch.object(oracle_source, 'iter_production_batches', side_effect=batches), \
+             patch.object(runner, 'map_production_draft', return_value={'primary_source_id': 'u1', 'source_updated_at': None}), \
+             patch.object(pg_sink, 'upsert_production_batch', return_value={'inserted': 1, 'updated': 0, 'failed': 0}), \
+             patch.object(pg_sink, 'reconcile_production_scope') as reconcile, \
+             patch.object(pg_sink, 'save_watermark') as watermark:
+            with self.assertRaisesRegex(OSError, 'source disconnected'):
+                runner.run_production_sync(conn, MagicMock(), {}, {}, exec_date_from=date(2026, 11, 9), exec_date_to=date(2026, 11, 10))
+        conn.rollback.assert_called_once()
+        conn.commit.assert_not_called()
+        reconcile.assert_not_called()
+        watermark.assert_not_called()
 
 
 if __name__ == '__main__':

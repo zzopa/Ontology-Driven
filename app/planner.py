@@ -5,25 +5,26 @@ import json
 import re
 
 from app.query import Compiler
+from app.agent.coordinator_lexicon import GROUND_BRIEFING_NAME
 from app.agent.planning import reconcile_anchor
 
 
 _ACDM_DIM_PATTERNS = {
     'hour': r'(?:按|逐|分|各|每|各个)小时|小时(?:走势|趋势|分布)',
-    'peak_hour': r'高峰小时|高峰时段|最忙小时|哪[个一](?:小时|时段).{0,10}最[多高]',
+    'peak_hour': r'高峰小时|高峰时段|最忙小时|(?:哪[个一]?(?:具体)?(?:日期|天|日)[、,，和与及\s]*)?哪[个一](?:小时|时段).{0,10}最[多高]',
     'airline': r'(?:按|分|各|各个)(?:航司|航空公司)|哪个航司',
-    'direction': r'(?:按|分)进出港|按方向',
-    'date': r'(?:按|逐|每)(?:天|日)|各日',
+    'direction': r'(?:按|分)进出港|按方向|(?:按|分|各)(?:出港|进港)(?:[、/及和与]?(?:出港|进港))+',
+    'date': r'(?:按|逐|每)(?:天|日|日期)|各日|哪[个一]?(?:具体)?(?:日期|天|日)',
     'week': r'(?:按|逐|每|各)周',
     'month': r'(?:按|逐|每|各|各个)月',
     'origin_city': r'从哪个城市|来源城市|从哪里来|起站城市',
     'dest_city': r'到哪个城市|去哪儿|目的站城市|飞到哪',
-    'terminal': r'(?:按|分|各|各个)航站楼',
+    'terminal': r'(?:按|分|各|各个)航站楼|(?:按|分|各)(?:T[1-4])(?:[、/及和与]?(?:T[1-4]))+',
     'stand_type': r'(?:按|分|各)机位类型',
     'aircraft_type': r'(?:按|分|各|各个)机型',
     'delay_reason': r'按延误原因|延误原因分布',
     'agency': r'(?:按|分|各)代理|(?:按|分)航班代理',
-    'attribute': r'(?:按|分|各)(?:航班)?属性|按国际国内|分国内国际',
+    'attribute': r'(?:按|分|各)(?:航班)?属性|按国际国内|分国内国际|(?:按|分|各)(?:国内|国际|地区|港澳台)(?:[、/及和与]?(?:国内|国际|地区|港澳台))+',
     'flight_task_cd': r'(?:按|分|各)(?:飞行)?任务(?:性质|码)?',
     'stand_code': r'(?:按|分|各)(?:停)?机位(?!类型)',
     'gate_code': r'(?:按|分|各)登机口',
@@ -55,6 +56,8 @@ def extract_acdm_dimensions_and_topn(question, catalog, target=None, allow_topn=
                 group_by.append(d_key)
     if target == 'ops_ask_views.flight_hourly_movements' and 'peak_hour' in dims:
         group_by = list(dict.fromkeys('peak_hour' if g == 'hour' else g for g in group_by))
+        if 'peak_hour' in group_by and 'date' in group_by:
+            group_by = [g for g in group_by if g != 'date']
     extra_opts = {}
     if allow_topn and group_by:
         m_top = re.search(r'(?:前|top\s*)(\d{1,2})(?![0-9])名?', question, re.I)
@@ -64,7 +67,7 @@ def extract_acdm_dimensions_and_topn(question, catalog, target=None, allow_topn=
         else:
             m_peak_one = (
                 re.search(r'最高是哪|最多是哪|峰值|高峰小时是哪个|高峰时段是哪个|哪一小时最多|哪个小时最多', question)
-                or re.search(r'哪[个一](?:小时|时段).{0,10}最[多高]', question)
+                or re.search(r'哪[个一]?(?:具体)?(?:日期|天|日|小时|时段|航司|航空公司|机型|航站楼|机位).{0,12}最[多高大少低]', question)
             )
             if m_peak_one:
                 extra_opts['limit'] = 1
@@ -83,11 +86,11 @@ def match_acdm_report(question, catalog, bounds_fn=None, today_d=None):
         return None
     r_kind = None
     r_title = None
-    if re.search(r'地服(?:公司)?(?:运行)?简报', question):
+    if re.search(GROUND_BRIEFING_NAME, question):
         r_kind, r_title = 'ground_briefing', '地服公司运行简报'
     elif re.search(r'A-?CDM\s*(?:通用)?报告?|通用报告?|运行[日周月季年]报|完整运行报告', question, re.I):
         r_kind, r_title = 'general', 'A-CDM 通用报告'
-    elif re.search(r'保障(?:节点|质量).{0,6}(?:排行|榜|录入)|(?:单桥|登机桥).{0,4}周转', question):
+    elif re.search(r'保障(?:节点)?质量(?:排行|榜)|保障(?:节点|质量)[^，,。？?；;]{0,14}(?:看板|报告)|(?:单桥|登机桥).{0,4}周转', question):
         r_kind, r_title = 'safeguard_board', '保障节点质量与登机桥周转看板'
     if not r_kind:
         return None
@@ -132,7 +135,7 @@ def match_acdm_report(question, catalog, bounds_fn=None, today_d=None):
 def apply_acdm_metric_slots(question, catalog, metric, conditions, allow_actype=True):
     """Extract calibrated A-CDM attribute/agency/aircraft_type/task/remote slots for a metric."""
     metrics_map = getattr(catalog, 'metrics', {}) or {}
-    if not metric or metric not in metrics_map:
+    if not metric or not isinstance(metric, str) or metric not in metrics_map:
         return metric, []
     eff_target = metrics_map[metric].get('base_table') or 'std_flight_core'
     eff_attrs = catalog.entities.get(eff_target, {}).get('attributes', {})
@@ -217,6 +220,46 @@ def _is_valid_city(tok):
     return True
 
 
+_CITY_AIRPORTS_CACHE = None
+
+def get_city_airports_map():
+    global _CITY_AIRPORTS_CACHE
+    if _CITY_AIRPORTS_CACHE is not None:
+        return _CITY_AIRPORTS_CACHE
+    mapping = {
+        '上海': ['PVG', 'SHA'], '北京': ['PEK', 'PKX'], '广州': ['CAN'], '深圳': ['SZX'],
+        '成都': ['TFU', 'CTU'], '重庆': ['CKG'], '杭州': ['HGH'], '西安': ['XIY'],
+        '昆明': ['KMG'], '南京': ['NKG'], '厦门': ['XMN'], '武汉': ['WUH'],
+        '长沙': ['CSX'], '青岛': ['TAO'], '海口': ['HAK'], '三亚': ['SYX'],
+        '天津': ['TSN'], '大连': ['DLC'], '沈阳': ['SHE'], '哈尔滨': ['HRB'],
+        '郑州': ['CGO'], '济南': ['TNA'], '福州': ['FOC'], '南宁': ['NNG'],
+    }
+    try:
+        from app import core
+        conn = core.connect_db()
+        cur = conn.cursor()
+        cur.execute('SELECT iata_code, name_zh, city_name FROM public.dim_airport')
+        for iata, name_zh, city in cur.fetchall():
+            c = str(city or '').strip()
+            code = str(iata or '').strip().upper()
+            if not c and name_zh:
+                for cand in ('成都', '北京', '上海', '广州', '深圳', '杭州', '南京', '武汉', '西安', '重庆', '昆明', '厦门', '青岛', '海口', '三亚'):
+                    if cand in str(name_zh):
+                        c = cand
+                        break
+            if c and len(code) == 3 and not code[2].isdigit():
+                mapping.setdefault(c, []).append(code)
+                if c.endswith('市'):
+                    mapping.setdefault(c[:-1], []).append(code)
+        conn.close()
+    except Exception:
+        pass
+    for k in mapping:
+        mapping[k] = list(dict.fromkeys(mapping[k]))
+    _CITY_AIRPORTS_CACHE = mapping
+    return mapping
+
+
 def extract_home_airport_city_and_dir(question, catalog):
     """Extract arrival/departure disambiguation & non-home origin/dest city filters."""
     home_terms = home_airport_terms(catalog)
@@ -226,9 +269,11 @@ def extract_home_airport_city_and_dir(question, catalog):
     consumed = []
     origin_city, dest_city = None, None
 
-    if any(w in question for w in ('出港', '离港', '起飞', '出发')):
+    has_dep = any(w in question for w in ('出港', '离港', '起飞', '出发'))
+    has_arr = any(w in question for w in ('进港', '到港', '抵达', '到达', '落地'))
+    if has_dep and not has_arr:
         explicit_dir = 'DEP'
-    elif any(w in question for w in ('进港', '到港', '抵达', '到达', '落地')):
+    elif has_arr and not has_dep:
         explicit_dir = 'ARR'
     else:
         for ht in home_terms:
@@ -247,7 +292,7 @@ def extract_home_airport_city_and_dir(question, catalog):
 
     # 1. Two-point route pattern: e.g. 武汉到上海, 武汉至上海, 武汉飞上海, 从武汉飞往上海, 上海到武汉
     m_route = re.search(
-        rf'(?:从|由)?\s*([^\s，,。?？\d]{{2,10}}?)\s*(?:到|至|飞往|前往|出港去|去|飞来|来|(?<![起已未])飞(?![机行班手客货])|-|—|~)\s*([^\s，,。?？\d]{{2,10}}?)(?:的)?{tail_lookahead}',
+        rf'(?:从|由)?\s*([^\s，,。?？\d]{{2,10}}?)\s*(?:到|至|飞往|前往|出港去|去|飞来|来|(?<![起已未执])飞(?![机行班手客货])|-|—|~)\s*([^\s，,。?？\d]{{2,10}}?)(?:的)?{tail_lookahead}',
         question,
     )
     if m_route:
@@ -281,7 +326,7 @@ def extract_home_airport_city_and_dir(question, catalog):
     # 2. Single destination pattern: e.g. 到上海, 飞往北京, 去广州, 飞成都
     if not dest_city and not origin_city:
         m_to = re.search(
-            rf'(?:飞往|前往|出港去|去|到|至|(?<![起已未])飞(?![机行班手客货]))\s*([^\s，,。?？\d]{{2,10}}?)(?:的)?{tail_lookahead}',
+            rf'(?:飞往|前往|出港去|去|到|至|(?<![起已未执])飞(?![机行班手客货]))\s*([^\s，,。?？\d]{{2,10}}?)(?:的)?{tail_lookahead}',
             question,
         )
         if m_to:
@@ -316,6 +361,29 @@ def extract_home_airport_city_and_dir(question, catalog):
                     origin_city = c
                     explicit_dir = explicit_dir or 'ARR'
                     consumed.append(m_from.group(0))
+
+    # 0. Explicit prefix: e.g. 起站城市为上海, 起站上海, 目的站城市为武汉, 目的站武汉
+    if not origin_city:
+        m_orig = re.search(rf'(?:起站(?:城市)?|始发(?:地|站|城市)?)(?:为|是|：|:|\s)?\s*([^\s，,。?？\d]{{2,10}}?){tail_lookahead}', question)
+        if m_orig:
+            c = _clean_city_token(m_orig.group(1))
+            if _is_valid_city(c):
+                origin_city = c
+                consumed.append(m_orig.group(0))
+    if not dest_city:
+        m_dest = re.search(rf'(?:目的站(?:城市)?|到达(?:地|站|城市)?|目的(?:地|港|城市)?)(?:为|是|：|:|\s)?\s*([^\s，,。?？\d]{{2,10}}?){tail_lookahead}', question)
+        if m_dest:
+            c = _clean_city_token(m_dest.group(1))
+            if _is_valid_city(c):
+                dest_city = c
+                consumed.append(m_dest.group(0))
+    if origin_city or dest_city:
+        c1_home = any(ht == origin_city or origin_city in ht or ht in origin_city for ht in home_terms) if origin_city else False
+        c2_home = any(ht == dest_city or dest_city in ht or ht in dest_city for ht in home_terms) if dest_city else False
+        if c1_home and not c2_home:
+            explicit_dir = explicit_dir or 'DEP'
+        elif c2_home and not c1_home:
+            explicit_dir = explicit_dir or 'ARR'
 
     return explicit_dir, origin_city, dest_city, home_terms, consumed
 
@@ -860,6 +928,8 @@ class Planner:
         intent, metric, group_by, conditions = self._enrich_ops_plan(
             question, catalog, subject, intent, metric, group_by, conditions
         )
+        if intent == 'detail' or not metric:
+            target = subject
         if hasattr(catalog, 'metrics'):
             if metric in (None, 'flight_count') and any(g in ('attribute', 'exec_date', 'operation_plan_day', 'operation_exec_day', 'stand_type') for g in group_by) and 'operated_flight_count' in catalog.metrics and '按' in question:
                 metric = 'operated_flight_count'

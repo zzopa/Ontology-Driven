@@ -1,0 +1,1045 @@
+{
+  "start": "2026-11-15",
+  "end": "2026-11-15",
+  "oracle_master": "FIMS LEFT JOIN ACDM",
+  "oracle_as_of": "2026-11-17 11:45:56 +08:00",
+  "generated_at": "2026-11-17T03:47:05.342384+00:00",
+  "ontology_version": "9969d20db1636f8d5d9e4ede4b75e330f163b9da91e94f07a910f26962320575",
+  "checks": [
+    {
+      "stage": "metric",
+      "metric": "planned_flight_count",
+      "expected": 548,
+      "actual": 548,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "operated_flight_count",
+      "expected": 539,
+      "actual": 539,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "dep_flight_count",
+      "expected": 269,
+      "actual": 269,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "arr_flight_count",
+      "expected": 270,
+      "actual": 270,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "origin_flight_count",
+      "expected": 64,
+      "actual": 64,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "cancel_count",
+      "expected": 12,
+      "actual": 12,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "takeoff_on_time_rate",
+      "expected": 94.05,
+      "actual": "94.05",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "origin_dep_on_time_rate",
+      "expected": 93.75,
+      "actual": "93.75",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "release_on_time_rate",
+      "expected": 96.28,
+      "actual": "96.28",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "arr_on_time_rate",
+      "expected": 74.44,
+      "actual": "74.44",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "bridge_stand_rate",
+      "expected": 98.52,
+      "actual": "98.52",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "pax_total_sum",
+      "expected": 75849,
+      "actual": "75849",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "arr_pax_sum",
+      "expected": 37360,
+      "actual": "37360",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "dep_pax_sum",
+      "expected": 38489,
+      "actual": 38489,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "cargo_weight_sum",
+      "expected": 412062,
+      "actual": "412062.00",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "mail_weight_sum",
+      "expected": 17176,
+      "actual": "17176.00",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "cargo_mail_sum",
+      "expected": 429238,
+      "actual": "429238.00",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "baggage_weight_sum",
+      "expected": 344466,
+      "actual": "344466.00",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "available_seat_sum",
+      "expected": 87488,
+      "actual": "87488",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "total_load_factor",
+      "expected": 86.34,
+      "actual": "86.34",
+      "ok": true
+    },
+    {
+      "stage": "metric_sample_size",
+      "metric": "total_load_factor",
+      "expected": 525,
+      "actual": 525,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "dep_load_factor",
+      "expected": 86.51,
+      "actual": "86.51",
+      "ok": true
+    },
+    {
+      "stage": "metric_sample_size",
+      "metric": "dep_load_factor",
+      "expected": 265,
+      "actual": 265,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "arr_load_factor",
+      "expected": 86.17,
+      "actual": "86.17",
+      "ok": true
+    },
+    {
+      "stage": "metric_sample_size",
+      "metric": "arr_load_factor",
+      "expected": 260,
+      "actual": 260,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "flight_execution_rate",
+      "expected": 98.36,
+      "actual": "98.36",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "dep_delay_count",
+      "expected": 57,
+      "actual": 57,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "arr_delay_count",
+      "expected": 88,
+      "actual": 88,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "regular_flight_count",
+      "expected": 531,
+      "actual": 531,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "domestic_flight_count",
+      "expected": 510,
+      "actual": 510,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "international_flight_count",
+      "expected": 19,
+      "actual": 19,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "regional_flight_count",
+      "expected": 10,
+      "actual": 10,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "night_tail_flight_count",
+      "expected": 8,
+      "actual": 8,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "dep_on_time_rate",
+      "expected": 78.44,
+      "actual": "78.44",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "ground_takeoff_on_time_rate",
+      "expected": 87.18,
+      "actual": "87.18",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "ground_release_on_time_rate",
+      "expected": 93.59,
+      "actual": "93.59",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "flight_on_time_rate",
+      "expected": 46.94,
+      "actual": "46.94",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "release_delay_count",
+      "expected": 10,
+      "actual": 10,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "takeoff_delay_count",
+      "expected": 16,
+      "actual": 16,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "flight_delay_count",
+      "expected": 85,
+      "actual": 85,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "short_delay_5m_count",
+      "expected": 0,
+      "actual": 0,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "avg_dep_delay_minutes",
+      "expected": 21.77,
+      "actual": "21.77",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "avg_arr_delay_minutes",
+      "expected": 94.52,
+      "actual": "94.52",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "bridge_stand_rate_all",
+      "expected": 98.14,
+      "actual": "98.14",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "remote_stand_flights",
+      "expected": 10,
+      "actual": 10,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "peak_hour_movements",
+      "expected": 539,
+      "actual": 539,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "avg_taxi_out_minutes",
+      "expected": 12,
+      "actual": "12.00",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "block_off_on_time_rate",
+      "expected": 87.73,
+      "actual": "87.73",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "flight_total_count",
+      "expected": 548,
+      "actual": 548,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "flight_count",
+      "expected": 536,
+      "actual": 536,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "pax_fpa_sum",
+      "expected": 72687,
+      "actual": "72687",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "cargo_mail_baggage_sum",
+      "expected": 773704,
+      "actual": "773704.00",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "air_bridge_usage_count",
+      "expected": 297,
+      "actual": 297,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "avg_air_bridge_minutes",
+      "expected": 60.76,
+      "actual": "60.76",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "safeguard_node_recorded_count",
+      "expected": 1835,
+      "actual": 1835,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "avg_turnaround_service_minutes",
+      "expected": 81.35,
+      "actual": "81.35",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "avg_turnaround_bridge_minutes",
+      "expected": 63.5,
+      "actual": "63.50",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "avg_turnaround_departure_minutes",
+      "expected": null,
+      "actual": null,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "avg_turnaround_board_minutes",
+      "expected": 19.58,
+      "actual": "19.58",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "avg_turnaround_clean_minutes",
+      "expected": 10.85,
+      "actual": "10.85",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "avg_turnaround_meal_minutes",
+      "expected": 14.19,
+      "actual": "14.19",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "avg_turnaround_supply_minutes",
+      "expected": 10.78,
+      "actual": "10.78",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "avg_turnaround_deice_minutes",
+      "expected": null,
+      "actual": null,
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "pair_release_on_time_rate",
+      "expected": 97.03,
+      "actual": "97.03",
+      "ok": true
+    },
+    {
+      "stage": "metric",
+      "metric": "key_short_turnaround_count",
+      "expected": 0,
+      "actual": 0,
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "planned_flight_count",
+      "question": "2026-11-15至2026-11-15计划航班架次是多少",
+      "expected": 548,
+      "actual": 548,
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "operated_flight_count",
+      "question": "2026-11-15至2026-11-15实际执行航班架次是多少",
+      "expected": 539,
+      "actual": 539,
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "dep_flight_count",
+      "question": "2026-11-15至2026-11-15出港执飞架次是多少",
+      "expected": 269,
+      "actual": 269,
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "arr_flight_count",
+      "question": "2026-11-15至2026-11-15进港执飞架次是多少",
+      "expected": 270,
+      "actual": 270,
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "origin_flight_count",
+      "question": "2026-11-15至2026-11-15始发航班架次是多少",
+      "expected": 64,
+      "actual": 64,
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "flight_execution_rate",
+      "question": "2026-11-15至2026-11-15航班执行率是多少",
+      "expected": 98.36,
+      "actual": "98.36",
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "pax_total_sum",
+      "question": "2026-11-15至2026-11-15旅客吞吐量是多少",
+      "expected": 75849,
+      "actual": "75849",
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "dep_pax_sum",
+      "question": "2026-11-15至2026-11-15出港旅客量是多少",
+      "expected": 38489,
+      "actual": 38489,
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "arr_pax_sum",
+      "question": "2026-11-15至2026-11-15进港旅客量是多少",
+      "expected": 37360,
+      "actual": "37360",
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "cargo_mail_sum",
+      "question": "2026-11-15至2026-11-15货邮吞吐量是多少",
+      "expected": 429238,
+      "actual": "429238.00",
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "available_seat_sum",
+      "question": "2026-11-15至2026-11-15可用座位数是多少",
+      "expected": 87488,
+      "actual": "87488",
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "total_load_factor",
+      "question": "2026-11-15至2026-11-15综合客座率是多少",
+      "expected": 86.34,
+      "actual": "86.34",
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "takeoff_on_time_rate",
+      "question": "2026-11-15至2026-11-15起飞正常率是多少",
+      "expected": 94.05,
+      "actual": "94.05",
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "arr_on_time_rate",
+      "question": "2026-11-15至2026-11-15进港正常率是多少",
+      "expected": 74.44,
+      "actual": "74.44",
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "release_on_time_rate",
+      "question": "2026-11-15至2026-11-15放行正常率是多少",
+      "expected": 96.28,
+      "actual": "96.28",
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "bridge_stand_rate",
+      "question": "2026-11-15至2026-11-15进港靠桥率是多少",
+      "expected": 98.52,
+      "actual": "98.52",
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "question",
+      "metric": "avg_turnaround_service_minutes",
+      "question": "2026-11-15至2026-11-15过站平均保障时长是多少",
+      "expected": 81.35,
+      "actual": "81.35",
+      "outcome": "answered",
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "planned_flight_count",
+      "expected": 548,
+      "actual": 548,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "operated_flight_count",
+      "expected": 539,
+      "actual": 539,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "dep_flight_count",
+      "expected": 269,
+      "actual": 269,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "arr_flight_count",
+      "expected": 270,
+      "actual": 270,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "pax_total_sum",
+      "expected": 75849,
+      "actual": 75849,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "cargo_mail_sum",
+      "expected": 429238,
+      "actual": 429238,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "available_seat_sum",
+      "expected": 87488,
+      "actual": 87488,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "total_load_factor",
+      "expected": 86.34,
+      "actual": 86.34,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "flight_execution_rate",
+      "expected": 98.36,
+      "actual": 98.36,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "takeoff_on_time_rate",
+      "expected": 94.05,
+      "actual": 94.05,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "arr_on_time_rate",
+      "expected": 74.44,
+      "actual": 74.44,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "release_on_time_rate",
+      "expected": 96.28,
+      "actual": 96.28,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "origin_dep_on_time_rate",
+      "expected": 93.75,
+      "actual": 93.75,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "bridge_stand_rate",
+      "expected": 98.52,
+      "actual": 98.52,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "block_off_on_time_rate",
+      "expected": 87.73,
+      "actual": 87.73,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "metric": "avg_turnaround_service_minutes",
+      "expected": 81.35,
+      "actual": 81.35,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "field": "load_factor_pax",
+      "expected": 75537,
+      "actual": 75537,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "field": "load_factor_sample_flights",
+      "expected": 525,
+      "actual": 525,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "field": "total_seats",
+      "expected": 87488,
+      "actual": 87488,
+      "ok": true
+    },
+    {
+      "stage": "report",
+      "field": "load_factor_excluded_pax",
+      "expected": "312",
+      "actual": 312,
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "safeguard_board.operated_flight_count",
+      "expected": 539,
+      "actual": 539,
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "safeguard_board.air_bridge_usage_count",
+      "expected": 297,
+      "actual": 297,
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "safeguard_board.avg_air_bridge_minutes",
+      "expected": 60.76,
+      "actual": 60.76,
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "safeguard_board.safeguard_node_recorded_count",
+      "expected": 1835,
+      "actual": 1835,
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "safeguard_board.coverage_at_most_100",
+      "expected": true,
+      "actual": true,
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "benchmark_home_seats",
+      "expected": "162.32",
+      "actual": "162.32",
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "group.direction",
+      "expected": {
+        "ARR": 270,
+        "DEP": 269
+      },
+      "actual": {
+        "ARR": 270,
+        "DEP": 269
+      },
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "group.airline",
+      "expected": {
+        "ZH": 10,
+        "TR": 2,
+        "AK": 3,
+        "CA": 58,
+        "KE": 2,
+        "CZ": 139,
+        "CF": 2,
+        "JD": 21,
+        "GJ": 18,
+        "G5": 6,
+        "FM": 4,
+        "HU": 14,
+        "9C": 2,
+        "ZG": 2,
+        "8L": 5,
+        "UQ": 4,
+        "SC": 18,
+        "CX": 2,
+        "DR": 4,
+        "AQ": 4,
+        "EU": 14,
+        "GS": 3,
+        "PN": 4,
+        "MF": 18,
+        "3U": 10,
+        "KY": 2,
+        "MU": 166,
+        "TV": 2
+      },
+      "actual": {
+        "MU": 166,
+        "CZ": 139,
+        "CA": 58,
+        "JD": 21,
+        "GJ": 18,
+        "MF": 18,
+        "SC": 18,
+        "EU": 14,
+        "HU": 14,
+        "3U": 10,
+        "ZH": 10,
+        "G5": 6,
+        "8L": 5,
+        "AQ": 4,
+        "DR": 4,
+        "FM": 4,
+        "PN": 4,
+        "UQ": 4,
+        "AK": 3,
+        "GS": 3,
+        "9C": 2,
+        "CF": 2,
+        "CX": 2,
+        "KE": 2,
+        "KY": 2,
+        "TR": 2,
+        "TV": 2,
+        "ZG": 2
+      },
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "group.date",
+      "expected": {
+        "2026-11-15": 539
+      },
+      "actual": {
+        "2026-11-15": 539
+      },
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "group.peak_hour",
+      "expected": {
+        "2026-11-15 19:00": 36,
+        "2026-11-15 15:00": 30,
+        "2026-11-15 12:00": 37,
+        "2026-11-15 22:00": 28,
+        "2026-11-15 13:00": 34,
+        "2026-11-15 16:00": 31,
+        "2026-11-15 00:00": 5,
+        "2026-11-15 11:00": 34,
+        "2026-11-15 08:00": 32,
+        "2026-11-15 18:00": 33,
+        "2026-11-15 06:00": 1,
+        "2026-11-15 09:00": 31,
+        "2026-11-15 17:00": 33,
+        "2026-11-15 05:00": 3,
+        "2026-11-15 07:00": 13,
+        "2026-11-15 14:00": 38,
+        "2026-11-15 23:00": 19,
+        "2026-11-15 01:00": 3,
+        "2026-11-15 20:00": 35,
+        "2026-11-15 21:00": 30,
+        "2026-11-15 10:00": 33
+      },
+      "actual": {
+        "2026-11-15 00:00": 5,
+        "2026-11-15 01:00": 3,
+        "2026-11-15 05:00": 3,
+        "2026-11-15 06:00": 1,
+        "2026-11-15 07:00": 13,
+        "2026-11-15 08:00": 32,
+        "2026-11-15 09:00": 31,
+        "2026-11-15 10:00": 33,
+        "2026-11-15 11:00": 34,
+        "2026-11-15 12:00": 37,
+        "2026-11-15 13:00": 34,
+        "2026-11-15 14:00": 38,
+        "2026-11-15 15:00": 30,
+        "2026-11-15 16:00": 31,
+        "2026-11-15 17:00": 33,
+        "2026-11-15 18:00": 33,
+        "2026-11-15 19:00": 36,
+        "2026-11-15 20:00": 35,
+        "2026-11-15 21:00": 30,
+        "2026-11-15 22:00": 28,
+        "2026-11-15 23:00": 19
+      },
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "filter.international_b738_departure",
+      "expected": 2,
+      "actual": 2,
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "operational.planned_flight_count",
+      "expected": 552,
+      "actual": 552,
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "operational.operated_flight_count",
+      "expected": 540,
+      "actual": 540,
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "operational.flight_execution_rate",
+      "expected": 97.83,
+      "actual": "97.83",
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "ground_briefing.all_dep_22",
+      "expected": 255,
+      "actual": 255,
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "ground_briefing.all_takeoff_norm_22",
+      "expected": 241,
+      "actual": 241,
+      "ok": true
+    },
+    {
+      "stage": "extended",
+      "name": "ground_briefing.all_release_norm_22",
+      "expected": 246,
+      "actual": 246,
+      "ok": true
+    },
+    {
+      "stage": "lineage",
+      "source": "fims",
+      "expected_count": 548,
+      "actual_count": 548,
+      "missing": [],
+      "extra": [],
+      "ok": true
+    },
+    {
+      "stage": "lineage",
+      "source": "acdm",
+      "expected_count": 549,
+      "actual_count": 549,
+      "missing": [],
+      "extra": [],
+      "ok": true
+    },
+    {
+      "stage": "lineage",
+      "source": "production",
+      "expected_count": 552,
+      "actual_count": 552,
+      "missing": [],
+      "extra": [],
+      "ok": true
+    },
+    {
+      "stage": "lineage",
+      "source": "calc",
+      "expected_count": 548,
+      "actual_count": 548,
+      "missing": [],
+      "extra": [],
+      "ok": true
+    },
+    {
+      "stage": "lineage",
+      "source": "bridges",
+      "expected_count": 325,
+      "actual_count": 325,
+      "missing": [],
+      "extra": [],
+      "ok": true
+    },
+    {
+      "stage": "lineage",
+      "source": "nodes",
+      "expected_count": 1832,
+      "actual_count": 1832,
+      "missing": [],
+      "extra": [],
+      "ok": true
+    }
+  ],
+  "passed": 125,
+  "total": 125
+}

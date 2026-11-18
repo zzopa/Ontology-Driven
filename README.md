@@ -5,6 +5,7 @@
 平台围绕“授权业务目录 + 受控查询编译 + 可追溯来源事实”构建：查询主体与规则来自当前库元数据及版本化本体配置，不依赖外部图数据库或向量库，业务数据查询全程在只读事务中以参数化 SQL 执行，绝不由模型直接生成并执行任意 SQL。
 
 > 专题文档索引：
+> - 复合问数、模拟机场对标、PDF与站内订阅、短期预测：[ACDM 分析能力](docs/acdm-analysis.md)
 > - 运营库统一总控与澄清协议：[运营库统一问答](docs/ops-query-coordinator.md)
 > - `ops_ask` 运营库与同库 ACDM 边界：[ops_ask 数据源](docs/ops-ask-data-source.md)
 > - ACDM 本地副本切换说明：[ACDM 数据源切换](docs/acdm-local-test.md)
@@ -56,7 +57,7 @@
 
 | 数据源 (`HBASK_DATA_SOURCE`) | 默认数据库 | 适用业务与访问权限 | 规划与回答机制 | 模型调用限制 |
 | --- | --- | --- | --- | --- |
-| **`ops_ask`**（当前默认） | `ops_ask` | 民航标准航班、同库 `acdm.tb_dyn_flight` 保障、货邮行生产量、登机桥与保障节点（当前 `ontology.json` 显式开放 25 个业务对象）；**仅限 `hbairport01` 的 `admin` 角色访问** | 启用 `Coordinator` 统一总控；停用计划缓存；业务事实正文由实时结果确定性生成，支持 `outcome` 澄清状态与结构化选项 | 禁止外发公网模型，仅允许本机或 `permitted_origins` 内网模型 |
+| **`ops_ask`**（当前默认） | `ops_ask` | 民航标准航班、同库 `acdm.tb_dyn_flight` 保障、货邮行生产量、登机桥与保障节点（当前 `ontology.json` 显式开放 26 个业务对象）；**仅限 `hbairport01` 的 `admin` 角色访问** | 启用 `Coordinator` 统一总控；停用计划缓存；业务事实正文由实时结果确定性生成，支持 `outcome` 澄清状态与结构化选项 | 禁止外发公网模型，仅允许本机或 `permitted_origins` 内网模型 |
 | **`hbairport`** | `hbairport01` | 员工、合同、资金、会议、资产、采购等综合国资业务（`data/business_permissions.json` 映射 55 张表）；强制读取 `hbairport01` 部门/企业树范围（`DEPT_ONLY` / `DEPT_TREE` / `SELF_ONLY` / `ALL`）与指标白名单 | 启用 `Planner` + `FollowUpNormalizer` + `reconcile_anchor`；支持计划缓存；启用无损分批证据分析与 `compose_document` 内容编排 | 支持外部及管理后台配置模型 |
 | **`acdm`** | `acdm_test_*` | 从 Oracle 只读抽样导入本地的 ACDM 测试库与 SQLite 中间副本；**仅限 `hbairport01` 的 `admin` 角色访问** | `app/acdm_ontology.py` 离线本体规则解析 + 本机/内网模型自由问答兜底 | 禁止外发公网模型，仅允许本机或 `permitted_origins` 内网模型 |
 
@@ -67,11 +68,11 @@
 ## 核心功能点
 
 ### 1. 运营总控、澄清协议与多轮追问
-- **统一总控（`app/agent/coordinator.py`）**：面向 `ops_ask` 25 个显式开放业务对象，自动识别北京时间日期与相对窗口（今天/昨天/前天/近 N 天/本月）、计划与实际执飞口径、进出港方向、航班号与机号、航司参考字典以及首末班排序（`最早/首班` vs `最晚/末班`）。
+- **统一总控（`app/agent/coordinator.py`）**：面向 `ops_ask` 26 个显式开放业务对象，自动识别北京时间日期与相对窗口（今天/昨天/前天/近 N 天/本月）、计划与实际执飞口径、进出港方向、航班号与机号、航司参考字典以及首末班排序（`最早/首班` vs `最晚/末班`）。
 - **五态 `outcome` 业务结果协议**：`POST /api/ask` 与 `/api/ask/stream` 在 `ok=true` 时返回明确业务结果状态：
   - `answered`：已确认口径并返回事实或可问范围说明。
   - `clarification_needed`：存在口径或对象缺失（如未说明计划/实际、未指定日期、保障诊断缺少单日或唯一航班号），附 `clarification.question` 与可点击 `options`。用户点击选项或补充文字后携带 `conversation_id`、`clarification_of`、`choice_id` 提交，由服务端会话恢复原上下文与锚定时间继续规划。
-  - `unsupported`：请求的能力或指标尚未发布（如多周期同比对比、状态为 `PLANNED`/`UNAVAILABLE` 的指标、缺少口径限制的生产量合计）。
+  - `unsupported`：请求的能力或指标尚未发布（如状态为 `PLANNED`/`UNAVAILABLE` 的指标、缺少口径限制的生产量合计）。
   - `no_data`：当前本地数据无匹配记录（明确提示不代表现实业务量为零）。
   - `out_of_coverage`：查询日期落在该对象本地已观测时间边界之外。
 - **多轮追问上下文继承**：

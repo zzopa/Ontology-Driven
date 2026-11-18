@@ -50,7 +50,7 @@ def model_url(value):
 
 
 class AdminStore:
-    def __init__(self, directory, initial=None):
+    def __init__(self, directory, initial=None, recover=True, use_pg=False):
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True)
         self.path = self.directory / 'management.sqlite3'
@@ -59,6 +59,7 @@ class AdminStore:
             raise ValueError('管理库已存在但加密密钥缺失，请恢复原 secret.key，不能重新生成密钥')
         self.vault = Vault(self.directory)
         self.backup_legacy_accounts()
+        self._use_pg_sessions = bool(use_pg) and self._check_pg_sessions()
         with self.db() as db:
             db.executescript('''
                 PRAGMA journal_mode=WAL;
@@ -126,6 +127,23 @@ class AdminStore:
                 CREATE INDEX IF NOT EXISTS message_conversation ON messages(conversation_id, created_at);
                 CREATE INDEX IF NOT EXISTS sync_runs_started ON sync_runs(started_at DESC);
                 CREATE INDEX IF NOT EXISTS ask_feedback_status ON ask_feedback(status, updated_at DESC);
+                CREATE TABLE IF NOT EXISTS reports (
+                  id TEXT PRIMARY KEY, owner TEXT NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL,
+                  status TEXT NOT NULL, payload TEXT NOT NULL, result TEXT, pdf_path TEXT, error TEXT,
+                  attempts INTEGER NOT NULL DEFAULT 0, next_attempt REAL NOT NULL DEFAULT 0,
+                  lease_until REAL NOT NULL DEFAULT 0, run_key TEXT UNIQUE, subscription_id TEXT,
+                  created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS reports_owner ON reports(owner,created_at DESC);
+                CREATE TABLE IF NOT EXISTS report_subscriptions (
+                  id TEXT PRIMARY KEY, owner TEXT NOT NULL, business_user_id TEXT NOT NULL,
+                  kind TEXT NOT NULL, period TEXT NOT NULL, send_time TEXT NOT NULL,
+                  status TEXT NOT NULL, include_benchmarks INTEGER NOT NULL DEFAULT 0,
+                  last_period TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS notifications (
+                  id TEXT PRIMARY KEY, owner TEXT NOT NULL, report_id TEXT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+                  title TEXT NOT NULL, is_read INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
+                  UNIQUE(owner,report_id));
+                CREATE INDEX IF NOT EXISTS notifications_owner ON notifications(owner,created_at DESC);
             ''')
             # executescript ends the outer transaction; start one for the migration and seed.
             db.execute('BEGIN IMMEDIATE')
@@ -143,11 +161,12 @@ class AdminStore:
                     db.execute('INSERT INTO models VALUES (?,?,?,?,?,?,?)', ('default', '默认模型',
                                initial['url'], initial['model'], self.vault.seal(initial.get('key', '')), 1, now()))
                     db.execute('INSERT OR IGNORE INTO preferences VALUES (?,?)', ('active_model', '"default"'))
-            db.execute("UPDATE messages SET status='interrupted', error='服务重启，查询未完成' WHERE status='running'")
-            db.execute("UPDATE sync_runs SET status='interrupted', message='服务重启，同步状态未回传', finished_at=COALESCE(finished_at,?) WHERE status='running'", (now(),))
+            if recover:
+                db.execute("UPDATE messages SET status='interrupted', error='服务重启，查询未完成' WHERE status='running'")
+                db.execute("UPDATE sync_runs SET status='interrupted', message='服务重启，同步状态未回传', finished_at=COALESCE(finished_at,?) WHERE status='running'", (now(),))
             db.execute('DELETE FROM business_credentials WHERE expires < ?', (time(),))
             db.execute('DELETE FROM token_grants WHERE expires < ?', (time(),))
-            db.execute('PRAGMA user_version=4')
+            db.execute('PRAGMA user_version=5')
 
     def backup_legacy_accounts(self):
         if not self.path.exists():
@@ -176,6 +195,29 @@ class AdminStore:
                 raise
             finally:
                 db.close()
+
+    @contextmanager
+    def pg_db(self):
+        from app.sync.pg_sink import connect_pg_write
+        conn = connect_pg_write()
+        cur = conn.cursor()
+        try:
+            yield cur
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+        finally:
+            cur.close()
+            conn.close()
+
+    def _check_pg_sessions(self):
+        try:
+            with self.pg_db() as cur:
+                cur.execute("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='ask_session'")
+                return bool(cur.fetchone())
+        except Exception:
+            return False
 
     @staticmethod
     def log(db, actor, action, target='', detail=''):
@@ -255,6 +297,14 @@ class AdminStore:
                 raise ValueError('模型不存在')
             self.log(db, actor, 'model.delete', model_id)
 
+    def _check_conversation_pg(self, conversation_id, owner, all_access=False):
+        with self.pg_db() as cur:
+            cur.execute('SELECT id, owner, title, archived FROM ask_session WHERE id = %s', (conversation_id,))
+            row = cur.fetchone()
+            if not row or (row[1] and row[1] != owner and not all_access):
+                raise ValueError('会话不存在或无权访问')
+            return {'id': str(row[0]), 'owner': row[1] or owner, 'title': row[2], 'archived': int(bool(row[3]))}
+
     @staticmethod
     def check_conversation(db, conversation_id, owner, all_access=False):
         row = db.execute('SELECT * FROM conversations WHERE id=?', (conversation_id,)).fetchone()
@@ -263,6 +313,37 @@ class AdminStore:
         return row
 
     def conversations(self, owner, all_access=False, search='', archived=False, page=1):
+        if self._use_pg_sessions:
+            where, params = ['c.archived = %s'], [bool(archived)]
+            if not all_access:
+                where.append('(c.owner = %s OR c.owner IS NULL OR c.owner = \'\')')
+                params.append(owner)
+            if search:
+                where.append("c.title ILIKE %s")
+                params.append('%' + search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%')
+            clause = ' WHERE ' + ' AND '.join(where)
+            joins = ' FROM ask_session c'
+            with self.pg_db() as cur:
+                cur.execute('SELECT COUNT(*)' + joins + clause, params)
+                total = cur.fetchone()[0]
+                sql = ('SELECT c.id, c.owner, c.title, c.archived, c.created_at, c.updated_at, '
+                       '(SELECT COUNT(*) FROM ask_message m WHERE m.session_id = c.id) AS message_count '
+                       + joins + clause + ' ORDER BY c.updated_at DESC LIMIT 20 OFFSET %s')
+                cur.execute(sql, [*params, (page - 1) * 20])
+                rows = cur.fetchall()
+                items = []
+                for r in rows:
+                    items.append({
+                        'id': str(r[0]),
+                        'owner': r[1] or owner,
+                        'owner_name': r[1] or owner,
+                        'title': r[2],
+                        'archived': int(bool(r[3])),
+                        'created_at': r[4].isoformat() if hasattr(r[4], 'isoformat') else str(r[4]),
+                        'updated_at': r[5].isoformat() if hasattr(r[5], 'isoformat') else str(r[5]),
+                        'message_count': int(r[6] or 0),
+                    })
+                return {'ok': True, 'items': items, 'total': total, 'page': page, 'page_size': 20}
         where, params = ['c.archived=?'], [int(archived)]
         if not all_access:
             where.append('c.owner=?'); params.append(owner)
@@ -280,6 +361,32 @@ class AdminStore:
             return {'ok': True, 'items': [dict(row) for row in rows], 'total': total, 'page': page, 'page_size': 20}
 
     def begin_question(self, owner, question, model, conversation_id=None):
+        if self._use_pg_sessions:
+            with self.pg_db() as cur:
+                if conversation_id:
+                    row = self._check_conversation_pg(conversation_id, owner)
+                    if row['archived']:
+                        raise ValueError('会话已归档，请恢复后提问')
+                else:
+                    conversation_id = secrets.token_hex(16)
+                    uid = None
+                    if owner.startswith('business:'):
+                        v = owner.split(':', 1)[1]
+                        if v.isdigit():
+                            uid = int(v)
+                    cur.execute(
+                        'INSERT INTO ask_session (id, user_id, owner, title, archived, created_at, updated_at) '
+                        'VALUES (%s, %s, %s, %s, false, now(), now())',
+                        (conversation_id, uid, owner, question[:80])
+                    )
+                message_id = secrets.token_hex(16)
+                cur.execute(
+                    'INSERT INTO ask_message (id, session_id, role, content, question, status, model, created_at) '
+                    'VALUES (%s, %s, %s, %s, %s, %s, %s, now())',
+                    (message_id, conversation_id, 'USER', question, question, 'running', model)
+                )
+                cur.execute('UPDATE ask_session SET updated_at = now() WHERE id = %s', (conversation_id,))
+                return conversation_id, message_id
         with self.db() as db:
             if conversation_id:
                 row = self.check_conversation(db, conversation_id, owner)
@@ -296,15 +403,55 @@ class AdminStore:
             return conversation_id, message_id
 
     def complete_question(self, message_id, result=None, error=None, token_ttl=1800, execution_trace=None):
+        if self._use_pg_sessions:
+            with self.pg_db() as cur:
+                cur.execute(
+                    'SELECT m.session_id, c.owner FROM ask_message m '
+                    'LEFT JOIN ask_session c ON c.id = m.session_id WHERE m.id = %s',
+                    (message_id,)
+                )
+                row = cur.fetchone()
+                if not row:
+                    return
+                session_id, conv_owner = str(row[0]), row[1] or ''
+                snapshot = dict(result) if result else None
+                def grant_tokens_pg(value):
+                    for key in ('drill_token', 'related_token'):
+                        token = value.pop(key, None)
+                        if token:
+                            with self.db() as sdb:
+                                sdb.execute('INSERT OR REPLACE INTO token_grants VALUES (?,?,?)', (digest(token), conv_owner, time() + token_ttl))
+                    for section in value.get('sections', []):
+                        grant_tokens_pg(section['result'])
+                if snapshot:
+                    snapshot = json.loads(json.dumps(snapshot, ensure_ascii=False, default=str))
+                    grant_tokens_pg(snapshot)
+                result_json = json.dumps(snapshot, ensure_ascii=False, default=str) if snapshot else None
+                steps = execution_trace if execution_trace is not None else (result or {}).get('execution_trace', [])
+                trace_json = json.dumps(steps, ensure_ascii=False, default=str) if steps else None
+                status = 'completed' if result else 'failed'
+                cur.execute(
+                    'UPDATE ask_message SET result = %s, response_json = %s, status = %s, error = %s, '
+                    'completed_at = now(), execution_trace = %s WHERE id = %s',
+                    (result_json, result_json, status, error, trace_json, message_id)
+                )
+                cur.execute('UPDATE ask_session SET updated_at = now() WHERE id = %s', (session_id,))
+                return
         with self.db() as db:
             row = db.execute('SELECT c.owner,m.conversation_id FROM messages m JOIN conversations c ON c.id=m.conversation_id WHERE m.id=?', (message_id,)).fetchone()
             if not row:  # Account may have deleted the conversation while a query completed.
                 return
             snapshot = dict(result) if result else None
-            for key in ('drill_token', 'related_token'):
-                token = snapshot.pop(key, None) if snapshot else None
-                if token:
-                    db.execute('INSERT OR REPLACE INTO token_grants VALUES (?,?,?)', (digest(token), row['owner'], time() + token_ttl))
+            def grant_tokens(value):
+                for key in ('drill_token', 'related_token'):
+                    token = value.pop(key, None)
+                    if token:
+                        db.execute('INSERT OR REPLACE INTO token_grants VALUES (?,?,?)', (digest(token), row['owner'], time() + token_ttl))
+                for section in value.get('sections', []):
+                    grant_tokens(section['result'])
+            if snapshot:
+                snapshot = json.loads(json.dumps(snapshot, ensure_ascii=False, default=str))
+                grant_tokens(snapshot)
             encrypted = self.vault.seal(json.dumps(snapshot, ensure_ascii=False, default=str)) if snapshot else None
             steps = execution_trace if execution_trace is not None else (result or {}).get('execution_trace', [])
             encrypted_trace = self.vault.seal(json.dumps(steps, ensure_ascii=False, default=str)) if steps else None
@@ -313,6 +460,65 @@ class AdminStore:
             db.execute('UPDATE conversations SET updated_at=? WHERE id=?', (now(), row['conversation_id']))
 
     def conversation(self, conversation_id, owner, all_access=False):
+        if self._use_pg_sessions:
+            c_row = self._check_conversation_pg(conversation_id, owner, all_access)
+            with self.pg_db() as cur:
+                cur.execute(
+                    'SELECT id, session_id, role, content, question, result, response_json, '
+                    'status, error, model, created_at, completed_at, execution_trace '
+                    'FROM ask_message WHERE session_id = %s ORDER BY created_at ASC',
+                    (conversation_id,)
+                )
+                m_rows = cur.fetchall()
+            messages = []
+            for m in m_rows:
+                res_raw = m[5] or m[6]
+                res = None
+                if res_raw:
+                    try:
+                        res = json.loads(res_raw)
+                    except Exception:
+                        try:
+                            res = json.loads(self.vault.open(res_raw))
+                        except Exception:
+                            res = None
+                trace_raw = m[12]
+                trace = []
+                if trace_raw:
+                    try:
+                        trace = json.loads(trace_raw)
+                    except Exception:
+                        try:
+                            trace = json.loads(self.vault.open(trace_raw))
+                        except Exception:
+                            trace = []
+                q_text = m[4] or m[3] or ''
+                try:
+                    q_text = self.vault.open(q_text) if (q_text.startswith('gAAAAA') and len(q_text) > 50) else q_text
+                except Exception:
+                    pass
+                messages.append({
+                    'id': str(m[0]),
+                    'conversation_id': str(m[1]),
+                    'question': q_text,
+                    'result': res,
+                    'status': m[7] or 'completed',
+                    'error': m[8],
+                    'model': m[9] or 'default',
+                    'created_at': m[10].isoformat() if hasattr(m[10], 'isoformat') else str(m[10]),
+                    'completed_at': m[11].isoformat() if hasattr(m[11], 'isoformat') else (str(m[11]) if m[11] else None),
+                    'execution_trace': trace,
+                })
+            return {
+                'ok': True,
+                'conversation': {
+                    'id': str(c_row['id']),
+                    'owner': c_row['owner'],
+                    'title': c_row['title'],
+                    'archived': c_row['archived'],
+                },
+                'messages': messages,
+            }
         with self.db() as db:
             row = self.check_conversation(db, conversation_id, owner, all_access)
             messages = []
@@ -326,6 +532,41 @@ class AdminStore:
 
     def latest_completed_plan(self, conversation_id, owner):
         if not conversation_id:
+            return None
+        if self._use_pg_sessions:
+            with self.pg_db() as cur:
+                cur.execute(
+                    'SELECT COALESCE(m.result, m.response_json) FROM ask_message m '
+                    'LEFT JOIN ask_session c ON c.id = m.session_id '
+                    'WHERE m.session_id = %s AND (c.owner = %s OR %s = \'\') AND m.status IN (\'completed\', \'DONE\') '
+                    'AND COALESCE(m.result, m.response_json) IS NOT NULL '
+                    'ORDER BY m.created_at DESC LIMIT 5',
+                    (conversation_id, owner or '', owner or '')
+                )
+                rows = cur.fetchall()
+            for r in rows:
+                if not r or not r[0]:
+                    continue
+                try:
+                    result = json.loads(r[0])
+                except Exception:
+                    try:
+                        result = json.loads(self.vault.open(r[0]))
+                    except Exception:
+                        continue
+                if result.get('outcome', 'answered') in ('answered', 'no_data', 'out_of_coverage') and result.get('plan'):
+                    plan = result['plan']
+                    rows_res = result.get('main_rows') or []
+                    if plan.get('query_context'):
+                        plan['query_context'].pop('result_identity', None)
+                    if (result.get('outcome', 'answered') == 'answered' and result.get('main_total') == 1
+                            and len(rows_res) == 1 and plan.get('intent') == 'detail'
+                            and plan.get('subject') in ('std_flight_core', 'ops_ask_views.flight_execution')
+                            and plan.get('query_context') and rows_res[0].get('id') is not None):
+                        plan['query_context']['result_identity'] = {
+                            key: rows_res[0][key] for key in ('id', 'flight_no', 'direction') if key in rows_res[0]
+                        }
+                    return plan
             return None
         with self.db() as db:
             rows = db.execute(
@@ -358,6 +599,43 @@ class AdminStore:
         """Return chronological summaries of recent completed turns for multi-turn planning."""
         if not conversation_id or limit <= 0:
             return []
+        if self._use_pg_sessions:
+            with self.pg_db() as cur:
+                cur.execute(
+                    'SELECT m.question, m.content, COALESCE(m.result, m.response_json) FROM ask_message m '
+                    'LEFT JOIN ask_session c ON c.id = m.session_id '
+                    'WHERE m.session_id = %s AND (c.owner = %s OR %s = \'\') AND m.status IN (\'completed\', \'DONE\') '
+                    'AND COALESCE(m.result, m.response_json) IS NOT NULL '
+                    'ORDER BY m.created_at DESC LIMIT %s',
+                    (conversation_id, owner or '', owner or '', int(limit))
+                )
+                rows = cur.fetchall()
+            turns = []
+            for r in reversed(rows):
+                q_text = r[0] or r[1] or ''
+                try:
+                    q_text = self.vault.open(q_text) if (q_text.startswith('gAAAAA') and len(q_text) > 50) else q_text
+                except Exception:
+                    pass
+                res_raw = r[2]
+                try:
+                    result = json.loads(res_raw)
+                except Exception:
+                    try:
+                        result = json.loads(self.vault.open(res_raw))
+                    except Exception:
+                        continue
+                plan = result.get('plan') if isinstance(result.get('plan'), dict) else {}
+                ctx = plan.get('query_context') if isinstance(plan.get('query_context'), dict) else {}
+                turns.append({
+                    'question': result.get('question') or q_text,
+                    'outcome': result.get('outcome', 'answered'),
+                    'subject': plan.get('subject') or (result.get('parse') or {}).get('subject'),
+                    'intent': plan.get('intent') or result.get('intent'),
+                    'metric': plan.get('metric'),
+                    'slots': ctx.get('slots', {}),
+                })
+            return turns
         with self.db() as db:
             rows = db.execute(
                 "SELECT m.question, m.result FROM messages m JOIN conversations c ON c.id=m.conversation_id "
@@ -385,6 +663,24 @@ class AdminStore:
         return turns
 
     def clarification(self, conversation_id, owner, message_id):
+        if self._use_pg_sessions:
+            self._check_conversation_pg(conversation_id, owner)
+            with self.pg_db() as cur:
+                cur.execute(
+                    'SELECT id, COALESCE(result, response_json) FROM ask_message '
+                    'WHERE session_id = %s AND status != \'failed\' ORDER BY created_at DESC LIMIT 1',
+                    (conversation_id,)
+                )
+                row = cur.fetchone()
+                if not row or row[0] != message_id or not row[1]:
+                    raise ValueError('澄清已结束或不属于本会话，请重新提问')
+                try:
+                    result = json.loads(row[1])
+                except Exception:
+                    result = json.loads(self.vault.open(row[1]))
+                if result.get('outcome') != 'clarification_needed' or not result.get('clarification'):
+                    raise ValueError('此消息没有待确认的查询条件')
+                return result['clarification']
         with self.db() as db:
             self.check_conversation(db, conversation_id, owner)
             row = db.execute(
@@ -400,6 +696,18 @@ class AdminStore:
             return result['clarification']
 
     def edit_conversation(self, conversation_id, owner, data, all_access=False):
+        if self._use_pg_sessions:
+            self._check_conversation_pg(conversation_id, owner, all_access)
+            with self.pg_db() as cur:
+                if 'title' in data:
+                    cur.execute('UPDATE ask_session SET title = %s, updated_at = now() WHERE id = %s', (text(data['title'], '会话名称', 120), conversation_id))
+                if 'archived' in data:
+                    if type(data['archived']) is not bool:
+                        raise ValueError('归档状态无效')
+                    cur.execute('UPDATE ask_session SET archived = %s, updated_at = now() WHERE id = %s', (data['archived'], conversation_id))
+            with self.db() as sdb:
+                self.log(sdb, owner, 'conversation.update', conversation_id)
+            return
         with self.db() as db:
             self.check_conversation(db, conversation_id, owner, all_access)
             if 'title' in data:
@@ -411,6 +719,13 @@ class AdminStore:
             self.log(db, owner, 'conversation.update', conversation_id)
 
     def delete_conversation(self, conversation_id, owner, all_access=False):
+        if self._use_pg_sessions:
+            self._check_conversation_pg(conversation_id, owner, all_access)
+            with self.pg_db() as cur:
+                cur.execute('DELETE FROM ask_session WHERE id = %s', (conversation_id,))
+            with self.db() as sdb:
+                self.log(sdb, owner, 'conversation.delete', conversation_id)
+            return
         with self.db() as db:
             self.check_conversation(db, conversation_id, owner, all_access)
             db.execute('DELETE FROM conversations WHERE id=?', (conversation_id,))
@@ -423,6 +738,28 @@ class AdminStore:
             return bool(db.execute('SELECT 1 FROM token_grants WHERE token_hash=? AND owner=? AND expires>?', (digest(token), owner, time())).fetchone())
 
     def overview(self, owner=None):
+        if self._use_pg_sessions:
+            with self.pg_db() as cur:
+                c_where = ' WHERE (owner = %s OR owner IS NULL)' if owner else ''
+                c_params = (owner,) if owner else ()
+                cur.execute('SELECT COUNT(*) FROM ask_session' + c_where, c_params)
+                c_count = cur.fetchone()[0]
+                m_where = ' WHERE session_id IN (SELECT id FROM ask_session' + c_where + ')' if owner else ''
+                cur.execute('SELECT COUNT(*) FROM ask_message' + m_where, c_params)
+                m_count = cur.fetchone()[0]
+                cur.execute("SELECT COUNT(*) FROM ask_message" + (m_where + " AND " if m_where else " WHERE ") + "status IN ('failed', 'ERROR')", c_params)
+                failed_count = cur.fetchone()[0]
+                cur.execute("SELECT COUNT(*) FROM ask_message" + (m_where + " AND " if m_where else " WHERE ") + "status IN ('running', 'PENDING')", c_params)
+                running_count = cur.fetchone()[0]
+            with self.db() as sdb:
+                model_count = sdb.execute('SELECT COUNT(*) FROM models').fetchone()[0]
+            return {
+                'conversations': c_count,
+                'messages': m_count,
+                'failed_queries': failed_count,
+                'running': running_count,
+                'models': model_count,
+            }
         with self.db() as db:
             where, params = (' WHERE c.owner=?', (owner,)) if owner else ('', ())
             counts = {'conversations': db.execute('SELECT COUNT(*) FROM conversations c' + where, params).fetchone()[0]}
@@ -445,7 +782,17 @@ class AdminStore:
 
     def purge(self, actor):
         days = self.preferences().get('retention_days', 90)
-        cutoff = datetime.fromtimestamp(time() - days * 86400, timezone.utc).isoformat()
+        cutoff_dt = datetime.fromtimestamp(time() - days * 86400, timezone.utc)
+        cutoff = cutoff_dt.isoformat()
+        if self._use_pg_sessions:
+            with self.pg_db() as cur:
+                cur.execute("DELETE FROM ask_session WHERE updated_at < %s AND NOT EXISTS (SELECT 1 FROM ask_message WHERE session_id = ask_session.id AND status = 'running')", (cutoff_dt,))
+                count = cur.rowcount
+            with self.db() as db:
+                db.execute('DELETE FROM business_credentials WHERE expires<?', (time(),))
+                db.execute('DELETE FROM token_grants WHERE expires<?', (time(),))
+                self.log(db, actor, 'retention.purge', detail=f'已清理 {count} 个超过 {days} 天的会话')
+            return count
         with self.db() as db:
             # Never delete an in-flight conversation.
             count = db.execute("DELETE FROM conversations WHERE updated_at<? AND NOT EXISTS (SELECT 1 FROM messages WHERE conversation_id=conversations.id AND status='running')", (cutoff,)).rowcount

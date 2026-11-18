@@ -5,11 +5,13 @@ import { Check, ChevronDown, CircleAlert, Clock3, GitBranch, Pause, SkipForward 
 import type { ExecutionStep } from "@/lib/types";
 import { formatStepElapsed } from "@/lib/execution";
 import { Badge, Card, Spinner } from "./ui";
+import { QueryFlow } from "./query-flow";
 
 const STATES = { running: "进行中", completed: "已完成", failed: "失败", skipped: "无需执行", interrupted: "停止等待" };
 
-export function ExecutionProcess({ steps, busy = false, elapsed = 0, inline = false }: { steps: ExecutionStep[]; busy?: boolean; elapsed?: number; inline?: boolean }) {
+export function ExecutionProcess({ steps, busy = false, elapsed = 0, inline = false, question = "" }: { steps: ExecutionStep[]; busy?: boolean; elapsed?: number; inline?: boolean; question?: string }) {
   const [open, setOpen] = useState(busy), id = useId();
+  const [detailsOpen, setDetailsOpen] = useState(false);
   useEffect(() => { setOpen(busy); }, [busy]);
   const current = steps.find(step => step.state === "running");
   const failed = steps.some(step => step.state === "failed");
@@ -19,13 +21,13 @@ export function ExecutionProcess({ steps, busy = false, elapsed = 0, inline = fa
       <span className="process-mark"><GitBranch size={15} /></span><span className="process-heading"><strong>查询执行过程</strong><small>{current ? `当前：${current.label} · ${current.message}` : last?.message || "此历史记录没有执行过程数据，重新查询后将完整记录"}</small></span>
       <Badge tone={failed ? "amber" : busy ? "green" : "neutral"}>{busy ? "实时更新" : failed ? "保留失败步骤" : `${steps.length} 个步骤`}</Badge><ChevronDown size={14} style={{ transform: open ? "rotate(180deg)" : "none" }} />
     </button>}
-    {(inline || open) && <div id={id} className="process-body"><p className="process-caption">查看各步骤的处理状态、耗时和查询条件</p>
+    {(inline || open) && <div id={id} className="process-body"><QueryFlow steps={steps} busy={busy} elapsed={elapsed} question={question} detailsId={`${id}-details`} detailsOpen={detailsOpen} onToggleDetails={() => setDetailsOpen(value => !value)} /><div id={`${id}-details`} hidden={!detailsOpen}><p className="process-caption">详细执行记录 · 查看各步骤的处理状态、耗时和查询条件</p>
       {steps.length ? <ol className="process-list">{steps.map((step, index) => <li key={step.id} className={`process-step ${step.state}`}>
         <span className="process-step-icon" aria-label={STATES[step.state]}>{step.state === "running" ? <Spinner /> : step.state === "failed" ? <CircleAlert size={13} /> : step.state === "skipped" ? <SkipForward size={12} /> : step.state === "interrupted" ? <Pause size={12} /> : <Check size={13} />}</span>
         <div className="process-step-content"><div className="process-step-heading"><strong><span>{String(index + 1).padStart(2, "0")}</span>{step.label}</strong><span className="process-step-time"><Clock3 size={10} />{formatStepElapsed(step.state === "running" && busy ? Math.max(0, elapsed - step.started_at) : step.elapsed)} · {STATES[step.state]}</span></div><p>{step.message}</p>
           {!!step.details?.length && <details className="process-details"><summary>查看执行信息 <ChevronDown size={11} /></summary><div>{step.details.map((detail, i) => <pre key={i}>{detail}</pre>)}</div></details>}
         </div>
       </li>)}</ol> : <p className="process-caption">暂无执行记录，请重新查询。</p>}
-    </div>}
+    </div></div>}
   </Card>;
 }

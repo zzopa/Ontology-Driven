@@ -4,3 +4,4 @@ pg8000>=1.31,<2
 oracledb>=2,<4
 cryptography>=46,<48
 bcrypt>=4,<6
+playwright==1.65.2

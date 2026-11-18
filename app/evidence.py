@@ -295,6 +295,17 @@ def fallback_claims(catalog, plan, evidence, main_total):
     if not evidence['facts']:
         return [], '按当前数据库与查询条件，未命中%s记录。' % subject
     facts = evidence['facts']
+    if plan.get('safeguard_node_breakdown'):
+        summary = f'保障节点实测录入共 {main_total:,} 条，涉及 {len(facts)} 类节点。'
+        claims = [{'text': summary, 'fact_ids': [f['id'] for f in facts]}]
+        for fact in facts:
+            row = fact['values']
+            pct = row['entry_rate_pct']
+            coverage = f"{pct}%（{row['recorded_flights']:,}/{row['eligible_flights']:,}）" if pct is not None else '无适用航班'
+            text = (f"{row['node_name']}：{row['n']:,} 条，去重航班 {row['distinct_flights']:,} 班，"
+                    f"适用航班覆盖率 {coverage}。")
+            claims.append({'text': text, 'fact_ids': [fact['id']]})
+        return claims, '\n'.join(c['text'] for c in claims)
     if plan['intent'] == 'acdm_report':
         title_txt = plan.get('disp') or subject
         return [{'text': title_txt, 'fact_ids': [f['id'] for f in facts]}], title_txt
@@ -308,10 +319,48 @@ def fallback_claims(catalog, plan, evidence, main_total):
             return [{'text': rendered_tpl, 'fact_ids': primary_ids}], rendered_tpl
     if plan['intent'] in ('count','sum','metric'):
         if len(facts)>8:
-            text='%s匹配 %d 条记录，共 %d 个统计分组。完整分组结果及口径见下方表格。' % (subject,main_total,len(facts))
+            text='%s匹配 %d 条记录，共 %d 个统计分组。' % (subject,main_total,len(facts))
+            top_fact = facts[0]
+            top_vals = top_fact.get('values') or {}
+            metric_meta = top_fact.get('metric') or {}
+            val_alias = metric_meta.get('value_alias') or metric_meta.get('field') or ('n' if plan['intent'] == 'count' else 'total')
+            def _fact_num(f):
+                v = (f.get('values') or {}).get(val_alias)
+                if v is None:
+                    v = (f.get('values') or {}).get('total', (f.get('values') or {}).get('n'))
+                try:
+                    return float(v)
+                except (TypeError, ValueError):
+                    return float('-inf')
+            best_fact = max(facts, key=_fact_num)
+            best_vals = best_fact.get('values') or {}
+            best_val = best_vals.get(val_alias)
+            if best_val is None:
+                best_val = best_vals.get('total', best_vals.get('n'))
+            ignore_keys = {'total', 'mx', 'n', 'missing', 'invalid', val_alias, '__num', '__den',
+                           metric_meta.get('value_alias'), metric_meta.get('field'), metric_meta.get('code'), metric_meta.get('key')}
+            best_groups = []
+            for k in best_vals:
+                if k in ignore_keys or (isinstance(k, str) and k.startswith('__') and k != '__period'):
+                    continue
+                if k == '__period':
+                    dim_lbl = '统计期间'
+                elif hasattr(catalog, 'dimensions') and k in catalog.dimensions:
+                    dim_lbl = catalog.dimensions[k].get('name', k)
+                elif best_fact['table'] in catalog.entities and k in catalog.entities[best_fact['table']]['attributes']:
+                    dim_lbl = catalog.attribute(best_fact['table'], k)['label']
+                else:
+                    dim_lbl = k
+                norm_lbl, val_display = _format_dim_value(k, dim_lbl, best_vals[k])
+                best_groups.append(f"{norm_lbl}={val_display}")
+            if best_groups and best_val is not None:
+                unit_str = (' ' + metric_meta.get('unit')) if metric_meta.get('unit') else (' 条' if plan['intent'] == 'count' else '')
+                text += '其中最高为 %s（%s%s）。' % ('、'.join(best_groups), best_val, unit_str)
+            text += '完整分组结果及口径见下方表格。'
             if plan['intent']=='sum':
                 text+='各组金额独立展示，不混合不同币种或业务类型。'
-            return [{'text':text,'fact_ids':[f['id'] for f in facts]}],text
+            shown_ids = [f['id'] for f in facts] if len(facts) <= 15 else [best_fact['id']]
+            return [{'text':text,'fact_ids':shown_ids}],text
         claims = []
         for fact in facts:
             values = fact['values']
@@ -342,9 +391,9 @@ def fallback_claims(catalog, plan, evidence, main_total):
                             val_alias = candidate
                             break
                 val_str = str(val) if val is not None else '未能计算（缺少有效值或分母为零）'
-                ignore_keys = {'total', 'mx', 'n', 'missing', 'invalid', val_alias,
+                ignore_keys = {'total', 'mx', 'n', 'missing', 'invalid', val_alias, '__num', '__den',
                                metric.get('value_alias'), metric.get('field'), metric.get('code'), metric.get('key')}
-                groups = [key for key in values if key not in ignore_keys]
+                groups = [key for key in values if key not in ignore_keys and not (isinstance(key, str) and key.startswith('__') and key != '__period')]
                 group_parts = []
                 for k in groups:
                     if k == '__period':
@@ -360,10 +409,23 @@ def fallback_claims(catalog, plan, evidence, main_total):
                 group_text = '、'.join(group_parts)
                 m_name = metric.get('name') or metric.get('code') or fact['name']
                 unit = (' ' + metric.get('unit')) if metric.get('unit') and val is not None else ''
-                n_str = ('，参与 %s 条记录' % values['n']) if 'n' in values else ''
+                num_v = values.get('__num')
+                den_v = values.get('__den')
+                parts_note = []
+                if num_v is not None and den_v is not None:
+                    m_key = metric.get('key') or metric.get('code') or ''
+                    if 'release' in m_key or '放行' in m_name:
+                        parts_note.append(f'正常架次 {num_v}，出港架次 {den_v}')
+                    elif 'takeoff' in m_key or '起飞' in m_name:
+                        parts_note.append(f'正常架次 {num_v}，执飞架次 {den_v}')
+                    else:
+                        parts_note.append(f'分子 {num_v}，分母 {den_v}')
+                if 'n' in values:
+                    parts_note.append(f'参与 {values["n"]} 条记录')
+                note_str = f"（{'，'.join(parts_note)}）" if parts_note else ''
                 text = '%s%s为 %s%s%s。' % (
                     (group_text + '：') if group_text else '', m_name,
-                    val_str, unit, n_str)
+                    val_str, unit, (' ' + note_str) if note_str else '')
                 if values.get('missing'):
                     text += '其中 %s 条缺少有效值。' % values['missing']
             claims.append({'text': text, 'fact_ids': [fact['id']]})

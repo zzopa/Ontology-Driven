@@ -1,0 +1,87 @@
+{
+  "total_load_factor": {
+    "name": "综合客座率",
+    "domain": "PRODUCTION",
+    "formula_desc": "仅在 fpa_available_seat > 0 同集上计算 旅客吞吐量 ÷ 可用座位数 × 100%，杜绝分母为0。",
+    "aggregation": "rate",
+    "unit": "%",
+    "rule_code": "acdm_iron_rules",
+    "availability": "AVAILABLE",
+    "phase": 1,
+    "status": "PUBLISHED",
+    "base_table": "mv_acdm_dyn_flight_detail",
+    "aggregate_expression": "ROUND(100.0 * SUM(CASE WHEN COALESCE(c.flight_task_cd, '') <> 'A/N' AND c.is_operated_flight = 'Y' THEN CASE WHEN c.is_off_in = 'D' THEN COALESCE(c.dep_dpsr_depe_num, 0) ELSE COALESCE(c.fpa_adult_count, 0) + COALESCE(c.fpa_children_count, 0) + COALESCE(c.fpa_baby_count, 0) END ELSE 0 END) / NULLIF(SUM(CASE WHEN COALESCE(c.flight_task_cd, '') <> 'A/N' AND c.is_operated_flight = 'Y' THEN c.fpa_available_seat ELSE 0 END), 0), 2)",
+    "value_alias": "total_load_factor",
+    "default_filters": {},
+    "required_fields": [
+      "real_exec_day",
+      "fpa_available_seat",
+      "dep_dpsr_depe_num",
+      "fpa_adult_count"
+    ],
+    "date_field": "real_exec_day",
+    "joins_json": [],
+    "aliases": [
+      "综合客座率",
+      "total_load_factor",
+      "客座率",
+      "平均客座率"
+    ]
+  },
+  "arr_load_factor": {
+    "name": "进港客座率",
+    "domain": "PRODUCTION",
+    "formula_desc": "进港已执飞且可用座位数 > 0 航班的平均客座率。",
+    "aggregation": "rate",
+    "unit": "%",
+    "rule_code": "acdm_iron_rules",
+    "availability": "AVAILABLE",
+    "phase": 1,
+    "status": "PUBLISHED",
+    "base_table": "mv_acdm_dyn_flight_detail",
+    "aggregate_expression": "ROUND(100.0 * SUM(COALESCE(c.fpa_adult_count, 0) + COALESCE(c.fpa_children_count, 0) + COALESCE(c.fpa_baby_count, 0)) FILTER (WHERE COALESCE(c.flight_task_cd, '') <> 'A/N' AND c.is_operated_flight = 'Y' AND c.is_off_in = 'A') / NULLIF(SUM(c.fpa_available_seat) FILTER (WHERE COALESCE(c.flight_task_cd, '') <> 'A/N' AND c.is_operated_flight = 'Y' AND c.is_off_in = 'A'), 0), 2)",
+    "value_alias": "arr_load_factor",
+    "default_filters": {},
+    "required_fields": [
+      "real_exec_day",
+      "is_off_in",
+      "fpa_adult_count",
+      "fpa_available_seat"
+    ],
+    "date_field": "real_exec_day",
+    "joins_json": [],
+    "aliases": [
+      "进港客座率",
+      "arr_load_factor",
+      "到港客座率"
+    ]
+  },
+  "dep_load_factor": {
+    "name": "出港客座率",
+    "domain": "PRODUCTION",
+    "formula_desc": "出港已执飞且可用座位数 > 0 航班的平均客座率。",
+    "aggregation": "rate",
+    "unit": "%",
+    "rule_code": "acdm_iron_rules",
+    "availability": "AVAILABLE",
+    "phase": 1,
+    "status": "PUBLISHED",
+    "base_table": "mv_acdm_dyn_flight_detail",
+    "aggregate_expression": "ROUND(100.0 * SUM(COALESCE(c.dep_dpsr_depe_num, 0)) FILTER (WHERE COALESCE(c.flight_task_cd, '') <> 'A/N' AND c.is_operated_flight = 'Y' AND c.is_off_in = 'D') / NULLIF(SUM(c.fpa_available_seat) FILTER (WHERE COALESCE(c.flight_task_cd, '') <> 'A/N' AND c.is_operated_flight = 'Y' AND c.is_off_in = 'D'), 0), 2)",
+    "value_alias": "dep_load_factor",
+    "default_filters": {},
+    "required_fields": [
+      "real_exec_day",
+      "is_off_in",
+      "dep_dpsr_depe_num",
+      "fpa_available_seat"
+    ],
+    "date_field": "real_exec_day",
+    "joins_json": [],
+    "aliases": [
+      "出港客座率",
+      "dep_load_factor",
+      "离港客座率"
+    ]
+  }
+}

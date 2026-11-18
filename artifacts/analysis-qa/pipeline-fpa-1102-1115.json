@@ -1,0 +1,148 @@
+{
+  "start": "2026-11-02",
+  "end": "2026-11-15",
+  "oracle_master": "FIMS LEFT JOIN ACDM",
+  "ontology_version": "3c6e984ad4b7a215fc33cc23646a6693f5de4d6d5d88676a12876f2c89b9e8ac",
+  "checks": [
+    {
+      "metric": "planned_flight_count",
+      "expected": 7042,
+      "actual": 7042,
+      "ok": true
+    },
+    {
+      "metric": "operated_flight_count",
+      "expected": 7003,
+      "actual": 7003,
+      "ok": true
+    },
+    {
+      "metric": "dep_flight_count",
+      "expected": 3499,
+      "actual": 3499,
+      "ok": true
+    },
+    {
+      "metric": "arr_flight_count",
+      "expected": 3504,
+      "actual": 3504,
+      "ok": true
+    },
+    {
+      "metric": "origin_flight_count",
+      "expected": 857,
+      "actual": 857,
+      "ok": true
+    },
+    {
+      "metric": "cancel_count",
+      "expected": 40,
+      "actual": 40,
+      "ok": true
+    },
+    {
+      "metric": "takeoff_on_time_rate",
+      "expected": 95.46,
+      "actual": "95.46",
+      "ok": true
+    },
+    {
+      "metric": "origin_dep_on_time_rate",
+      "expected": 95.33,
+      "actual": "95.33",
+      "ok": true
+    },
+    {
+      "metric": "release_on_time_rate",
+      "expected": 97.08,
+      "actual": "97.08",
+      "ok": true
+    },
+    {
+      "metric": "arr_on_time_rate",
+      "expected": 72.92,
+      "actual": "72.92",
+      "ok": true
+    },
+    {
+      "metric": "bridge_stand_rate",
+      "expected": 97.55,
+      "actual": "97.55",
+      "ok": true
+    },
+    {
+      "metric": "pax_total_sum",
+      "expected": 960160,
+      "actual": "944733",
+      "ok": false
+    },
+    {
+      "metric": "arr_pax_sum",
+      "expected": 474805,
+      "actual": "459378",
+      "ok": false
+    },
+    {
+      "metric": "dep_pax_sum",
+      "expected": 485355,
+      "actual": 485355,
+      "ok": true
+    },
+    {
+      "metric": "cargo_weight_sum",
+      "expected": 5082519,
+      "actual": "5075627.00",
+      "ok": false
+    },
+    {
+      "metric": "mail_weight_sum",
+      "expected": 183107,
+      "actual": "177380.00",
+      "ok": false
+    },
+    {
+      "metric": "cargo_mail_sum",
+      "expected": 5265626,
+      "actual": "5253007.00",
+      "ok": false
+    },
+    {
+      "metric": "baggage_weight_sum",
+      "expected": 4021411,
+      "actual": "3955553.00",
+      "ok": false
+    },
+    {
+      "metric": "available_seat_sum",
+      "expected": 1120967,
+      "actual": "1121143",
+      "ok": false
+    },
+    {
+      "metric": "total_load_factor",
+      "expected": 85.65,
+      "actual": "83.91",
+      "ok": false
+    },
+    {
+      "metric": "dep_load_factor",
+      "expected": 85.57,
+      "actual": "84.82",
+      "ok": false
+    },
+    {
+      "metric": "arr_load_factor",
+      "expected": 85.74,
+      "actual": "82.98",
+      "ok": false
+    },
+    {
+      "metric": "flight_execution_rate",
+      "expected": 99.45,
+      "actual": "99.45",
+      "ok": true
+    }
+  ],
+  "passed": 13,
+  "total": 23
+}

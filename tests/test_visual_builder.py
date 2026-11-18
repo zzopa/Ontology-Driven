@@ -225,6 +225,63 @@ class VisualBuilderTests(unittest.TestCase):
         res = render_template_summary(self.catalog, plan, {'facts': []}, 23)
         self.assertIsNone(res)
 
+    def test_temporal_trend_sorts_chronologically_for_peak_hour_and_dates(self):
+        # 1. Unsorted single-day peak_hour rows (as returned when SQL sorts by value DESC)
+        plan = {'subject': 'flight_hourly_movements', 'intent': 'metric', 'group_by': ['peak_hour', 'hour'], 'conditions': []}
+        metric = {'name': '起降架次(高峰小时)', 'unit': '架次', 'value_alias': 'peak_hour_movements'}
+        rows = [
+            {'peak_hour': '2026-11-09 12:00', 'hour': 12, 'peak_hour_movements': 37, 'n': 37},
+            {'peak_hour': '2026-11-09 08:00', 'hour': 8, 'peak_hour_movements': 36, 'n': 36},
+            {'peak_hour': '2026-11-09 23:00', 'hour': 23, 'peak_hour_movements': 14, 'n': 14},
+            {'peak_hour': '2026-11-09 01:00', 'hour': 1, 'peak_hour_movements': 3, 'n': 3},
+            {'peak_hour': '2026-11-09 05:00', 'hour': 5, 'peak_hour_movements': 1, 'n': 1},
+        ]
+        meta = build_visual_meta(plan, rows, 91, metric, self.catalog)
+        self.assertEqual(meta['kind'], 'trend')
+        self.assertEqual([pt['label'] for pt in meta['series']], ['01:00', '05:00', '08:00', '12:00', '23:00'])
+        self.assertEqual([pt['value'] for pt in meta['series']], [3.0, 1.0, 36.0, 37.0, 14.0])
+
+        # 2. Operational-day cross-midnight peak_hour keeps true chronological order via raw timestamp
+        op_rows = [
+            {'peak_hour': '2026-11-10 01:00', 'peak_hour_movements': 5, 'n': 5},
+            {'peak_hour': '2026-11-09 23:00', 'peak_hour_movements': 18, 'n': 18},
+            {'peak_hour': '2026-11-09 06:00', 'peak_hour_movements': 22, 'n': 22},
+        ]
+        op_meta = build_visual_meta(plan, op_rows, 45, metric, self.catalog)
+        self.assertEqual([pt['label'] for pt in op_meta['series']], ['2026-11-09 06:00', '2026-11-09 23:00', '2026-11-10 01:00'])
+
+        # 3. Unsorted monthly / weekly / daily __period rows sort chronologically
+        month_rows = [
+            {'__period': '2026-11', 'n': 10},
+            {'__period': '2026-02', 'n': 30},
+            {'__period': '2026-09', 'n': 20},
+        ]
+        month_meta = build_visual_meta({'subject': 'contract_main', 'intent': 'count', 'conditions': []}, month_rows, 60, None, self.catalog)
+        self.assertEqual([pt['label'] for pt in month_meta['series']], ['2026-02', '2026-09', '2026-11'])
+
+    def test_temporal_bar_chart_sorts_by_time_not_value(self):
+        plan = {'subject': 'contract_main', 'intent': 'count', 'conditions': [], 'limit': 5}
+        rows = [
+            {'stat_month': '2026-10', 'n': 50},
+            {'stat_month': '2026-01', 'n': 10},
+            {'stat_month': '2026-05', 'n': 30},
+        ]
+        meta = build_visual_meta(plan, rows, 90, None, self.catalog)
+        self.assertEqual(meta['kind'], 'bar')
+        self.assertEqual([b['label'] for b in meta['bars']], ['2026-01', '2026-05', '2026-10'])
+
+    def test_null_metric_stats_never_falls_back_to_row_count(self):
+        plan = {'subject': 'mv_acdm_turnaround_pair', 'intent': 'metric', 'metric': 'avg_turnaround_deice_minutes', 'conditions': []}
+        metric = {'code': 'avg_turnaround_deice_minutes', 'name': '平均除冰时长', 'unit': '分钟', 'value_alias': 'avg_turnaround_deice_minutes'}
+        rows = [{'avg_turnaround_deice_minutes': None, 'n': 190}]
+        meta = build_visual_meta(plan, rows, 190, metric, self.catalog)
+        self.assertEqual(meta['kind'], 'stats')
+        self.assertEqual(meta['stats'][0]['label'], '平均除冰时长')
+        self.assertEqual(meta['stats'][0]['value'], '无有效样本')
+        self.assertEqual(meta['stats'][0]['unit'], '')
+        self.assertEqual(meta['stats'][1]['label'], '扫描记录数')
+        self.assertEqual(meta['stats'][1]['value'], '190')
+
 
 if __name__ == '__main__':
     unittest.main()

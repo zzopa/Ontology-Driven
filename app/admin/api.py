@@ -7,9 +7,10 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 from app import core, llm, ops_governance
-from app.admin import data_sync, service, glossary
+from app.admin import data_sync, service, glossary, users
 from app.admin.auth import COOKIE, identity, require_role, same_origin, set_cookie
 from app.config import settings
+from app.sync.pg_sink import connect_pg_write
 from app import business_access
 
 router = APIRouter()
@@ -157,16 +158,15 @@ def conversation(request: Request, conversation_id: str):
     value, all_access = conversation_access(request)
     result = service.get_store().conversation(conversation_id, value['owner'], all_access)
     result['conversation']['owner_name'] = value['user']['display_name']
-    if value.get('access'):
-        # Stored snapshots cannot be safely re-filtered after grants change.
-        for message in result['messages']:
-            snapshot = message.get('result')
-            if not snapshot:
-                message['execution_trace'] = None
-            if snapshot and snapshot.get('access_revision') != value['access'].revision:
-                message['result'] = None
-                message['execution_trace'] = None
-                message['error'] = '业务权限已变化，历史数据已隐藏；请重新提问获取当前授权范围内的结果'
+    # Stored snapshots cannot be safely re-filtered after grants change.
+    for message in result['messages']:
+        snapshot = message.get('result')
+        if not snapshot:
+            message['execution_trace'] = None
+        elif value.get('access') and snapshot.get('access_revision') != value['access'].revision:
+            message['result'] = None
+            message['execution_trace'] = None
+            message['error'] = '业务权限已变化，历史数据已隐藏；请重新提问获取当前授权范围内的结果'
     return result
 
 
@@ -708,3 +708,153 @@ async def admin_feedback_promote(feedback_id: str, request: Request):
         user['display_name'],
         data.get('adminNote', ''),
     )
+
+
+@router.get('/api/admin/roles')
+def admin_roles_get(request: Request):
+    require_role(request, 'admin')
+    conn = connect_pg_write()
+    try:
+        return {'ok': True, 'items': users.get_roles(conn)}
+    finally:
+        conn.close()
+
+
+@router.get('/api/admin/users')
+def admin_users_list(request: Request):
+    require_role(request, 'admin')
+    search = request.query_params.get('search', '')
+    role_code = request.query_params.get('role', '')
+    page = page_number(request)
+    page_size = int(request.query_params.get('page_size', 20))
+    conn = connect_pg_write()
+    try:
+        return users.get_users(conn, search=search, role_code=role_code, page=page, page_size=page_size)
+    finally:
+        conn.close()
+
+
+@router.post('/api/admin/users')
+async def admin_users_create(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    data = await body(request)
+    conn = connect_pg_write()
+    try:
+        res = users.create_user(conn, data)
+        service.get_store().audit(user['id'], 'user.create', data.get('username', ''), f"姓名: {data.get('display_name', '')}")
+        return res
+    finally:
+        conn.close()
+
+
+@router.get('/api/admin/users/{user_id}')
+def admin_users_detail(user_id: int, request: Request):
+    require_role(request, 'admin')
+    conn = connect_pg_write()
+    try:
+        return users.get_user_by_id(conn, user_id)
+    finally:
+        conn.close()
+
+
+@router.put('/api/admin/users/{user_id}')
+async def admin_users_update(user_id: int, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    data = await body(request)
+    conn = connect_pg_write()
+    try:
+        res = users.update_user(conn, user_id, data)
+        service.get_store().audit(user['id'], 'user.update', str(user_id), f"更新用户 {user_id}")
+        return res
+    finally:
+        conn.close()
+
+
+@router.put('/api/admin/users/{user_id}/password')
+async def admin_users_password(user_id: int, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    data = await body(request)
+    conn = connect_pg_write()
+    try:
+        res = users.reset_password(conn, user_id, data.get('password'))
+        service.get_store().audit(user['id'], 'user.password', str(user_id), '重置密码')
+        return res
+    finally:
+        conn.close()
+
+
+@router.delete('/api/admin/users/{user_id}')
+def admin_users_delete(user_id: int, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    conn = connect_pg_write()
+    try:
+        res = users.delete_user(conn, user_id, current_user_id=user['id'])
+        service.get_store().audit(user['id'], 'user.delete', str(user_id), '删除用户')
+        return res
+    finally:
+        conn.close()
+
+
+@router.get('/api/admin/data-scope/options')
+def admin_data_scope_options(request: Request):
+    require_role(request, 'admin')
+    conn = connect_pg_write()
+    try:
+        return users.get_scope_options(conn)
+    finally:
+        conn.close()
+
+
+@router.get('/api/admin/profiles')
+def admin_profiles_list(request: Request):
+    require_role(request, 'admin')
+    conn = connect_pg_write()
+    try:
+        return users.get_profiles(conn)
+    finally:
+        conn.close()
+
+
+@router.post('/api/admin/profiles')
+async def admin_profiles_create(request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    data = await body(request)
+    conn = connect_pg_write()
+    try:
+        res = users.create_profile(conn, data)
+        service.get_store().audit(user['id'], 'profile.create', data.get('code', ''), f"新建画像: {data.get('name', '')}")
+        return res
+    finally:
+        conn.close()
+
+
+@router.put('/api/admin/profiles/{code}')
+async def admin_profiles_update(code: str, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    data = await body(request)
+    conn = connect_pg_write()
+    try:
+        res = users.update_profile(conn, code, data)
+        service.get_store().audit(user['id'], 'profile.update', code, f"更新画像 {code}")
+        return res
+    finally:
+        conn.close()
+
+
+@router.delete('/api/admin/profiles/{code}')
+def admin_profiles_delete(code: str, request: Request):
+    same_origin(request)
+    user = require_role(request, 'admin')['user']
+    conn = connect_pg_write()
+    try:
+        res = users.delete_profile(conn, code)
+        service.get_store().audit(user['id'], 'profile.delete', code, f"删除画像 {code}")
+        return res
+    finally:
+        conn.close()

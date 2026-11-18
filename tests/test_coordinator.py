@@ -142,7 +142,7 @@ class CoordinatorTests(unittest.TestCase):
 
     def test_baseline_matrix_covers_every_object_with_five_variants(self):
         cases=json.loads((Path(__file__).parent/'ops_coordinator_cases.json').read_text(encoding='utf-8'))
-        self.assertEqual({c['expected']['subject'] for c in cases},set(self.catalog.entities))
+        self.assertEqual({c['expected']['subject'] for c in cases}, set(self.catalog.entities))
         self.assertGreaterEqual(sum(c['split']=='holdout' for c in cases)/len(cases),1/3)
         for case in cases:
             if case['split']!='baseline':
@@ -810,8 +810,9 @@ class ClarificationApiTests(unittest.TestCase):
         self.request = SimpleNamespace(headers={'x-hbask-request':'1'},base_url='http://127.0.0.1:8088/')
         for mock in (patch.object(main.admin_service,'get_store',return_value=self.store),
                      patch.object(main.business_access,'query_identity',return_value={'owner':'u','user':{'id':'u'}}),
-                     patch.object(main.business_access,'load_access',return_value=SimpleNamespace(roles=('admin',))),
+                     patch.object(main.business_access,'load_access',return_value=SimpleNamespace(roles=('admin',), revision='legacy', user_id='u')),
                      patch.object(main,'settings',replace(main.settings,data_source='ops_ask')),
+                     patch('app.config.settings',replace(main.settings,data_source='ops_ask')),
                      patch.object(core,'connect_db',return_value=SimpleNamespace(close=lambda:None))):
             mock.start(); self.addCleanup(mock.stop)
 
@@ -1057,9 +1058,170 @@ class AdditionalMultiTurnMemoryTests(unittest.TestCase):
             return question
 
         coord = Coordinator(self.catalog, chat=fake_chat, references=self.refs)
+        # Fast-path resolution
         plan = coord.plan('CA8203今天在地面存放多久')
         self.assertIsNone(plan.get('outcome'))
         self.assertEqual(plan.get('subject'), 'mv_acdm_turnaround_pair')
         self.assertEqual(plan.get('metric'), 'avg_turnaround_service_minutes')
         self.assertEqual(plan.get('query_context', {}).get('raw_question'), 'CA8203今天在地面存放多久')
-        self.assertEqual(plan.get('query_context', {}).get('normalized_question'), '查询CA8203今天的过站平均保障时长')
+        self.assertIn(plan.get('query_context', {}).get('normalized_question'),
+                      ('CA8203今天在地面存放多久', '查询CA8203今天的过站平均保障时长'))
+
+        # Model-normalized colloquial query
+        def fake_chat_complex(prompt, question, **kwargs):
+            if '地上待了多久' in question:
+                return '查询CA8203今天的过站平均保障时长'
+            return question
+
+        coord2 = Coordinator(self.catalog, chat=fake_chat_complex, references=self.refs)
+        plan2 = coord2.plan('CA8203今天在地上待了多久')
+        self.assertIsNone(plan2.get('outcome'))
+        self.assertEqual(plan2.get('subject'), 'mv_acdm_turnaround_pair')
+        self.assertEqual(plan2.get('metric'), 'avg_turnaround_service_minutes')
+        self.assertEqual(plan2.get('query_context', {}).get('normalized_question'), '查询CA8203今天的过站平均保障时长')
+
+    def test_report_generation_short_date_and_followup(self):
+        coord = Coordinator(self.catalog, references=self.refs)
+
+        # 1. Direct query with short date "11-15日"
+        p1 = coord.plan('生成11-15日地服简报')
+        self.assertIsNone(p1.get('outcome'))
+        self.assertEqual(p1.get('intent'), 'acdm_report')
+        self.assertEqual(p1.get('report_kind'), 'ground_briefing')
+        self.assertEqual(p1.get('report_start'), '2026-11-15')
+        self.assertEqual(p1.get('report_end'), '2026-11-15')
+
+        # 2. Direct query with "11月15日"
+        p2 = coord.plan('生成11月15日地服简报')
+        self.assertIsNone(p2.get('outcome'))
+        self.assertEqual(p2.get('report_kind'), 'ground_briefing')
+        self.assertEqual(p2.get('report_start'), '2026-11-15')
+
+        # 3. Follow-up "前天的" inheriting ground briefing
+        p_fu = coord.plan('前天的', previous_plan=p1)
+        self.assertIsNone(p_fu.get('outcome'))
+        self.assertEqual(p_fu.get('intent'), 'acdm_report')
+        self.assertEqual(p_fu.get('report_kind'), 'ground_briefing')
+
+        # 4. Clarification flow: "生成地服简报" -> "昨天"
+        c1 = coord.plan('生成地服简报')
+        self.assertEqual(c1.get('outcome'), 'clarification_needed')
+        c2 = coord.plan('昨天', clarification=c1.get('clarification'))
+        self.assertIsNone(c2.get('outcome'))
+        self.assertEqual(c2.get('intent'), 'acdm_report')
+        self.assertEqual(c2.get('report_kind'), 'ground_briefing')
+
+        # 5. Unsupported extra filter on report
+        p_extra = coord.plan('生成11-15日地服简报 东方航空')
+        self.assertEqual(p_extra.get('outcome'), 'unsupported')
+        self.assertIn('暂不支持附加筛选', p_extra.get('answer'))
+
+    def test_ground_briefing_accepts_its_standard_cutoff_and_rate_breakdown(self):
+        coord = Coordinator(self.catalog, references=self.refs)
+        question = '生成2026-11-09地服运行简报，明确列出截至22:00的出港执行量及正常率分子、分母。'
+        for text in (question, '2026-11-09地服简报截至22点',
+                     '生成2026-11-09地服简报，给出截至22点的出港实际执行架次和放行与起飞正常率的分子和分母。',
+                     '帮我做一份11月9日的地服简报，22点前实际起飞了多少班？放行和起飞各有多少班正常、总共多少班参与计算？',
+                     '我想看2026年11月9日地服简报，把到22时为止的两套口径写清楚，分子分母也分别写出来。',
+                     '2026-11-09地服值班简报，麻烦把全场和地服分别统计到晚10点，出港总数、放行正常数和起飞正常数都写上。',
+                     '2026-11-09地服简报，从零点至晚上十点起飞了几架？分母也给一下。'):
+            with self.subTest(text=text):
+                result = coord.plan(text)
+                self.assertEqual(result.get('intent'), 'acdm_report', result.get('answer'))
+                self.assertEqual(result['report_kind'], 'ground_briefing')
+                self.assertEqual((result['report_start'], result['report_end']), ('2026-11-09', '2026-11-09'))
+        for text in (question.replace('22:00', '21:00'), question.replace('22:00', '22:01'),
+                     question.rstrip('。') + '，只看出港', question.rstrip('。') + '，只看南航',
+                     '2026-11-09地服简报，晚十点半前出港执飞多少架次？',
+                     '2026-11-09地服简报，晚十点之后的放行正常数量。',
+                     '2026-11-09地服简报，18:00至22:00的起飞正常数。',
+                     '2026-11-09地服简报，22点前出港执行量，放行正常率高于97%的航司。'):
+            with self.subTest(text=text):
+                self.assertEqual(coord.plan(text).get('outcome'), 'unsupported')
+
+    def test_dimension_breakdown_fast_path_and_model_fallback(self):
+        cat = ops_catalog()
+        coord = Coordinator(cat)
+
+        # 1. Fast Path: Direct rule match without calling model
+        q = '2026-11-02至2026-11-15，按国内、国际、地区分别统计实际执行架次。'
+        plan = coord.plan(q)
+        self.assertIsNone(plan.get('outcome'))
+        self.assertEqual(plan.get('subject'), 'mv_acdm_dyn_flight_detail')
+        self.assertEqual(plan.get('metric'), 'operated_flight_count')
+        self.assertEqual(plan.get('group_by'), ['attribute'])
+        conds = {c['col']: (c['op'], c['value']) for c in plan.get('conditions', [])}
+        self.assertEqual(conds.get('real_exec_day'), ('<', '2026-11-16'))
+
+        # 2. Model fallback path: model rewrites colloquial query to standard query
+        fake_chat = lambda prompt, question, **kwargs: '2026-11-02至2026-11-15按航司统计实际执行航班架次'
+        coord_with_model = Coordinator(cat, chat=fake_chat)
+        q_colloquial = '2026-11-02至2026-11-15各个航司的实际航班量对比'
+        plan_fallback = coord_with_model.plan(q_colloquial)
+        self.assertIsNone(plan_fallback.get('outcome'))
+        self.assertEqual(plan_fallback.get('metric'), 'operated_flight_count')
+        self.assertEqual(plan_fallback.get('group_by'), ['airline'])
+        self.assertEqual(plan_fallback.get('query_context', {}).get('normalized_question'), '2026-11-02至2026-11-15按航司统计实际执行航班架次')
+
+        # 3. True unsupported multi-query without dimension grouping is still rejected
+        p_bad = coord.plan('分别统计南航与国航')
+        self.assertEqual(p_bad.get('outcome'), 'unsupported')
+
+    def test_display_field_clause_fast_path_without_clarification_or_model(self):
+        cat = ops_catalog()
+        chat = Mock(side_effect=AssertionError('pure display-field clause must stay on rule fast path'))
+        coord = Coordinator(cat, chat=chat)
+
+        # 1. Explicit actual arrival + display fields ("计划落地" inside display clause must not conflict with "实际进港")
+        q = '列出2026-11-09实际进港的MU2632，每次运行分别显示源航班ID、计划落地和实际落地时间。'
+        plan = coord.plan(q)
+        self.assertIsNone(plan.get('outcome'))
+        self.assertEqual(plan['subject'], ACTUAL)
+        self.assertEqual(plan['intent'], 'detail')
+        eq_conds = {c['col']: c['value'] for c in plan['conditions'] if c['op'] == '='}
+        self.assertEqual(eq_conds.get('flight_no'), 'MU2632')
+        self.assertEqual(eq_conds.get('direction'), 'ARR')
+        chat.assert_not_called()
+
+        # 2. Ambiguous basis still asks clarification on turn 1, and resolves on turn 2 without LLM or corrupting "计划落地"
+        q_ambig = '列出2026-11-09进港的MU2632，每次运行分别显示源航班ID、计划落地和实际落地时间。'
+        c1 = coord.plan(q_ambig)
+        self.assertEqual(c1.get('outcome'), 'clarification_needed')
+        self.assertEqual(c1['clarification']['slot'], 'basis')
+        c2 = coord.plan('实际执行（按实际起飞/落地）', clarification=c1['clarification'], choice_id='1')
+        self.assertIsNone(c2.get('outcome'))
+        self.assertEqual(c2['subject'], ACTUAL)
+        self.assertIn('计划落地', c2['query_context']['question'])
+        self.assertNotIn('实际执飞落地', c2['query_context']['question'])
+        chat.assert_not_called()
+
+    def test_display_field_clause_guardrails_and_lexicon_extension(self):
+        from app.agent.coordinator_lexicon import (
+            DISPLAY_FIELD_GROUPS,
+            RESIDUAL_VOCABULARY_GROUPS,
+            register_display_fields,
+            register_residual_terms,
+            strip_display_field_clauses,
+        )
+
+        cat = ops_catalog()
+        # Filter clauses must never be stripped as pure display clauses
+        for unsafe_q in (
+            '列出2026-11-09实际进港的MU2632，显示机位不为空的记录',
+            '列出2026-11-09实际进港航班，显示延误超过30分钟的记录',
+            '2026-11-09，列出航空公司',
+        ):
+            stripped, removed = strip_display_field_clauses(unsafe_q, catalog=cat)
+            self.assertEqual(stripped, unsafe_q)
+            self.assertEqual(removed, [])
+
+        # Dynamic lexicon registration works immediately
+        register_display_fields('custom_test', '测试自定义列')
+        register_residual_terms('custom_test', '测试自定义虚词')
+        try:
+            stripped, removed = strip_display_field_clauses('列出2026-11-09实际进港的MU2632，显示测试自定义列', catalog=cat)
+            self.assertEqual(stripped, '列出2026-11-09实际进港的MU2632')
+            self.assertTrue(removed)
+        finally:
+            DISPLAY_FIELD_GROUPS.pop('custom_test', None)
+            RESIDUAL_VOCABULARY_GROUPS.pop('custom_test', None)

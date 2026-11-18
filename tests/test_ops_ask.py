@@ -133,6 +133,7 @@ class OpsAskTests(unittest.TestCase):
                 'public.mv_acdm_dyn_flight_detail',
                 'public.mv_acdm_turnaround_pair',
                 'ops_ask_views.flight_hourly_movements',
+                'public.mv_acdm_flight_calendar',
             ),
         )
 
@@ -159,20 +160,20 @@ class OpsAskTests(unittest.TestCase):
         local = planner.rules('昨天靠桥率是多少？')
         self.assertEqual(local['intent'], 'metric')
         self.assertEqual(local['metric'], 'bridge_stand_rate')
-        self.assertEqual(local['subject'], 'std_flight_core')
+        self.assertEqual(local['subject'], 'mv_acdm_dyn_flight_detail')
 
         # 2. Test Compiler SQL generation for bridge_stand_rate
         stmt = compiler.aggregate(local)
         self.assertIn('bridge_stand_rate', stmt.sql)
-        self.assertIn('dim_stand', stmt.sql)
-        self.assertIn('flight_date', stmt.sql)
+        self.assertIn('craft_site_is_remote', stmt.sql)
+        self.assertIn('real_exec_day', stmt.sql)
 
         # 3. Test Compiler SQL generation with dimension grouping
         dim_plan = {
-            'subject': 'std_flight_core',
+            'subject': 'mv_acdm_dyn_flight_detail',
             'intent': 'metric',
             'metric': 'flight_count',
-            'conditions': [{'table': 'std_flight_core', 'col': 'flight_date', 'op': 'prefix', 'value': '2026-11-08'}],
+            'conditions': [{'table': 'mv_acdm_dyn_flight_detail', 'col': 'plan_day', 'op': 'prefix', 'value': '2026-11-08'}],
             'group_by': ['airline']
         }
         dim_stmt = compiler.aggregate(dim_plan)

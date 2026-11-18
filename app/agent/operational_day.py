@@ -84,7 +84,9 @@ def resolve_operational_time_field(catalog: Any, table: str, current_col: str, p
         ),
         'std_flight_core': ['flight_scheduled_datetime', 'plan_time'],
         'ops_ask_views.flight_execution': ['execution_time'],
-        'ops_ask_views.flight_hourly_movements': ['flight_date'],
+        'ops_ask_views.flight_hourly_movements': ['scheduled_departure'],
+        'mv_acdm_flight_calendar': ['event_time'],
+        'mv_acdm_turnaround_pair': ['actual_arrival'],
     }
     for cand in candidates_by_table.get(table, []):
         ctype = str((attrs.get(cand) or {}).get('type') or '').lower()

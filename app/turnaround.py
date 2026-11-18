@@ -4,6 +4,7 @@ import re
 from typing import Dict, Any, Optional, List
 from app.core import connect_db
 from app.agent.fishbone import build_fishbone_meta
+from app.config import settings
 
 def _fmt_time(dt: Optional[datetime]) -> Optional[str]:
     if not dt:

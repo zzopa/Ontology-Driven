@@ -1,0 +1,361 @@
+{
+  "source": "airport-server/agents/tools/acdm_assistant_tools.py:SQLS (business handbook examples)",
+  "cases": [
+    {
+      "metric": "planned_flight_count",
+      "reference": "计划航班量",
+      "field": "total_plan_flights"
+    },
+    {
+      "metric": "operated_flight_count",
+      "reference": "执行航班量(航班吞吐量)",
+      "field": "total_flights"
+    },
+    {
+      "metric": "dep_flight_count",
+      "reference": "出港(起飞)航班架次",
+      "field": "dep_exec_flights"
+    },
+    {
+      "metric": "arr_flight_count",
+      "reference": "进港(降落)航班架次",
+      "field": "arr_exec_flights"
+    },
+    {
+      "metric": "origin_flight_count",
+      "reference": "始发航班架次",
+      "field": "ori_dep_flights"
+    },
+    {
+      "metric": "cancel_count",
+      "reference": "取消航班量",
+      "field": "total_cancel_flights"
+    },
+    {
+      "metric": "takeoff_on_time_rate",
+      "reference": "起飞正常率",
+      "field": "takeoff_on_time_rate"
+    },
+    {
+      "metric": "origin_dep_on_time_rate",
+      "reference": "始发航班离港正常率",
+      "field": "ori_dep_on_time_rate"
+    },
+    {
+      "metric": "release_on_time_rate",
+      "reference": "放行正常率",
+      "field": "release_on_time_rate"
+    },
+    {
+      "metric": "arr_on_time_rate",
+      "reference": "进港正常率",
+      "field": "land_on_time_rate"
+    },
+    {
+      "metric": "bridge_stand_rate",
+      "reference": "靠桥率",
+      "field": "bridge_rate"
+    },
+    {
+      "metric": "pax_total_sum",
+      "reference": "旅客吞吐量",
+      "field": "total_pax"
+    },
+    {
+      "metric": "arr_pax_sum",
+      "reference": "进港旅客量(人次)",
+      "field": "arrival_pax"
+    },
+    {
+      "metric": "dep_pax_sum",
+      "reference": "出港旅客量(人次)",
+      "field": "departure_pax"
+    },
+    {
+      "metric": "cargo_weight_sum",
+      "reference": "货物重量",
+      "field": "total_goods"
+    },
+    {
+      "metric": "mail_weight_sum",
+      "reference": "邮件重量",
+      "field": "total_mail"
+    },
+    {
+      "metric": "cargo_mail_sum",
+      "reference": "货邮吞吐量(kg)",
+      "field": "total_cargo_mail"
+    },
+    {
+      "metric": "baggage_weight_sum",
+      "reference": "行李重量",
+      "field": "total_luggage"
+    },
+    {
+      "metric": "available_seat_sum",
+      "reference": "航班可供座位数",
+      "field": "total_available_seat"
+    },
+    {
+      "metric": "total_load_factor",
+      "reference": "有效座位同航班样本客座率",
+      "field": "total_load_factor"
+    },
+    {
+      "metric": "dep_load_factor",
+      "reference": "有效座位同航班样本客座率",
+      "field": "dep_load_factor"
+    },
+    {
+      "metric": "arr_load_factor",
+      "reference": "有效座位同航班样本客座率",
+      "field": "arr_load_factor"
+    },
+    {
+      "metric": "flight_execution_rate",
+      "reference": "航班执行率(完成率)",
+      "field": "total_exec_rate"
+    },
+    {
+      "metric": "dep_delay_count",
+      "reference": "原生执行指标独立汇总",
+      "field": "dep_delay_count"
+    },
+    {
+      "metric": "arr_delay_count",
+      "reference": "原生执行指标独立汇总",
+      "field": "arr_delay_count"
+    },
+    {
+      "metric": "regular_flight_count",
+      "reference": "原生执行指标独立汇总",
+      "field": "regular_flight_count"
+    },
+    {
+      "metric": "domestic_flight_count",
+      "reference": "原生执行指标独立汇总",
+      "field": "domestic_flight_count"
+    },
+    {
+      "metric": "international_flight_count",
+      "reference": "原生执行指标独立汇总",
+      "field": "international_flight_count"
+    },
+    {
+      "metric": "regional_flight_count",
+      "reference": "原生执行指标独立汇总",
+      "field": "regional_flight_count"
+    },
+    {
+      "metric": "night_tail_flight_count",
+      "reference": "原生执行指标独立汇总",
+      "field": "night_tail_flight_count"
+    },
+    {
+      "metric": "dep_on_time_rate",
+      "reference": "原生执行指标独立汇总",
+      "field": "dep_on_time_rate"
+    },
+    {
+      "metric": "ground_takeoff_on_time_rate",
+      "reference": "原生执行指标独立汇总",
+      "field": "ground_takeoff_on_time_rate"
+    },
+    {
+      "metric": "ground_release_on_time_rate",
+      "reference": "原生执行指标独立汇总",
+      "field": "ground_release_on_time_rate"
+    },
+    {
+      "metric": "flight_on_time_rate",
+      "reference": "原生执行指标独立汇总",
+      "field": "flight_on_time_rate"
+    },
+    {
+      "metric": "release_delay_count",
+      "reference": "原生执行指标独立汇总",
+      "field": "release_delay_count"
+    },
+    {
+      "metric": "takeoff_delay_count",
+      "reference": "原生执行指标独立汇总",
+      "field": "takeoff_delay_count"
+    },
+    {
+      "metric": "flight_delay_count",
+      "reference": "原生执行指标独立汇总",
+      "field": "flight_delay_count"
+    },
+    {
+      "metric": "short_delay_5m_count",
+      "reference": "原生执行指标独立汇总",
+      "field": "short_delay_5m_count"
+    },
+    {
+      "metric": "avg_dep_delay_minutes",
+      "reference": "原生执行指标独立汇总",
+      "field": "avg_dep_delay_minutes"
+    },
+    {
+      "metric": "avg_arr_delay_minutes",
+      "reference": "原生执行指标独立汇总",
+      "field": "avg_arr_delay_minutes"
+    },
+    {
+      "metric": "bridge_stand_rate_all",
+      "reference": "原生执行指标独立汇总",
+      "field": "bridge_stand_rate_all"
+    },
+    {
+      "metric": "remote_stand_flights",
+      "reference": "原生执行指标独立汇总",
+      "field": "remote_stand_flights"
+    },
+    {
+      "metric": "peak_hour_movements",
+      "reference": "原生执行指标独立汇总",
+      "field": "peak_hour_movements"
+    },
+    {
+      "metric": "avg_taxi_out_minutes",
+      "reference": "原生执行指标独立汇总",
+      "field": "avg_taxi_out_minutes"
+    },
+    {
+      "metric": "block_off_on_time_rate",
+      "reference": "原生执行指标独立汇总",
+      "field": "block_off_on_time_rate"
+    },
+    {
+      "metric": "flight_total_count",
+      "reference": "计划航班量",
+      "field": "total_plan_flights"
+    },
+    {
+      "metric": "flight_count",
+      "reference": "有效计划独立汇总",
+      "field": "flight_count"
+    },
+    {
+      "metric": "pax_fpa_sum",
+      "reference": "生产分项独立汇总",
+      "field": "pax_fpa_sum"
+    },
+    {
+      "metric": "cargo_mail_baggage_sum",
+      "reference": "生产分项独立汇总",
+      "field": "cargo_mail_baggage_sum"
+    },
+    {
+      "metric": "air_bridge_usage_count",
+      "reference": "登机桥原生主键独立汇总",
+      "field": "air_bridge_usage_count"
+    },
+    {
+      "metric": "avg_air_bridge_minutes",
+      "reference": "登机桥原生主键独立汇总",
+      "field": "avg_air_bridge_minutes"
+    },
+    {
+      "metric": "safeguard_node_recorded_count",
+      "reference": "保障节点独立汇总",
+      "field": "safeguard_node_recorded_count"
+    },
+    {
+      "metric": "avg_turnaround_service_minutes",
+      "reference": "跨日过站原生关联独立汇总",
+      "field": "avg_turnaround_service_minutes"
+    },
+    {
+      "metric": "avg_turnaround_bridge_minutes",
+      "reference": "跨日过站原生关联独立汇总",
+      "field": "avg_turnaround_bridge_minutes"
+    },
+    {
+      "metric": "avg_turnaround_departure_minutes",
+      "reference": "跨日过站原生关联独立汇总",
+      "field": "avg_turnaround_departure_minutes"
+    },
+    {
+      "metric": "avg_turnaround_board_minutes",
+      "reference": "跨日过站原生关联独立汇总",
+      "field": "avg_turnaround_board_minutes"
+    },
+    {
+      "metric": "avg_turnaround_clean_minutes",
+      "reference": "跨日过站原生关联独立汇总",
+      "field": "avg_turnaround_clean_minutes"
+    },
+    {
+      "metric": "avg_turnaround_meal_minutes",
+      "reference": "跨日过站原生关联独立汇总",
+      "field": "avg_turnaround_meal_minutes"
+    },
+    {
+      "metric": "avg_turnaround_supply_minutes",
+      "reference": "跨日过站原生关联独立汇总",
+      "field": "avg_turnaround_supply_minutes"
+    },
+    {
+      "metric": "avg_turnaround_deice_minutes",
+      "reference": "跨日过站原生关联独立汇总",
+      "field": "avg_turnaround_deice_minutes"
+    },
+    {
+      "metric": "pair_release_on_time_rate",
+      "reference": "跨日过站原生关联独立汇总",
+      "field": "pair_release_on_time_rate"
+    },
+    {
+      "metric": "key_short_turnaround_count",
+      "reference": "重点机型计划过站独立汇总",
+      "field": "key_short_turnaround_count"
+    }
+  ],
+  "sql": {
+    "计划航班量": "\"WITH dep_plan AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    WHERE IS_OFF_IN = 'D'\n      AND TRUNC(PLAN_TIME) = DATE '2026-06-07'\n      AND FLIGHT_TASK_CD <> 'A/N'\n),\narr_plan AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    WHERE IS_OFF_IN = 'A'\n      AND TRUNC(PLAN_TIME) = DATE '2026-06-07'\n      AND FLIGHT_TASK_CD <> 'A/N'\n)\nSELECT\n    (SELECT COUNT(1) FROM dep_plan) AS depart_plan_flights,\n    (SELECT COUNT(1) FROM arr_plan) AS arrive_plan_flights,\n    (SELECT COUNT(1) FROM dep_plan) + (SELECT COUNT(1) FROM arr_plan) AS total_plan_flights\nFROM DUAL;",
+    "执行航班量(航班吞吐量)": "WITH dep_flights AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'D'\n      AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n),\narr_flights AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'A'\n      AND TRUNC(f2.REAL_LANDIN_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n)\nSELECT\n    (SELECT COUNT(1) FROM dep_flights) AS depart_flights,\n    (SELECT COUNT(1) FROM arr_flights) AS arrive_flights,\n    (SELECT COUNT(1) FROM dep_flights) + (SELECT COUNT(1) FROM arr_flights) AS total_flights\nFROM DUAL;",
+    "出港(起飞)航班架次": "WITH dep_exec AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'D'\n      AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n)\nSELECT COUNT(1) AS dep_exec_flights\nFROM dep_exec;",
+    "进港(降落)航班架次": "WITH arr_exec AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'A'\n      AND TRUNC(f2.REAL_LANDIN_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n)\nSELECT COUNT(1) AS arr_exec_flights\nFROM arr_exec;",
+    "始发航班架次": "WITH dep_ori_flights AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'D'\n      AND f2.ORI_ACT = 'Y'\n      AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n)\nSELECT COUNT(1) AS ori_dep_flights\nFROM dep_ori_flights;",
+    "取消航班量": "WITH \ncancel_dep AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'D'\n      AND f2.ABNORMAL_FLIGHT_STAT_CD = 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n      AND TRUNC(f1.PLAN_TIME) = DATE '2026-06-05'\n),\ncancel_arr AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'A'\n      AND f2.ABNORMAL_FLIGHT_STAT_CD = 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n      AND TRUNC(f1.PLAN_TIME) = DATE '2026-06-05'\n)\nSELECT\n    (SELECT COUNT(1) FROM cancel_dep) AS dep_cancel_flights,\n    (SELECT COUNT(1) FROM cancel_arr) AS arr_cancel_flights,\n    (SELECT COUNT(1) FROM cancel_dep) + (SELECT COUNT(1) FROM cancel_arr) AS total_cancel_flights\nFROM DUAL;",
+    "起飞正常率": "WITH \n-- 出港执行航班总量\ndep_exec AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'D'\n      AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n),\n-- 起飞正常航班量\nnormal_dep AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'D'\n      AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n      AND f2.TAKEOFF_ON_TIME = 'Y'          -- 起飞正常条件\n)\nSELECT\n    (SELECT COUNT(1) FROM dep_exec) AS total_dep_flights,\n    (SELECT COUNT(1) FROM normal_dep) AS normal_dep_flights,\n    ROUND(\n        100.0 * (SELECT COUNT(1) FROM normal_dep) \n        / NULLIF((SELECT COUNT(1) FROM dep_exec), 0), \n        2\n    ) AS takeoff_on_time_rate\nFROM DUAL;",
+    "始发航班离港正常率": "WITH \ndep_ori_flights AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'D'\n      AND f2.ORI_ACT = 'Y'\n      AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n),\nnormal_ori_dep AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'D'\n      AND f2.ORI_ACT = 'Y'\n      AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n      AND f2.FLIGHT_FIRST_ON_TIME = 'Y'           -- 始发正常\n)\nSELECT\n    (SELECT COUNT(1) FROM dep_ori_flights) AS total_ori_dep_flights,\n    (SELECT COUNT(1) FROM normal_ori_dep) AS normal_ori_dep_flights,\n    ROUND(\n        100.0 * (SELECT COUNT(1) FROM normal_ori_dep) \n        / NULLIF((SELECT COUNT(1) FROM dep_ori_flights), 0), \n        2\n    ) AS ori_dep_on_time_rate\nFROM DUAL;",
+    "放行正常率": "WITH \n-- 离港执行航班总量\ndep_exec AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'D'\n      AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n),\n-- 放行正常航班量\nnormal_release AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'D'\n      AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n      AND f2.RELEASE_ON_TIME = 'Y'          -- 放行正常条件\n)\nSELECT\n    (SELECT COUNT(1) FROM dep_exec) AS total_dep_flights,\n    (SELECT COUNT(1) FROM normal_release) AS normal_release_flights,\n    ROUND(\n        100.0 * (SELECT COUNT(1) FROM normal_release) \n        / NULLIF((SELECT COUNT(1) FROM dep_exec), 0), \n        2\n    ) AS release_on_time_rate\nFROM DUAL;",
+    "进港正常率": "WITH \n-- 进港执行航班总量\narr_exec AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'A'\n      AND TRUNC(f2.REAL_LANDIN_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n),\n-- 进港正常航班量\nnormal_arr AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'A'\n      AND TRUNC(f2.REAL_LANDIN_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n      AND f2.LAND_ON_TIME = 'Y'          -- 落地正常条件\n)\nSELECT\n    (SELECT COUNT(1) FROM arr_exec) AS total_arr_flights,\n    (SELECT COUNT(1) FROM normal_arr) AS normal_arr_flights,\n    ROUND(\n        100.0 * (SELECT COUNT(1) FROM normal_arr) \n        / NULLIF((SELECT COUNT(1) FROM arr_exec), 0), \n        2\n    ) AS land_on_time_rate\nFROM DUAL;",
+    "靠桥率": "WITH \nbridge_arr AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    LEFT JOIN FIMS.TB_CRAFT_SITE s ON f2.CRAFT_SITE_CD = s.CODE AND s.IS_DELETE = 0\n    WHERE f1.IS_OFF_IN = 'A'\n      AND TRUNC(f2.REAL_LANDIN_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n      AND s.IS_REMOTE = 'N'                    -- 近机位（廊桥）\n),\n-- 进港执行航班总量\narr_exec AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'A'\n      AND TRUNC(f2.REAL_LANDIN_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n)\nSELECT\n    (SELECT COUNT(1) FROM bridge_arr) AS bridge_flights,\n    (SELECT COUNT(1) FROM arr_exec) AS arr_exec_flights,\n    ROUND(\n        100.0 * (SELECT COUNT(1) FROM bridge_arr) \n        / NULLIF((SELECT COUNT(1) FROM arr_exec), 0), \n        2\n    ) AS bridge_rate\nFROM DUAL;",
+    "旅客吞吐量": "WITH \n-- 进港去重航班\narr_unique AS (\n    SELECT \n        a.FLIGHT_ID,\n        a.EXEC_DATE,\n        a.CRAFT_NO,\n        a.FLIGHT_NO,\n        a.AIRLINE_TWO_CHAR_CD,\n        a.TAKEOFF_AIRPORT_IATA,\n        a.ARRIVAL_AIRPORT_IATA\n    FROM (\n        SELECT \n            f1.FLIGHT_ID,\n            f2.EXEC_DATE,\n            f1.CRAFT_NO,\n            f2.FLIGHT_NO,\n            f1.AIRLINE_TWO_CHAR_CD,\n            f2.TAKEOFF_AIRPORT_IATA,\n            f2.ARRIVAL_AIRPORT_IATA,\n            ROW_NUMBER() OVER (PARTITION BY f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO, f1.PLAN_TIME, f1.IS_OFF_IN ORDER BY f1.FLIGHT_ID) AS rn\n        FROM FIMS.TB_DYN_FLIGHT f1\n        LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n        WHERE f1.IS_OFF_IN = 'A'\n          AND TRUNC(f2.REAL_LANDIN_TIME) = DATE '2026-06-07'\n          AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n          AND f1.FLIGHT_TASK_CD <> 'A/N'\n    ) a\n    WHERE a.rn = 1\n),\n-- 出港去重航班\ndep_unique AS (\n    SELECT \n        d.FLIGHT_ID,\n        d.EXEC_DATE\n    FROM (\n        SELECT \n            f1.FLIGHT_ID,\n            f2.EXEC_DATE,\n            ROW_NUMBER() OVER (PARTITION BY f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO, f1.PLAN_TIME, f1.IS_OFF_IN ORDER BY f1.FLIGHT_ID) AS rn\n        FROM FIMS.TB_DYN_FLIGHT f1\n        LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n        WHERE f1.IS_OFF_IN = 'D'\n          AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n          AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n          AND f1.FLIGHT_TASK_CD <> 'A/N'\n    ) d\n    WHERE d.rn = 1\n),\n-- 计算进港旅客量\narr_pax AS (\n    SELECT \n        SUM(NVL(fp.ADULT_COUNT, 0) + NVL(fp.CHILDREN_COUNT, 0) + NVL(fp.BABY_COUNT, 0)) AS arrival_pax\n    FROM arr_unique a\n    LEFT JOIN FORMFILL.FLIGHT_PRODUCTION_ANALYSIS fp \n        ON a.EXEC_DATE = fp.EXEC_DATE\n        AND a.CRAFT_NO = fp.CRAFT_NO\n        AND a.FLIGHT_NO = fp.AIRLINE_TWO_CHAR_CD || fp.FLIGHT_NO  \n        AND a.TAKEOFF_AIRPORT_IATA || '-' || a.ARRIVAL_AIRPORT_IATA = fp.LEG\n        AND fp.AVAILABLE_SEAT != 0\n),\n-- 计算出港旅客量\ndep_pax AS (\n    SELECT \n        SUM(NVL(t.DEP_DPSR_DEPE_NUM, 0)) AS departure_pax\n    FROM dep_unique d\n    LEFT JOIN FIMS.TBH_FIMS_DYN_CALC_TOTAL t ON d.FLIGHT_ID = t.FLIGHT_ID\n)\nSELECT \n    arr_pax.arrival_pax,\n    dep_pax.departure_pax,\n    arr_pax.arrival_pax + dep_pax.departure_pax AS total_pax\nFROM arr_pax, dep_pax;",
+    "进港旅客量(人次)": "WITH \narr_unique AS (\n    SELECT \n        a.FLIGHT_ID,\n        a.EXEC_DATE,\n        a.CRAFT_NO,\n        a.FLIGHT_NO,\n        a.AIRLINE_TWO_CHAR_CD,\n        a.TAKEOFF_AIRPORT_IATA,\n        a.ARRIVAL_AIRPORT_IATA\n    FROM (\n        SELECT \n            f1.FLIGHT_ID,\n            f2.EXEC_DATE,\n            f1.CRAFT_NO,\n            f2.FLIGHT_NO,\n            f1.AIRLINE_TWO_CHAR_CD,\n            f2.TAKEOFF_AIRPORT_IATA,\n            f2.ARRIVAL_AIRPORT_IATA,\n            ROW_NUMBER() OVER (PARTITION BY f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO, f1.PLAN_TIME, f1.IS_OFF_IN ORDER BY f1.FLIGHT_ID) AS rn\n        FROM FIMS.TB_DYN_FLIGHT f1\n        LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n        WHERE f1.IS_OFF_IN = 'A'\n          AND TRUNC(f2.REAL_LANDIN_TIME) = DATE '2026-06-07'\n          AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n          AND f1.FLIGHT_TASK_CD <> 'A/N'\n    ) a\n    WHERE a.rn = 1\n)\nSELECT \n    SUM(NVL(fp.ADULT_COUNT, 0) + NVL(fp.CHILDREN_COUNT, 0) + NVL(fp.BABY_COUNT, 0)) AS arrival_pax\nFROM arr_unique a\nLEFT JOIN FORMFILL.FLIGHT_PRODUCTION_ANALYSIS fp \n    ON a.EXEC_DATE = fp.EXEC_DATE\n    AND a.CRAFT_NO = fp.CRAFT_NO\n    AND a.FLIGHT_NO = fp.AIRLINE_TWO_CHAR_CD || fp.FLIGHT_NO  \n    AND a.TAKEOFF_AIRPORT_IATA || '-' || a.ARRIVAL_AIRPORT_IATA = fp.LEG\n    AND fp.AVAILABLE_SEAT != 0;",
+    "出港旅客量(人次)": "WITH \ndep_unique AS (\n    SELECT \n        d.FLIGHT_ID,\n        d.EXEC_DATE\n    FROM (\n        SELECT \n            f1.FLIGHT_ID,\n            f2.EXEC_DATE,\n            ROW_NUMBER() OVER (PARTITION BY f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO, f1.PLAN_TIME, f1.IS_OFF_IN ORDER BY f1.FLIGHT_ID) AS rn\n        FROM FIMS.TB_DYN_FLIGHT f1\n        LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n        WHERE f1.IS_OFF_IN = 'D'\n          AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n          AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n          AND f1.FLIGHT_TASK_CD <> 'A/N'\n    ) d\n    WHERE d.rn = 1\n)\nSELECT \n    SUM(NVL(t.DEP_DPSR_DEPE_NUM, 0)) AS departure_pax\nFROM dep_unique d\nLEFT JOIN FIMS.TBH_FIMS_DYN_CALC_TOTAL t ON d.FLIGHT_ID = t.FLIGHT_ID;",
+    "货物重量": "WITH \ndep_goods AS (\n    SELECT \n        d.FLIGHT_ID,\n        fp.GOODS\n    FROM (\n        SELECT \n            f1.FLIGHT_ID,\n            f1.CRAFT_NO,\n            f1.AIRLINE_TWO_CHAR_CD,\n            f1.FLIGHT_NO,\n            f2.EXEC_DATE,\n            f2.TAKEOFF_AIRPORT_IATA,\n            f2.ARRIVAL_AIRPORT_IATA,\n            ROW_NUMBER() OVER (PARTITION BY f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO, f1.PLAN_TIME, f1.IS_OFF_IN ORDER BY f1.FLIGHT_ID) AS rn\n        FROM FIMS.TB_DYN_FLIGHT f1\n        LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n        WHERE f1.IS_OFF_IN = 'D'\n          AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n          AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n          AND f1.FLIGHT_TASK_CD <> 'A/N'\n    ) d\n    LEFT JOIN FORMFILL.FLIGHT_PRODUCTION_ANALYSIS fp \n        ON d.EXEC_DATE = fp.EXEC_DATE\n        AND d.CRAFT_NO = fp.CRAFT_NO\n        AND d.AIRLINE_TWO_CHAR_CD = fp.AIRLINE_TWO_CHAR_CD\n        AND d.FLIGHT_NO = fp.FLIGHT_NO  \n        AND d.TAKEOFF_AIRPORT_IATA || '-' || d.ARRIVAL_AIRPORT_IATA = fp.LEG\n        AND fp.AVAILABLE_SEAT != 0\n    WHERE d.rn = 1\n),\narr_goods AS (\n    SELECT \n        a.FLIGHT_ID,\n        fp.GOODS\n    FROM (\n        SELECT \n            f1.FLIGHT_ID,\n            f1.CRAFT_NO,\n            f1.AIRLINE_TWO_CHAR_CD,\n            f1.FLIGHT_NO,\n            f2.EXEC_DATE,\n            f2.TAKEOFF_AIRPORT_IATA,\n            f2.ARRIVAL_AIRPORT_IATA,\n            ROW_NUMBER() OVER (PARTITION BY f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO, f1.PLAN_TIME, f1.IS_OFF_IN ORDER BY f1.FLIGHT_ID) AS rn\n        FROM FIMS.TB_DYN_FLIGHT f1\n        LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n        WHERE f1.IS_OFF_IN = 'A'\n          AND TRUNC(f2.REAL_LANDIN_TIME) = DATE '2026-06-07'\n          AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n          AND f1.FLIGHT_TASK_CD <> 'A/N'\n    ) a\n    LEFT JOIN FORMFILL.FLIGHT_PRODUCTION_ANALYSIS fp \n        ON a.EXEC_DATE = fp.EXEC_DATE\n        AND a.CRAFT_NO = fp.CRAFT_NO\n        AND a.AIRLINE_TWO_CHAR_CD = fp.AIRLINE_TWO_CHAR_CD\n        AND a.FLIGHT_NO = fp.FLIGHT_NO  \n        AND a.TAKEOFF_AIRPORT_IATA || '-' || a.ARRIVAL_AIRPORT_IATA = fp.LEG\n        AND fp.AVAILABLE_SEAT != 0\n    WHERE a.rn = 1\n)\nSELECT\n    (SELECT SUM(NVL(GOODS, 0)) FROM dep_goods) AS depart_goods,\n    (SELECT SUM(NVL(GOODS, 0)) FROM arr_goods) AS arrive_goods,\n    (SELECT SUM(NVL(GOODS, 0)) FROM dep_goods) + (SELECT SUM(NVL(GOODS, 0)) FROM arr_goods) AS total_goods\nFROM DUAL;",
+    "邮件重量": "WITH \ndep_mail AS (\n    SELECT \n        d.FLIGHT_ID,\n        fp.MAIL\n    FROM (\n        SELECT \n            f1.FLIGHT_ID,\n            f1.CRAFT_NO,\n            f1.AIRLINE_TWO_CHAR_CD,\n            f1.FLIGHT_NO,\n            f2.EXEC_DATE,\n            f2.TAKEOFF_AIRPORT_IATA,\n            f2.ARRIVAL_AIRPORT_IATA,\n            ROW_NUMBER() OVER (PARTITION BY f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO, f1.PLAN_TIME, f1.IS_OFF_IN ORDER BY f1.FLIGHT_ID) AS rn\n        FROM FIMS.TB_DYN_FLIGHT f1\n        LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n        WHERE f1.IS_OFF_IN = 'D'\n          AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n          AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n          AND f1.FLIGHT_TASK_CD <> 'A/N'\n    ) d\n    LEFT JOIN FORMFILL.FLIGHT_PRODUCTION_ANALYSIS fp \n        ON d.EXEC_DATE = fp.EXEC_DATE\n        AND d.CRAFT_NO = fp.CRAFT_NO\n        AND d.AIRLINE_TWO_CHAR_CD = fp.AIRLINE_TWO_CHAR_CD\n        AND d.FLIGHT_NO = fp.FLIGHT_NO  \n        AND d.TAKEOFF_AIRPORT_IATA || '-' || d.ARRIVAL_AIRPORT_IATA = fp.LEG\n        AND fp.AVAILABLE_SEAT != 0\n    WHERE d.rn = 1\n),\narr_mail AS (\n    SELECT \n        a.FLIGHT_ID,\n        fp.MAIL\n    FROM (\n        SELECT \n            f1.FLIGHT_ID,\n            f1.CRAFT_NO,\n            f1.AIRLINE_TWO_CHAR_CD,\n            f1.FLIGHT_NO,\n            f2.EXEC_DATE,\n            f2.TAKEOFF_AIRPORT_IATA,\n            f2.ARRIVAL_AIRPORT_IATA,\n            ROW_NUMBER() OVER (PARTITION BY f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO, f1.PLAN_TIME, f1.IS_OFF_IN ORDER BY f1.FLIGHT_ID) AS rn\n        FROM FIMS.TB_DYN_FLIGHT f1\n        LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n        WHERE f1.IS_OFF_IN = 'A'\n          AND TRUNC(f2.REAL_LANDIN_TIME) = DATE '2026-06-07'\n          AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n          AND f1.FLIGHT_TASK_CD <> 'A/N'\n    ) a\n    LEFT JOIN FORMFILL.FLIGHT_PRODUCTION_ANALYSIS fp \n        ON a.EXEC_DATE = fp.EXEC_DATE\n        AND a.CRAFT_NO = fp.CRAFT_NO\n        AND a.AIRLINE_TWO_CHAR_CD = fp.AIRLINE_TWO_CHAR_CD\n        AND a.FLIGHT_NO = fp.FLIGHT_NO  \n        AND a.TAKEOFF_AIRPORT_IATA || '-' || a.ARRIVAL_AIRPORT_IATA = fp.LEG\n        AND fp.AVAILABLE_SEAT != 0\n    WHERE a.rn = 1\n)\nSELECT\n    (SELECT SUM(NVL(MAIL, 0)) FROM dep_mail) AS depart_mail,\n    (SELECT SUM(NVL(MAIL, 0)) FROM arr_mail) AS arrive_mail,\n    (SELECT SUM(NVL(MAIL, 0)) FROM dep_mail) + (SELECT SUM(NVL(MAIL, 0)) FROM arr_mail) AS total_mail\nFROM DUAL;",
+    "货邮吞吐量(kg)": " WITH \ndep_cargo AS (\n    SELECT \n        d.FLIGHT_ID,\n        fp.GOODS,\n        fp.MAIL\n    FROM (\n        SELECT \n            f1.FLIGHT_ID,\n            f1.CRAFT_NO,\n            f1.AIRLINE_TWO_CHAR_CD,\n            f1.FLIGHT_NO,\n            f2.EXEC_DATE,\n            f2.TAKEOFF_AIRPORT_IATA,\n            f2.ARRIVAL_AIRPORT_IATA,\n            ROW_NUMBER() OVER (PARTITION BY f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO, f1.PLAN_TIME, f1.IS_OFF_IN ORDER BY f1.FLIGHT_ID) AS rn\n        FROM FIMS.TB_DYN_FLIGHT f1\n        LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n        WHERE f1.IS_OFF_IN = 'D'\n          AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n          AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n          AND f1.FLIGHT_TASK_CD <> 'A/N'\n    ) d\n    LEFT JOIN FORMFILL.FLIGHT_PRODUCTION_ANALYSIS fp \n        ON d.EXEC_DATE = fp.EXEC_DATE\n        AND d.CRAFT_NO = fp.CRAFT_NO\n        AND d.AIRLINE_TWO_CHAR_CD = fp.AIRLINE_TWO_CHAR_CD\n        AND d.FLIGHT_NO = fp.FLIGHT_NO  \n        AND d.TAKEOFF_AIRPORT_IATA || '-' || d.ARRIVAL_AIRPORT_IATA = fp.LEG\n        AND fp.AVAILABLE_SEAT != 0\n    WHERE d.rn = 1\n),\narr_cargo AS (\n    SELECT \n        a.FLIGHT_ID,\n        fp.GOODS,\n        fp.MAIL\n    FROM (\n        SELECT \n            f1.FLIGHT_ID,\n            f1.CRAFT_NO,\n            f1.AIRLINE_TWO_CHAR_CD,\n            f1.FLIGHT_NO,\n            f2.EXEC_DATE,\n            f2.TAKEOFF_AIRPORT_IATA,\n            f2.ARRIVAL_AIRPORT_IATA,\n            ROW_NUMBER() OVER (PARTITION BY f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO, f1.PLAN_TIME, f1.IS_OFF_IN ORDER BY f1.FLIGHT_ID) AS rn\n        FROM FIMS.TB_DYN_FLIGHT f1\n        LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n        WHERE f1.IS_OFF_IN = 'A'\n          AND TRUNC(f2.REAL_LANDIN_TIME) = DATE '2026-06-07'\n          AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n          AND f1.FLIGHT_TASK_CD <> 'A/N'\n    ) a\n    LEFT JOIN FORMFILL.FLIGHT_PRODUCTION_ANALYSIS fp \n        ON a.EXEC_DATE = fp.EXEC_DATE\n        AND a.CRAFT_NO = fp.CRAFT_NO\n        AND a.AIRLINE_TWO_CHAR_CD = fp.AIRLINE_TWO_CHAR_CD\n        AND a.FLIGHT_NO = fp.FLIGHT_NO  \n        AND a.TAKEOFF_AIRPORT_IATA || '-' || a.ARRIVAL_AIRPORT_IATA = fp.LEG\n        AND fp.AVAILABLE_SEAT != 0\n    WHERE a.rn = 1\n)\nSELECT\n    (SELECT SUM(NVL(GOODS, 0) + NVL(MAIL, 0)) FROM dep_cargo) AS depart_cargo_mail,\n    (SELECT SUM(NVL(GOODS, 0) + NVL(MAIL, 0)) FROM arr_cargo) AS arrive_cargo_mail,\n    (SELECT SUM(NVL(GOODS, 0) + NVL(MAIL, 0)) FROM dep_cargo) \n    + (SELECT SUM(NVL(GOODS, 0) + NVL(MAIL, 0)) FROM arr_cargo) AS total_cargo_mail\nFROM DUAL;",
+    "行李重量": "WITH \ndep_luggage AS (\n    SELECT \n        d.FLIGHT_ID,\n        fp.LUGGAGE\n    FROM (\n        SELECT \n            f1.FLIGHT_ID,\n            f1.CRAFT_NO,\n            f1.AIRLINE_TWO_CHAR_CD,\n            f1.FLIGHT_NO,\n            f2.EXEC_DATE,\n            f2.TAKEOFF_AIRPORT_IATA,\n            f2.ARRIVAL_AIRPORT_IATA,\n            ROW_NUMBER() OVER (PARTITION BY f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO, f1.PLAN_TIME, f1.IS_OFF_IN ORDER BY f1.FLIGHT_ID) AS rn\n        FROM FIMS.TB_DYN_FLIGHT f1\n        LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n        WHERE f1.IS_OFF_IN = 'D'\n          AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n          AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n          AND f1.FLIGHT_TASK_CD <> 'A/N'\n    ) d\n    LEFT JOIN FORMFILL.FLIGHT_PRODUCTION_ANALYSIS fp \n        ON d.EXEC_DATE = fp.EXEC_DATE\n        AND d.CRAFT_NO = fp.CRAFT_NO\n        AND d.AIRLINE_TWO_CHAR_CD = fp.AIRLINE_TWO_CHAR_CD\n        AND d.FLIGHT_NO = fp.FLIGHT_NO  \n        AND d.TAKEOFF_AIRPORT_IATA || '-' || d.ARRIVAL_AIRPORT_IATA = fp.LEG\n        AND fp.AVAILABLE_SEAT != 0\n    WHERE d.rn = 1\n),\narr_luggage AS (\n    SELECT \n        a.FLIGHT_ID,\n        fp.LUGGAGE\n    FROM (\n        SELECT \n            f1.FLIGHT_ID,\n            f1.CRAFT_NO,\n            f1.AIRLINE_TWO_CHAR_CD,\n            f1.FLIGHT_NO,\n            f2.EXEC_DATE,\n            f2.TAKEOFF_AIRPORT_IATA,\n            f2.ARRIVAL_AIRPORT_IATA,\n            ROW_NUMBER() OVER (PARTITION BY f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO, f1.PLAN_TIME, f1.IS_OFF_IN ORDER BY f1.FLIGHT_ID) AS rn\n        FROM FIMS.TB_DYN_FLIGHT f1\n        LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n        WHERE f1.IS_OFF_IN = 'A'\n          AND TRUNC(f2.REAL_LANDIN_TIME) = DATE '2026-06-07'\n          AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n          AND f1.FLIGHT_TASK_CD <> 'A/N'\n    ) a\n    LEFT JOIN FORMFILL.FLIGHT_PRODUCTION_ANALYSIS fp \n        ON a.EXEC_DATE = fp.EXEC_DATE\n        AND a.CRAFT_NO = fp.CRAFT_NO\n        AND a.AIRLINE_TWO_CHAR_CD = fp.AIRLINE_TWO_CHAR_CD\n        AND a.FLIGHT_NO = fp.FLIGHT_NO  \n        AND a.TAKEOFF_AIRPORT_IATA || '-' || a.ARRIVAL_AIRPORT_IATA = fp.LEG\n        AND fp.AVAILABLE_SEAT != 0\n    WHERE a.rn = 1\n)\nSELECT\n    (SELECT SUM(NVL(LUGGAGE, 0)) FROM dep_luggage) AS depart_luggage,\n    (SELECT SUM(NVL(LUGGAGE, 0)) FROM arr_luggage) AS arrive_luggage,\n    (SELECT SUM(NVL(LUGGAGE, 0)) FROM dep_luggage) + (SELECT SUM(NVL(LUGGAGE, 0)) FROM arr_luggage) AS total_luggage\nFROM DUAL;",
+    "航班可供座位数": "WITH \n-- 出港：去重并关联座位表\ndep_seat AS (\n    SELECT \n        d.FLIGHT_ID,\n        d.EXEC_DATE,\n        d.AIRLINE_TWO_CHAR_CD,\n        d.FLIGHT_NO,\n        d.CRAFT_NO,\n        d.TAKEOFF_AIRPORT_IATA,\n        d.ARRIVAL_AIRPORT_IATA,\n        fp.AVAILABLE_SEAT\n    FROM (\n        SELECT \n            f1.FLIGHT_ID,\n            f1.AIRLINE_TWO_CHAR_CD,\n            f1.FLIGHT_NO,\n            f1.CRAFT_NO,\n            f2.TAKEOFF_AIRPORT_IATA,\n            f2.ARRIVAL_AIRPORT_IATA,\n            f2.EXEC_DATE,\n            ROW_NUMBER() OVER (PARTITION BY f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO, f1.PLAN_TIME, f1.IS_OFF_IN ORDER BY f1.FLIGHT_ID) AS rn\n        FROM FIMS.TB_DYN_FLIGHT f1\n        LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n        WHERE f1.IS_OFF_IN = 'D'\n          AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n          AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n          AND f1.FLIGHT_TASK_CD <> 'A/N'\n    ) d\n    LEFT JOIN FORMFILL.FLIGHT_PRODUCTION_ANALYSIS fp \n        ON d.EXEC_DATE = fp.EXEC_DATE\n        AND d.CRAFT_NO = fp.CRAFT_NO\n        AND d.AIRLINE_TWO_CHAR_CD = fp.AIRLINE_TWO_CHAR_CD\n        AND d.FLIGHT_NO = fp.FLIGHT_NO  \n        AND d.TAKEOFF_AIRPORT_IATA || '-' || d.ARRIVAL_AIRPORT_IATA = fp.LEG\n        AND fp.AVAILABLE_SEAT != 0\n    WHERE d.rn = 1\n),\n-- 进港：去重并关联座位表\narr_seat AS (\n    SELECT \n        a.FLIGHT_ID,\n        a.EXEC_DATE,\n        a.AIRLINE_TWO_CHAR_CD,\n        a.FLIGHT_NO,\n        a.CRAFT_NO,\n        a.TAKEOFF_AIRPORT_IATA,\n        a.ARRIVAL_AIRPORT_IATA,\n        fp.AVAILABLE_SEAT\n    FROM (\n        SELECT \n            f1.FLIGHT_ID,\n            f1.AIRLINE_TWO_CHAR_CD,\n            f1.FLIGHT_NO,\n            f1.CRAFT_NO,\n            f2.TAKEOFF_AIRPORT_IATA,\n            f2.ARRIVAL_AIRPORT_IATA,\n            f2.EXEC_DATE,\n            ROW_NUMBER() OVER (PARTITION BY f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO, f1.PLAN_TIME, f1.IS_OFF_IN ORDER BY f1.FLIGHT_ID) AS rn\n        FROM FIMS.TB_DYN_FLIGHT f1\n        LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n        WHERE f1.IS_OFF_IN = 'A'\n          AND TRUNC(f2.REAL_LANDIN_TIME) = DATE '2026-06-07'\n          AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n          AND f1.FLIGHT_TASK_CD <> 'A/N'\n    ) a\n    LEFT JOIN FORMFILL.FLIGHT_PRODUCTION_ANALYSIS fp \n        ON a.EXEC_DATE = fp.EXEC_DATE\n        AND a.CRAFT_NO = fp.CRAFT_NO\n        AND a.AIRLINE_TWO_CHAR_CD = fp.AIRLINE_TWO_CHAR_CD\n        AND a.FLIGHT_NO = fp.FLIGHT_NO  \n        AND a.TAKEOFF_AIRPORT_IATA || '-' || a.ARRIVAL_AIRPORT_IATA = fp.LEG\n        AND fp.AVAILABLE_SEAT != 0\n    WHERE a.rn = 1\n)\nSELECT\n    (SELECT SUM(NVL(AVAILABLE_SEAT, 0)) FROM dep_seat) AS depart_available_seat,\n    (SELECT SUM(NVL(AVAILABLE_SEAT, 0)) FROM arr_seat) AS arrive_available_seat,\n    (SELECT SUM(NVL(AVAILABLE_SEAT, 0)) FROM dep_seat) + (SELECT SUM(NVL(AVAILABLE_SEAT, 0)) FROM arr_seat) AS total_available_seat\nFROM DUAL;",
+    "航班执行率(完成率)": "WITH \n-- 计划航班量（出港）\ndep_plan AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    WHERE IS_OFF_IN = 'D'\n      AND TRUNC(PLAN_TIME) = DATE '2026-06-07'\n      AND FLIGHT_TASK_CD <> 'A/N'\n),\n-- 计划航班量（进港）\narr_plan AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    WHERE IS_OFF_IN = 'A'\n      AND TRUNC(PLAN_TIME) = DATE '2026-06-07'\n      AND FLIGHT_TASK_CD <> 'A/N'\n),\n-- 执行航班量（出港）\ndep_exec AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'D'\n      AND TRUNC(f2.REAL_TAKEOFF_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n),\n-- 执行航班量（进港）\narr_exec AS (\n    SELECT DISTINCT\n        f1.AIRLINE_TWO_CHAR_CD || f1.FLIGHT_NO AS flight_key,\n        f1.PLAN_TIME,\n        f1.IS_OFF_IN\n    FROM FIMS.TB_DYN_FLIGHT f1\n    LEFT JOIN ACDM.TB_DYN_FLIGHT f2 ON f1.FLIGHT_ID = f2.FLIGHT_ID\n    WHERE f1.IS_OFF_IN = 'A'\n      AND TRUNC(f2.REAL_LANDIN_TIME) = DATE '2026-06-07'\n      AND NVL(f2.ABNORMAL_FLIGHT_STAT_CD, 'null') <> 'CAN'\n      AND f1.FLIGHT_TASK_CD <> 'A/N'\n)\nSELECT\n    (SELECT COUNT(1) FROM dep_plan) AS dep_plan_flights,\n    (SELECT COUNT(1) FROM dep_exec) AS dep_exec_flights,\n    ROUND(100.0 * (SELECT COUNT(1) FROM dep_exec) / NULLIF((SELECT COUNT(1) FROM dep_plan), 0), 2) AS dep_exec_rate,\n    (SELECT COUNT(1) FROM arr_plan) AS arr_plan_flights,\n    (SELECT COUNT(1) FROM arr_exec) AS arr_exec_flights,\n    ROUND(100.0 * (SELECT COUNT(1) FROM arr_exec) / NULLIF((SELECT COUNT(1) FROM arr_plan), 0), 2) AS arr_exec_rate,\n    (SELECT COUNT(1) FROM dep_plan) + (SELECT COUNT(1) FROM arr_plan) AS total_plan_flights,\n    (SELECT COUNT(1) FROM dep_exec) + (SELECT COUNT(1) FROM arr_exec) AS total_exec_flights,\n    ROUND(100.0 * ((SELECT COUNT(1) FROM dep_exec) + (SELECT COUNT(1) FROM arr_exec)) \n          / NULLIF((SELECT COUNT(1) FROM dep_plan) + (SELECT COUNT(1) FROM arr_plan), 0), 2) AS total_exec_rate\nFROM DUAL;",
+    "原生执行指标独立汇总": "WITH native_flights AS (\n SELECT f.IS_OFF_IN AS direction,f.FLIGHT_TASK_CD AS task,f.ATTRIBUTE AS attribute,\n        a.AGENCY,a.ORI_ACT,a.DEP_ON_TIME,a.TAKEOFF_ON_TIME,a.RELEASE_ON_TIME,a.FLIGHT_ON_TIME,\n        a.DEP_DELAY_TIME,a.ARR_DELAY_TIME,a.CLEARANCE_DELAY_TIME,a.TAKEOFF_DELAY_TIME,a.FLIGHT_DELAY_TIME,\n        a.REAL_TAXI_OUT_TIME,a.REAL_BLOCK_OFF_TIME,a.TARGT_BLOCK_OFF_TIME,s.IS_REMOTE,\n        CASE WHEN f.IS_OFF_IN='D' THEN a.REAL_TAKEOFF_TIME ELSE a.REAL_LANDIN_TIME END AS actual_time,\n        ROW_NUMBER() OVER (PARTITION BY f.AIRLINE_TWO_CHAR_CD||f.FLIGHT_NO,f.PLAN_TIME,f.IS_OFF_IN ORDER BY f.FLIGHT_ID) AS rn\n FROM FIMS.TB_DYN_FLIGHT f JOIN ACDM.TB_DYN_FLIGHT a ON a.FLIGHT_ID=f.FLIGHT_ID\n LEFT JOIN FIMS.TB_CRAFT_SITE s ON s.CODE=a.CRAFT_SITE_CD AND s.IS_DELETE=0\n WHERE f.FLIGHT_TASK_CD<>'A/N' AND NVL(a.ABNORMAL_FLIGHT_STAT_CD,'?')<>'CAN'\n AND ((f.IS_OFF_IN='D' AND a.REAL_TAKEOFF_TIME>=:period_start AND a.REAL_TAKEOFF_TIME<:period_end)\n OR (f.IS_OFF_IN='A' AND a.REAL_LANDIN_TIME>=:period_start AND a.REAL_LANDIN_TIME<:period_end))\n)\nSELECT\n COUNT(CASE WHEN direction='D' AND DEP_DELAY_TIME>0 THEN 1 END) AS dep_delay_count,\n COUNT(CASE WHEN direction='A' AND ARR_DELAY_TIME>0 THEN 1 END) AS arr_delay_count,\n COUNT(CASE WHEN task='W/Z' THEN 1 END) AS regular_flight_count,\n COUNT(CASE WHEN attribute='2403' THEN 1 END) AS domestic_flight_count,\n COUNT(CASE WHEN attribute='2401' THEN 1 END) AS international_flight_count,\n COUNT(CASE WHEN attribute='2402' THEN 1 END) AS regional_flight_count,\n COUNT(CASE WHEN TO_CHAR(actual_time,'HH24:MI') BETWEEN '00:00' AND '05:00' THEN 1 END) AS night_tail_flight_count,\n ROUND(100*COUNT(CASE WHEN direction='D' AND DEP_ON_TIME='Y' THEN 1 END)/NULLIF(COUNT(CASE WHEN direction='D' THEN 1 END),0),2) AS dep_on_time_rate,\n ROUND(100*COUNT(CASE WHEN direction='D' AND AGENCY='210' AND attribute='2403' AND TAKEOFF_ON_TIME='Y' THEN 1 END)/NULLIF(COUNT(CASE WHEN direction='D' AND AGENCY='210' AND attribute='2403' THEN 1 END),0),2) AS ground_takeoff_on_time_rate,\n ROUND(100*COUNT(CASE WHEN direction='D' AND AGENCY='210' AND attribute='2403' AND RELEASE_ON_TIME='Y' THEN 1 END)/NULLIF(COUNT(CASE WHEN direction='D' AND AGENCY='210' AND attribute='2403' THEN 1 END),0),2) AS ground_release_on_time_rate,\n ROUND(100*COUNT(CASE WHEN FLIGHT_ON_TIME='Y' THEN 1 END)/NULLIF(COUNT(*),0),2) AS flight_on_time_rate,\n COUNT(CASE WHEN direction='D' AND CLEARANCE_DELAY_TIME>0 THEN 1 END) AS release_delay_count,\n COUNT(CASE WHEN direction='D' AND TAKEOFF_DELAY_TIME>0 THEN 1 END) AS takeoff_delay_count,\n COUNT(CASE WHEN FLIGHT_DELAY_TIME>0 THEN 1 END) AS flight_delay_count,\n COUNT(CASE WHEN direction='D' AND CLEARANCE_DELAY_TIME BETWEEN 1 AND 5 THEN 1 END) AS short_delay_5m_count,\n ROUND(AVG(CASE WHEN direction='D' AND DEP_DELAY_TIME>0 THEN DEP_DELAY_TIME END),2) AS avg_dep_delay_minutes,\n ROUND(AVG(CASE WHEN direction='A' AND ARR_DELAY_TIME>0 THEN ARR_DELAY_TIME END),2) AS avg_arr_delay_minutes,\n ROUND(100*COUNT(CASE WHEN IS_REMOTE='N' THEN 1 END)/NULLIF(COUNT(*),0),2) AS bridge_stand_rate_all,\n COUNT(CASE WHEN IS_REMOTE='Y' THEN 1 END) AS remote_stand_flights,\n COUNT(*) AS peak_hour_movements,\n ROUND(AVG(CASE WHEN direction='D' THEN REAL_TAXI_OUT_TIME END),2) AS avg_taxi_out_minutes,\n ROUND(100*COUNT(CASE WHEN direction='D' AND REAL_BLOCK_OFF_TIME<=TARGT_BLOCK_OFF_TIME THEN 1 END)/NULLIF(COUNT(CASE WHEN direction='D' THEN 1 END),0),2) AS block_off_on_time_rate\nFROM native_flights WHERE rn=1",
+    "生产分项独立汇总": "WITH flights AS (\n SELECT f.CRAFT_NO,a.EXEC_DATE,a.FLIGHT_NO,a.TAKEOFF_AIRPORT_IATA||'-'||a.ARRIVAL_AIRPORT_IATA AS leg,\n ROW_NUMBER() OVER (PARTITION BY f.AIRLINE_TWO_CHAR_CD||f.FLIGHT_NO,f.PLAN_TIME,f.IS_OFF_IN ORDER BY f.FLIGHT_ID) rn\n FROM FIMS.TB_DYN_FLIGHT f JOIN ACDM.TB_DYN_FLIGHT a ON a.FLIGHT_ID=f.FLIGHT_ID\n WHERE f.FLIGHT_TASK_CD<>'A/N' AND NVL(a.ABNORMAL_FLIGHT_STAT_CD,'?')<>'CAN'\n AND ((f.IS_OFF_IN='D' AND a.REAL_TAKEOFF_TIME>=:period_start AND a.REAL_TAKEOFF_TIME<:period_end)\n OR (f.IS_OFF_IN='A' AND a.REAL_LANDIN_TIME>=:period_start AND a.REAL_LANDIN_TIME<:period_end))\n)\nSELECT SUM(NVL(p.ADULT_COUNT,0)+NVL(p.CHILDREN_COUNT,0)+NVL(p.BABY_COUNT,0)) AS pax_fpa_sum,\n SUM(NVL(p.GOODS,0)+NVL(p.MAIL,0)+NVL(p.LUGGAGE,0)) AS cargo_mail_baggage_sum\n FROM flights f LEFT JOIN FORMFILL.FLIGHT_PRODUCTION_ANALYSIS p ON p.EXEC_DATE=f.EXEC_DATE AND p.CRAFT_NO=f.CRAFT_NO\n AND p.AIRLINE_TWO_CHAR_CD||p.FLIGHT_NO=f.FLIGHT_NO AND p.LEG=f.leg AND p.AVAILABLE_SEAT<>0 WHERE f.rn=1",
+    "有效计划独立汇总": "SELECT COUNT(*) AS flight_count FROM (\n SELECT DISTINCT f.AIRLINE_TWO_CHAR_CD||f.FLIGHT_NO,f.PLAN_TIME,f.IS_OFF_IN\n FROM FIMS.TB_DYN_FLIGHT f LEFT JOIN ACDM.TB_DYN_FLIGHT a ON a.FLIGHT_ID=f.FLIGHT_ID\n WHERE f.FLIGHT_TASK_CD<>'A/N' AND NVL(a.ABNORMAL_FLIGHT_STAT_CD,'?')<>'CAN'\n AND f.PLAN_TIME>=:period_start AND f.PLAN_TIME<:period_end)",
+    "登机桥原生主键独立汇总": "SELECT COUNT(*) AS air_bridge_usage_count,\n ROUND(AVG(CASE WHEN b.AIR_BRIDGE_DURATION>0 THEN b.AIR_BRIDGE_DURATION/60 END),2) AS avg_air_bridge_minutes\n FROM FIMS.TB_DYN_AIR_BRIDGE b JOIN FIMS.TB_DYN_FLIGHT f ON f.FLIGHT_ID=b.FLIGHT_ID\n WHERE b.AIR_BRIDGE_START_TIME>=:period_start AND b.AIR_BRIDGE_START_TIME<:period_end",
+    "保障节点独立汇总": "SELECT COUNT(*) AS safeguard_node_recorded_count\n FROM FIMS.TB_DYN_SAFEGUARD_NODE n JOIN FIMS.TB_DYN_FLIGHT f ON f.FLIGHT_ID=n.FLIGHT_ID\n WHERE n.SAFEGUARD_REAL_TIME>=:period_start AND n.SAFEGUARD_REAL_TIME<:period_end",
+    "跨日过站原生关联独立汇总": "WITH pairs AS (\n SELECT af.EXEC_DATE AS arr_exec_date,df.EXEC_DATE AS dep_exec_date,ar.REAL_LANDIN_TIME AS arrival_time,\n dr.RELEASE_ON_TIME,af.CRAFT_TYPE_ICAO_CD AS arr_type,df.CRAFT_TYPE_ICAO_CD AS dep_type,\n (CAST(dr.SCHEME_TAKEOFF_TIME AS DATE)-CAST(ar.SCHEME_LANDIN_TIME AS DATE))*1440 AS planned_minutes,\n CASE WHEN dr.REAL_BLOCK_OFF_TIME>ar.REAL_BLOCK_ON_TIME THEN 1 ELSE 0 END AS valid_blocks,\n (CAST(dr.REAL_BLOCK_OFF_TIME AS DATE)-CAST(ar.REAL_BLOCK_ON_TIME AS DATE))*1440 AS service_minutes,\n CASE WHEN ar.REAL_OFF_BRIDGE_TIME>ar.REAL_BY_BRIDGE_TIME THEN (CAST(ar.REAL_OFF_BRIDGE_TIME AS DATE)-CAST(ar.REAL_BY_BRIDGE_TIME AS DATE))*1440 END AS bridge_minutes,\n CASE WHEN ar.DEPARTURE_END_TIME>ar.DEPARTURE_START_TIME THEN (CAST(ar.DEPARTURE_END_TIME AS DATE)-CAST(ar.DEPARTURE_START_TIME AS DATE))*1440 END AS departure_minutes,\n CASE WHEN dr.REAL_END_BOARD_TIME>dr.REAL_BEGIN_BOARD_TIME THEN (CAST(dr.REAL_END_BOARD_TIME AS DATE)-CAST(dr.REAL_BEGIN_BOARD_TIME AS DATE))*1440 END AS board_minutes,\n CASE WHEN dr.REAL_END_CLEAN_TIME>dr.REAL_START_CLEAN_TIME THEN (CAST(dr.REAL_END_CLEAN_TIME AS DATE)-CAST(dr.REAL_START_CLEAN_TIME AS DATE))*1440 END AS clean_minutes,\n CASE WHEN dr.REAL_MEAL_END_TIME>dr.REAL_MEAL_START_TIME THEN (CAST(dr.REAL_MEAL_END_TIME AS DATE)-CAST(dr.REAL_MEAL_START_TIME AS DATE))*1440 END AS meal_minutes,\n CASE WHEN dr.REAL_END_SUPPLY_TIME>dr.REAL_START_SUPPLY_TIME THEN (CAST(dr.REAL_END_SUPPLY_TIME AS DATE)-CAST(dr.REAL_START_SUPPLY_TIME AS DATE))*1440 END AS supply_minutes,\n CASE WHEN dr.REAL_END_DEICIE_TIME>dr.REAL_START_DEICE_TIME THEN (CAST(dr.REAL_END_DEICIE_TIME AS DATE)-CAST(dr.REAL_START_DEICE_TIME AS DATE))*1440 END AS deice_minutes\n FROM FIMS.TB_DYN_FLIGHT af JOIN ACDM.TB_DYN_FLIGHT ar ON ar.FLIGHT_ID=af.FLIGHT_ID\n JOIN FIMS.TB_DYN_FLIGHT df ON df.FLIGHT_ID=ar.ASSOCIATED_FLIGHT_ID JOIN ACDM.TB_DYN_FLIGHT dr ON dr.FLIGHT_ID=df.FLIGHT_ID\n WHERE af.IS_OFF_IN='A' AND df.IS_OFF_IN='D' AND af.CRAFT_NO=df.CRAFT_NO\n AND af.FLIGHT_TASK_CD<>'A/N' AND df.FLIGHT_TASK_CD<>'A/N'\n AND NVL(ar.ABNORMAL_FLIGHT_STAT_CD,'?')<>'CAN' AND NVL(dr.ABNORMAL_FLIGHT_STAT_CD,'?')<>'CAN'\n AND ar.REAL_LANDIN_TIME>=:period_start AND ar.REAL_LANDIN_TIME<:period_end AND dr.REAL_TAKEOFF_TIME IS NOT NULL\n)\nSELECT ROUND(AVG(CASE WHEN valid_blocks=1 THEN service_minutes END),2) AS avg_turnaround_service_minutes,\n ROUND(AVG(CASE WHEN valid_blocks=1 THEN bridge_minutes END),2) AS avg_turnaround_bridge_minutes,\n ROUND(AVG(CASE WHEN valid_blocks=1 THEN departure_minutes END),2) AS avg_turnaround_departure_minutes,\n ROUND(AVG(CASE WHEN valid_blocks=1 THEN board_minutes END),2) AS avg_turnaround_board_minutes,\n ROUND(AVG(CASE WHEN valid_blocks=1 THEN clean_minutes END),2) AS avg_turnaround_clean_minutes,\n ROUND(AVG(CASE WHEN valid_blocks=1 THEN meal_minutes END),2) AS avg_turnaround_meal_minutes,\n ROUND(AVG(CASE WHEN valid_blocks=1 THEN supply_minutes END),2) AS avg_turnaround_supply_minutes,\n ROUND(AVG(CASE WHEN valid_blocks=1 THEN deice_minutes END),2) AS avg_turnaround_deice_minutes,\n ROUND(100*COUNT(CASE WHEN valid_blocks=1 AND arr_exec_date=dep_exec_date AND RELEASE_ON_TIME='Y' THEN 1 END)/NULLIF(COUNT(CASE WHEN valid_blocks=1 AND arr_exec_date=dep_exec_date THEN 1 END),0),2) AS pair_release_on_time_rate\n FROM pairs",
+    "重点机型计划过站独立汇总": "SELECT COUNT(*) AS key_short_turnaround_count\n FROM FIMS.TB_DYN_FLIGHT af JOIN ACDM.TB_DYN_FLIGHT ar ON ar.FLIGHT_ID=af.FLIGHT_ID\n JOIN FIMS.TB_DYN_FLIGHT df ON df.FLIGHT_ID=ar.ASSOCIATED_FLIGHT_ID JOIN ACDM.TB_DYN_FLIGHT dr ON dr.FLIGHT_ID=df.FLIGHT_ID\n WHERE af.IS_OFF_IN='A' AND df.IS_OFF_IN='D' AND af.CRAFT_NO=df.CRAFT_NO\n AND af.FLIGHT_TASK_CD<>'A/N' AND df.FLIGHT_TASK_CD<>'A/N'\n AND NVL(ar.ABNORMAL_FLIGHT_STAT_CD,'?')<>'CAN' AND NVL(dr.ABNORMAL_FLIGHT_STAT_CD,'?')<>'CAN'\n AND af.EXEC_DATE>=:period_start AND af.EXEC_DATE<:period_end\n AND NVL(df.CRAFT_TYPE_ICAO_CD,af.CRAFT_TYPE_ICAO_CD) IN ('B738','B788','A320','A321','A320/1','C919')\n AND dr.SCHEME_TAKEOFF_TIME>ar.SCHEME_LANDIN_TIME\n AND (CAST(dr.SCHEME_TAKEOFF_TIME AS DATE)-CAST(ar.SCHEME_LANDIN_TIME AS DATE))*1440<45",
+    "有效座位同航班样本客座率": "WITH flights AS (\n SELECT f.FLIGHT_ID,f.IS_OFF_IN AS direction,f.CRAFT_NO,a.EXEC_DATE,a.FLIGHT_NO,\n a.TAKEOFF_AIRPORT_IATA||'-'||a.ARRIVAL_AIRPORT_IATA AS leg,\n ROW_NUMBER() OVER(PARTITION BY f.AIRLINE_TWO_CHAR_CD||f.FLIGHT_NO,f.PLAN_TIME,f.IS_OFF_IN ORDER BY f.FLIGHT_ID) AS rn\n FROM FIMS.TB_DYN_FLIGHT f JOIN ACDM.TB_DYN_FLIGHT a ON a.FLIGHT_ID=f.FLIGHT_ID\n WHERE f.FLIGHT_TASK_CD<>'A/N' AND NVL(a.ABNORMAL_FLIGHT_STAT_CD,'?')<>'CAN'\n AND ((f.IS_OFF_IN='D' AND a.REAL_TAKEOFF_TIME>=:period_start AND a.REAL_TAKEOFF_TIME<:period_end)\n OR(f.IS_OFF_IN='A' AND a.REAL_LANDIN_TIME>=:period_start AND a.REAL_LANDIN_TIME<:period_end))\n), production AS (\n SELECT EXEC_DATE,CRAFT_NO,AIRLINE_TWO_CHAR_CD||FLIGHT_NO AS flight_no,LEG,\n SUM(AVAILABLE_SEAT) AS seats,SUM(NVL(ADULT_COUNT,0)+NVL(CHILDREN_COUNT,0)+NVL(BABY_COUNT,0)) AS pax\n FROM FORMFILL.FLIGHT_PRODUCTION_ANALYSIS WHERE AVAILABLE_SEAT>0\n GROUP BY EXEC_DATE,CRAFT_NO,AIRLINE_TWO_CHAR_CD||FLIGHT_NO,LEG\n), eligible AS (\n SELECT f.direction,p.seats,\n CASE WHEN f.direction='D' THEN NVL(t.DEP_DPSR_DEPE_NUM,0) ELSE p.pax END AS pax\n FROM flights f JOIN production p ON p.EXEC_DATE=f.EXEC_DATE AND p.CRAFT_NO=f.CRAFT_NO\n AND p.flight_no=f.FLIGHT_NO AND p.LEG=f.leg\n LEFT JOIN FIMS.TBH_FIMS_DYN_CALC_TOTAL t ON t.FLIGHT_ID=f.FLIGHT_ID WHERE f.rn=1\n)\nSELECT SUM(CASE WHEN direction='D' THEN pax ELSE 0 END) AS departure_pax,\n SUM(CASE WHEN direction='A' THEN pax ELSE 0 END) AS arrival_pax,SUM(pax) AS total_pax,\n SUM(CASE WHEN direction='D' THEN seats ELSE 0 END) AS depart_seat,\n SUM(CASE WHEN direction='A' THEN seats ELSE 0 END) AS arrive_seat,SUM(seats) AS total_seat,\n COUNT(*) AS sample_flights,\n COUNT(CASE WHEN direction='D' THEN 1 END) AS departure_sample_flights,\n COUNT(CASE WHEN direction='A' THEN 1 END) AS arrival_sample_flights,\n ROUND(100*SUM(CASE WHEN direction='D' THEN pax ELSE 0 END)/NULLIF(SUM(CASE WHEN direction='D' THEN seats ELSE 0 END),0),2) AS dep_load_factor,\n ROUND(100*SUM(CASE WHEN direction='A' THEN pax ELSE 0 END)/NULLIF(SUM(CASE WHEN direction='A' THEN seats ELSE 0 END),0),2) AS arr_load_factor,\n ROUND(100*SUM(pax)/NULLIF(SUM(seats),0),2) AS total_load_factor FROM eligible"
+  },
+  "definitions": {
+    "pair_period": "进港实际落地自然日归属，配对出港可在次日；时长仅统计有效轮挡顺序的实测样本",
+    "fpa_identity": "源UUID保留，按FIMS机号及ACDM执行日期、实际航段、标准航班号关联；可用座位非0",
+    "rate_totals": "多日、分组比率分别汇总分子和分母；不平均逐日比率"
+  },
+  "corrections": [
+    {
+      "date": "2026-11-17",
+      "metrics": [
+        "total_load_factor",
+        "dep_load_factor",
+        "arr_load_factor"
+      ],
+      "reason": "用户确认修正分子分母样本不一致；仅使用同一批可用座位大于0的已执行航班，旅客吞吐量指标继续保留全量。"
+    }
+  ]
+}
