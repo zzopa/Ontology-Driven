@@ -20,7 +20,7 @@ web/                   旧版页面归档，非在线入口
 
 深色 Zinc 基底、Emerald 高亮、细边框和克制光晕；以响应式 Bento 网格分隔查询、连接与流程。结果分为回答、完整字段、事实依据、关联图谱和 SQL，避免所有文字堆叠在首页。
 
-构建、真实查询、分页与响应式实测结果见 [UI 验收报告](verification-2026-10-03-frontend.md)。
+构建、真实查询、分页与响应式实测结果见 [UI 验收报告](verification/verification-2026-10-03-frontend.md)。
 
 ## 构建与运行
 

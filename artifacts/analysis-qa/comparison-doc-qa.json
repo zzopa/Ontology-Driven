@@ -1,9 +1,0 @@
-{
-  "pages": 28,
-  "questions": 50,
-  "answer_fields": 100,
-  "tables": 53,
-  "visual_review": "all 28 pages reviewed",
-  "renderer": "native WPS DOCX to PDF plus bundled Poppler",
-  "output_bytes": 51494
-}

@@ -13,7 +13,7 @@
 > - 账号、模型、会话与审计后台：[管理后台说明](docs/admin-console.md)
 > - `hbairport01` 行列与指标权限：[数据权限说明](docs/hbairport01-data-permissions.md)
 > - 工作台交互与宿主弹窗嵌入：[前端与嵌入说明](docs/frontend-and-embedding.md)
-> - 实施状态与历史验收：[实施说明](docs/ontology-optimization-plan.md) · [验收报告](docs/verification-2026-10-03.md)
+> - 实施状态与历史验收：[实施说明](docs/ontology-optimization-plan.md) · [验收报告](docs/verification/verification-2026-10-03.md) · [完整文档索引](docs/README.md)
 
 ---
 
@@ -173,10 +173,14 @@ app/
   agent/
     coordinator.py          ops_ask 统一总控（目录路由、澄清状态机、追问、残余条件检验）
     planning.py             筛选锚点与分析粒度协调（reconcile_anchor）及双路由意图分发
+    analysis.py             受控多指标分析、同环比、多步连续追问与对标执行器
+    cross_day.py            计划/取消/实际执行跨日口径对账与窗口边界跨日航班明细
+    forecast.py             确定性滚动回测短期预测基线
+    coordinator_lexicon.py  运营总控词表、码表、首末班与纯展示字段正则规则
     follow_up.py            多轮追问槽位继承（FollowUpNormalizer）
     operational_day.py      民航运营日（04:00/可配置日切）时间窗与运营时计算
     fishbone.py             A-CDM 航班进出港全生命周期鱼骨节点提取
-    visual.py               自适应图表元数据构建（stats / donut / bar / trend / fishbone / turnaround_gantt）
+    visual.py               自适应图表元数据构建（stats / donut / bar / trend / detail_table / fishbone / turnaround_gantt）
     prompts.py              通用证据分析提示词与分批推理策略
     response.py             多批结论汇总与内容编排（compose_document）
   admin/
@@ -219,19 +223,19 @@ scripts/
   paths.py                  离线脚本公共路径
   ops_ask/seed_acdm_handbook.py  A-CDM 手册校准指标/维度/规则/概念/同义词初始化脚本
   service/                  data_source.py 数据源切换、restart.ps1 服务重启检查、acdm_model.py
+    launchers/              辅助/历史数据源启停脚本（start.ps1、start_ops.bat/ps1、restart-lan.cmd、
+                            start-hbairport.cmd、start-acdm.cmd、copy-acdm.cmd）
   db/                       ops_ask_execution.sql 视图脚本、acdm_snapshot/acdm_postgres 导入、历史图谱脚本
   demo/                     coordinator_evaluate、evaluate、evidence_delivery_regression、smoke_api、
                             acdm_smoke、admin_preview 等验证与演示脚本
 
 tests/                      Python 单元测试、PostgreSQL TEMP 表集成测试与重启脚本 PowerShell 测试
-docs/                       方案设计、数据源说明、权限说明与验收报告
+docs/                       方案设计、数据源说明、权限说明（目录索引见 docs/README.md）
+  verification/             历史阶段验收报告归档
 ask_web.py                  Uvicorn 启动入口
-start.ps1 / restart.cmd     Windows 启动与安全重启脚本
-start-ops-ask.cmd           切换 ops_ask 并重启
-start-hbairport.cmd         切换 hbairport 并重启
-start-acdm.cmd              切换 acdm 并重启
-start_ops.bat / start_ops.ps1  前台以 ops_ask 模式直启 ask_web.py
-copy-acdm.cmd               从 Oracle 只读导出近 7 天 SQLite 中间副本
+start-ops-ask.cmd           核心入口：切换 ops_ask（LAN 0.0.0.0）并重启服务
+restart.cmd                 核心入口：安全重启当前服务
+start-report-worker.cmd     核心入口：启动 PDF 报表后台工作进程
 config.json                 默认运行配置（非密钥）
 config.local.json           本机数据库/Oracle 密码与模型 Key（不提交 Git）
 config.local.example.json   本机密钥配置模板
@@ -260,15 +264,19 @@ cd ..
 .\.venv\Scripts\python.exe -X utf8 ask_web.py
 ```
 
-> 已存在 `config.local.json` 时不要重复覆盖密钥；也可使用 `.\start.ps1` 检查依赖产物后启动。
+> 已存在 `config.local.json` 时不要重复覆盖密钥；也可使用 `.\scripts\service\launchers\start.ps1` 检查依赖产物后启动。
 
 ### 2. 日常重启与数据源切换
 
-- **切换数据源并重启**（会更新 `config.json` 的 `data_source` 并调用 `restart.cmd`）：
-  - `start-ops-ask.cmd`：切换至 `ops_ask` 运营库（当前默认）
-  - `start-hbairport.cmd`：切换至 `hbairport` 综合业务库
-  - `start-acdm.cmd`：切换至 `acdm` 本地副本
-  - 若需前台直接运行 `ops_ask` 查看控制台日志，可使用 `start_ops.bat` 或 `start_ops.ps1`。
+- **常用根目录入口**：
+  - `start-ops-ask.cmd`：切换至 `ops_ask` 运营库（当前默认，LAN `0.0.0.0`）并调用 `restart.cmd`
+  - `restart.cmd`：按当前配置安全重启服务
+  - `start-report-worker.cmd`：启动 PDF 报告中心后台渲染进程
+- **辅助与历史数据源脚本**（收拢于 `scripts/service/launchers/`）：
+  - `start-hbairport.cmd`：切换至 `hbairport` 综合业务库并重启
+  - `start-acdm.cmd`：切换至 `acdm` 本地副本并重启；`copy-acdm.cmd` 用于导出近 7 天 SQLite 中间副本
+  - `start_ops.bat` / `start_ops.ps1`：前台直接运行 `ops_ask` 查看控制台日志
+  - `start.ps1` / `restart-lan.cmd`：依赖检查直启与 LAN 重启快捷脚本
 - **安全重启脚本 `restart.cmd`**：
   - 自动读取当前配置及环境变量（默认端口 `8088`），先校验数据库端口连通性、`frontend/out` 构建产物与端口监听进程归属（仅识别本项目的 `.venv` 启动 `ask_web.py` 进程，端口属其他项目时拒绝强杀），随后重启后台进程、等待 `/api/status` 与页面就绪并打开浏览器。
   - 仅执行检查不重启：

@@ -23,6 +23,14 @@ class LayoutTests(unittest.TestCase):
     def test_no_database_scripts_in_project_root(self):
         self.assertEqual(list(ROOT.glob('db_*.py')), [])
 
+    def test_root_launch_scripts_and_docs_are_organized(self):
+        root_launchers = sorted(p.name for ext in ('*.cmd', '*.bat', '*.ps1') for p in ROOT.glob(ext))
+        self.assertEqual(root_launchers, ['restart.cmd', 'start-ops-ask.cmd', 'start-report-worker.cmd'])
+        self.assertTrue((ROOT / 'scripts' / 'service' / 'launchers' / 'start.ps1').is_file())
+        self.assertEqual(list((ROOT / 'docs').glob('verification-*.md')), [])
+        self.assertTrue((ROOT / 'docs' / 'README.md').is_file())
+        self.assertTrue((ROOT / 'docs' / 'verification').is_dir())
+
 
 if __name__ == '__main__':
     unittest.main()

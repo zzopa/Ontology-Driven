@@ -16,8 +16,8 @@
 “昨天航班执飞情况”等完整口径通过现有本体规则解析；附加条件无法完整解析时仍需校验。
 “执飞情况”直接按进出港分组统计全量记录，并保留分页明细入口；明确问“执飞明细”时读取明细。
 
-双击根目录 `start-ops-ask.cmd` 可切换并重启。原来的 `start-acdm.cmd` 和
-`start-hbairport.cmd` 继续可用。环境变量 `HBASK_DATA_SOURCE` 优先于配置。
+双击根目录 `start-ops-ask.cmd` 可切换并重启。历史数据源入口 `scripts/service/launchers/start-acdm.cmd` 和
+`scripts/service/launchers/start-hbairport.cmd` 继续可用。环境变量 `HBASK_DATA_SOURCE` 优先于配置。
 完整页面与登录入口为 `http://127.0.0.1:8088/`。
 
 `data/ops_ask/profile.json` 指定连接及独立本体、缓存、图谱、管理库目录。

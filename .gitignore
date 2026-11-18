@@ -48,7 +48,7 @@ data/acdm/current.tmp
 data/acdm/acdm_test_*/
 
 # =============================================================================
-# 运行日志、测试评估与备份文件
+# 运行日志、测试评估、临时调试产物与备份文件
 # =============================================================================
 artifacts/logs/
 *.log
@@ -57,6 +57,8 @@ artifacts/backups/
 *.bak
 artifacts/evaluations/
 artifacts/screenshots/
+artifacts/analysis-qa/
+artifacts/reports/
 artifacts/renderers/*
 !artifacts/renderers/.gitkeep
 artifacts/graphs/*
@@ -65,6 +67,10 @@ artifacts/design/
 artifacts/swarm/
 artifacts/*.out
 artifacts/*.py
+artifacts/*.pdf
+artifacts/*.html
+artifacts/*.png
+artifacts/*.jpg
 test_results*.json
 _ref/
 swarm/

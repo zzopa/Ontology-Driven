@@ -23,7 +23,7 @@ def snapshot():
         metadata = json.loads((path / 'schema.json').read_text(encoding='utf-8'))
         return path, metadata
     except FileNotFoundError as exc:
-        raise ValueError('尚未完成数据复制，请先运行 copy-acdm.cmd') from exc
+        raise ValueError('尚未完成数据复制，请先运行 scripts/service/launchers/copy-acdm.cmd') from exc
 
 
 def execute(path, metadata, sql, parameters=()):

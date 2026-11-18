@@ -1,7 +1,7 @@
 # ACDM 本体数据源切换
 
 原 test-ai 页面仍为 http://127.0.0.1:8088/ ，本体管理仍为 /ontology。
-双击根目录 start-acdm.cmd 切换 ACDM 并重启；start-hbairport.cmd 切回原 hbairport01 并重启。
+运行 `scripts/service/launchers/start-acdm.cmd` 切换 ACDM 并重启；`scripts/service/launchers/start-hbairport.cmd` 切回原 hbairport01 并重启。
 也可修改 config.json 的 data_source 为 acdm 或 hbairport 后运行原 restart.cmd。
 环境变量 HBASK_DATA_SOURCE 优先于配置，设置了它时需同步清除或修改。
 
@@ -32,7 +32,7 @@ http://172.26.197.154:3000/v1/chat/completions 。该模型从原管理配置复
 模型通过相关本体生成受校验的计划，无法确认的字段或口径会要求澄清，不忽略条件扩大查询。
 51 项原系统指标定义已保存为参考，尚不代表所有复杂指标都已配置完毕。
 
-copy-acdm.cmd 从原 Oracle 只读复制最近7天到 SQLite 中间副本。
+`scripts/service/launchers/copy-acdm.cmd` 从原 Oracle 只读复制最近7天到 SQLite 中间副本。
 重新导入 PostgreSQL 时运行 `.venv\Scripts\python.exe -m scripts.db.acdm_postgres`，
 每次创建新库，完整导入且核对行数后才更新 profile.json；随后重启 ACDM。
 不自动删除旧副本或旧测试库，失败导入产生的独立新库也保留供检查。
