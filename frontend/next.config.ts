@@ -5,7 +5,7 @@ const config: NextConfig = {
   poweredByHeader: false,
   images: { unoptimized: true },
   ...(process.env.NODE_ENV === "development" ? {
-    async rewrites() { return [{ source: "/api/:path*", destination: "http://127.0.0.1:8088/api/:path*" }]; },
+    async rewrites() { return [{ source: "/api/:path*", destination: "http://127.0.0.1:5010/api/:path*" }]; },
   } : {}),
 };
 
