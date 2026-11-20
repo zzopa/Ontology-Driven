@@ -73,8 +73,8 @@ DEP_MILESTONES = [
     ),
     (
         'ground_service', '机坪保障', 'RAMP', 'ramp', 'bottom',
-        ['ALTERATE_START_SUPPLY_TIME', 'ALTERATE_START_CLEAN_TIME'],
-        ['REAL_END_SUPPLY_TIME', 'REAL_END_CLEAN_TIME', 'REAL_MEAL_START_TIME'],
+        ['ALTERATE_START_SUPPLY_TIME', 'ALTERATE_START_CLEAN_TIME', 'alterate_start_supply_time', 'alterate_start_clean_time'],
+        ['REAL_END_SUPPLY_TIME', 'REAL_END_CLEAN_TIME', 'REAL_MEAL_START_TIME', 'real_end_supply_time', 'real_end_clean_time', 'real_meal_start_time', 'real_start_supply_time', 'real_start_clean_time'],
         '加油、保洁、配餐保障'
     ),
     (
@@ -97,26 +97,26 @@ DEP_MILESTONES = [
     ),
     (
         'door_close', '客舱关门', 'CLS', 'control', 'top',
-        ['PLAN_CLOSE_DOOR_TIME'],
-        ['REAL_CLOSE_CABIN_TIME', 'cabin_close'],
+        ['PLAN_CLOSE_DOOR_TIME', 'alterate_close_cabin_time'],
+        ['REAL_CLOSE_CABIN_TIME', 'cabin_close', 'real_close_cabin_time'],
         '客舱舱门关闭完毕'
     ),
     (
         'bridge_off', '撤除廊桥', 'BRG_OFF', 'ramp', 'bottom',
-        ['PLAN_OFF_BRIDGE_TIME'],
-        ['REAL_OFF_BRIDGE_TIME'],
+        ['PLAN_OFF_BRIDGE_TIME', 'plan_off_bridge_time'],
+        ['REAL_OFF_BRIDGE_TIME', 'real_off_bridge_time'],
         '客梯车/登机廊桥脱开'
     ),
     (
         'tobt', '目标推出', 'TOBT', 'control', 'top',
-        ['tobt', 'TARGT_BLOCK_OFF_TIME', 'AIRPORT_TARGT_BLOCK_OFF_TIME', 'COUNT_BLOCK_OFF_TIME'],
+        ['tobt', 'TARGT_BLOCK_OFF_TIME', 'AIRPORT_TARGT_BLOCK_OFF_TIME', 'COUNT_BLOCK_OFF_TIME', 'count_block_off_time'],
         [],
         'A-CDM 目标撤轮挡时刻'
     ),
     (
         'push_request', '申请推出', 'REQ', 'control', 'bottom',
         [],
-        ['REQUEST_LAUNCH_TIME'],
+        ['REQUEST_LAUNCH_TIME', 'request_launch_time'],
         '机组向塔台申请推出滑行'
     ),
     (
@@ -161,7 +161,7 @@ ARR_MILESTONES = [
     (
         'runway_exit', '脱离跑道', 'EXIT', 'runway', 'bottom',
         [],
-        ['ENTRY_GROUND_TIME'],
+        ['ENTRY_GROUND_TIME', 'real_taxi_in_time'],
         '脱离跑道进入滑行道'
     ),
     (
@@ -172,14 +172,14 @@ ARR_MILESTONES = [
     ),
     (
         'bridge_on', '靠接廊桥', 'BRG_ON', 'ramp', 'bottom',
-        [],
-        ['REAL_BY_BRIDGE_TIME'],
+        ['ALTERATE_BY_BRIDGE_TIME', 'alterate_by_bridge_time'],
+        ['REAL_BY_BRIDGE_TIME', 'real_by_bridge_time'],
         '旅客廊桥靠接完毕'
     ),
     (
         'door_open', '客舱开门', 'OPN', 'passenger', 'top',
-        [],
-        ['REAL_OPEN_CABIN_TIME'],
+        ['ALTERATE_OPEN_CABIN_TIME', 'alterate_open_cabin_time'],
+        ['REAL_OPEN_CABIN_TIME', 'real_open_cabin_time'],
         '客舱舱门开启下客'
     ),
     (
@@ -195,15 +195,15 @@ EXTRA_MILESTONES = [
     ('inbound_landing', '落地', 'IN_ALDT', 'runway', 'bottom',
      ['inbound_scheduled_arrival'], ['inbound_actual_arrival'], '前序进港航班在本场落地；未关联时保留空位'),
     ('cargo_open', '货舱开门', 'CARGO_OPN', 'ramp', 'bottom',
-     [], ['REAL_OPEN_CARGO_TIME', 'cargo_open'], '货舱开启记录'),
+     [], ['REAL_OPEN_CARGO_TIME', 'cargo_open', 'real_open_cargo_time'], '货舱开启记录'),
     ('cargo_close', '货舱关门', 'CARGO_CLS', 'ramp', 'top',
-     [], ['REAL_CLOSE_CARGO_TIME', 'cargo_close'], '货舱关闭记录'),
+     [], ['REAL_CLOSE_CARGO_TIME', 'cargo_close', 'real_close_cargo_time'], '货舱关闭记录'),
     ('pushback', '推出', 'PUSH', 'control', 'bottom',
-     [], ['REAL_LAUNCH_TIME', 'pushback'], '实际推出记录'),
+     [], ['REAL_LAUNCH_TIME', 'pushback', 'real_launch_time'], '实际推出记录'),
     ('engine_start', '开车', 'ASAT', 'control', 'top',
-     [], ['REAL_DRIVE_TIME', 'engine_start'], '实际开车记录'),
+     [], ['REAL_DRIVE_TIME', 'engine_start', 'real_drive_time'], '实际开车记录'),
     ('tsat', '目标开车批准', 'TSAT', 'control', 'top',
-     ['tsat', 'TARGT_DRIVE_TIME'], [], '目标时刻不表示实际开车或完成'),
+     ['tsat', 'TARGT_DRIVE_TIME', 'targt_drive_time'], [], '目标时刻不表示实际开车或完成'),
 ]
 
 NODE_ORDER = ['origin_dep', 'eldt', 'inbound_landing', 'runway_exit', 'aibt', 'bridge_on',
@@ -217,8 +217,10 @@ ESTIMATED_FIELDS = {
     'inbound_landing': ['inbound_estimated_arrival'],
     'eldt': ['estimated_arrival', 'ALTERATE_LANDIN_TIME'],
     'aibt': ['estimated_on_block', 'ALTERATE_BLOCK_ON_TIME'],
-    'door_open': ['ALTERATE_OPEN_CABIN_TIME'],
-    'door_close': ['ALTERATE_CLOSE_CABIN_TIME'],
+    'door_open': ['ALTERATE_OPEN_CABIN_TIME', 'alterate_open_cabin_time'],
+    'bridge_on': ['ALTERATE_BY_BRIDGE_TIME', 'alterate_by_bridge_time'],
+    'door_close': ['ALTERATE_CLOSE_CABIN_TIME', 'alterate_close_cabin_time'],
+    'bridge_off': ['PLAN_OFF_BRIDGE_TIME', 'plan_off_bridge_time'],
     'cargo_open': ['ALTERATE_OPEN_CARGO_TIME'],
     'cargo_close': ['ALTERATE_CLOSE_CARGO_TIME'],
     'boarding_start': ['ALTERATE_BEGIN_BOARD_TIME'],

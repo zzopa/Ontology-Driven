@@ -132,6 +132,60 @@ def turnaround_identity(number, craft, identifier):
     return f'航班 {number}，执飞机号 {craft or "未提供"}'
 
 
+def build_multi_flight_summary(records, identifier, flight_date):
+    day_str = flight_date or str(records[0].get('flight_date') or '')[:10]
+    flight_no = records[0].get('flight_pair') or identifier
+    lines = [
+        f'【航班 {flight_no} · {day_str} 运行保障分析】',
+        f'当日共检索到 {len(records)} 架飞机执飞 {flight_no} 的保障记录：\n'
+    ]
+    for idx, rec in enumerate(records, 1):
+        craft = rec.get('craft_no') or '未知机号'
+        stand = rec.get('stand') or '未分配'
+        gate = rec.get('gate') or '未分配'
+        is_pair = bool(rec.get('in_flight') and rec.get('out_flight'))
+        role = '进出港连班过站' if is_pair else ('出港航班' if rec.get('out_flight') else '进港航班')
+
+        s_row = rec.get('source_row') or {}
+        p_row = rec.get('process_row') or {}
+
+        header = f'{idx}. 飞机 {craft}（机位 {stand} · 登机口 {gate} · {role}）'
+        lines.append(header)
+
+        if is_pair:
+            in_sched = _clock(_dt(p_row.get('inbound_scheduled_arrival') or rec.get('inbound_scheduled_arrival')))
+            in_act = _clock(_dt(p_row.get('inbound_actual_arrival') or rec.get('inbound_actual_arrival')))
+            out_sched = _clock(_dt(s_row.get('scheduled_departure')))
+            out_act = _clock(_dt(s_row.get('actual_departure')))
+            lines.append(f'• 进出港起降：前序进港计划 {in_sched or "—"} / 实际落地 {in_act or "未记录"}；后续出港计划 {out_sched or "—"} / 实际起飞 {out_act or "未记录"}')
+        elif rec.get('out_flight'):
+            out_sched = _clock(_dt(s_row.get('scheduled_departure')))
+            out_act = _clock(_dt(s_row.get('actual_departure')))
+            delay_hint = '（原定凌晨计划，严重延误至夜间起飞）' if out_sched and out_act and out_sched < '06:00' and out_act > '20:00' else ''
+            lines.append(f'• 出港起飞：计划起飞 {out_sched or "—"} / 实际起飞 {out_act or "未记录"}{delay_hint}')
+        else:
+            in_sched = _clock(_dt(s_row.get('scheduled_arrival')))
+            in_act = _clock(_dt(s_row.get('actual_arrival')))
+            lines.append(f'• 进港降落：计划落地 {in_sched or "—"} / 实际落地 {in_act or "未记录"}')
+
+        ground = rec.get('ground_nodes') or []
+        recorded_nodes = [f'{n["name"]} {n["actual_time"]}' for n in ground if n.get('actual_time')]
+        if recorded_nodes:
+            lines.append('• 关键保障节点：' + '、'.join(recorded_nodes))
+
+        ops = rec.get('operations') or []
+        op_tasks = [f'{o["name"]} {o["actual_start"]}—{o["actual_end"]}' for o in ops if o.get('actual_start') and o.get('actual_end')]
+        if op_tasks:
+            lines.append(f'• 作业实绩（{len(op_tasks)}类已完成）：' + '；'.join(op_tasks))
+        missing_ops = [o['name'] for o in ops if not has_operation_times(o)]
+        if missing_ops:
+            lines.append(f'• 未记录作业：' + '、'.join(missing_ops) + '未提供时刻记录')
+        lines.append('')
+
+    lines.append('右侧保障视图已同步载入两架飞机的全部保障数据，可点击图表上方飞机标签切换查看各自的完整鱼骨图与时序图。')
+    return '\n'.join(lines)
+
+
 def get_standard_turnaround_data(identifier, flight_date=None, flight_id=None):
     identifier = identifier.strip().upper()
     tail = bool(re.fullmatch(r'B-?[A-Z0-9]{4,5}', identifier))
@@ -154,7 +208,7 @@ def get_standard_turnaround_data(identifier, flight_date=None, flight_id=None):
             cursor.execute('SELECT to_jsonb(f), COALESCE(to_jsonb(p), \'{}\'::jsonb) '
                            'FROM std_flight_core f LEFT JOIN std_flight_process p ON p.flight_id=f.id '
                            'WHERE f.deleted_at IS NULL AND COALESCE(f.is_virtual,false)=false AND ' + predicate +
-                           ' ORDER BY f.flight_date DESC NULLS LAST,f.id DESC LIMIT 2', tuple(params))
+                           ' ORDER BY f.flight_date DESC NULLS LAST,f.id DESC LIMIT 10', tuple(params))
             rows = [(json.loads(f) if isinstance(f, str) else f,
                      json.loads(p) if isinstance(p, str) else p) for f, p in cursor.fetchall()]
         finally:
@@ -166,17 +220,96 @@ def get_standard_turnaround_data(identifier, flight_date=None, flight_id=None):
         if recorded:
             return recorded
         raise ValueError(f'当前数据库的标准航班及 ACDM 保障记录中未找到 {identifier}' + (f' 在 {flight_date} 的记录' if flight_date else ' 的记录'))
-    if len(rows) > 1 and str(rows[0][0].get('flight_date'))[:10] == str(rows[1][0].get('flight_date'))[:10]:
-        candidates = '、'.join(row[0]['flight_no'] for row in rows)
+    
+    distinct_flight_nos = {row[0].get('flight_no') for row in rows if row[0].get('flight_no')}
+    if len(distinct_flight_nos) > 1 and str(rows[0][0].get('flight_date'))[:10] == str(rows[1][0].get('flight_date'))[:10]:
+        candidates = '、'.join(list(distinct_flight_nos)[:5])
         raise ValueError(f'{identifier} 在 {str(rows[0][0].get("flight_date"))[:10]} 有多个航班（{candidates}等），请使用具体航班号和日期查询过站作业')
-    flight, process = rows[0]
-    payload = build_standard_turnaround(flight, process, identifier, bool(flight_date))
+
+    def _rank_flight_row(r):
+        f_row, p_row = r
+        has_proc = 1 if any(p_row.get(k) for k in ('boarding_start', 'boarding_end', 'actual_on_block', 'actual_off_block', 'real_start_clean_time')) else 0
+        is_dep = 1 if f_row.get('direction') == 'DEP' else 0
+        return (has_proc, is_dep, f_row.get('id', 0))
+
+    # 按飞机机号分组 (aircraft_reg)，避免不同飞机航段错误杂交
+    by_craft = {}
+    for f_row, p_row in rows:
+        c = (f_row.get('aircraft_reg') or '').replace('-', '').upper()
+        by_craft.setdefault(c, []).append((f_row, p_row))
+
+    records = []
+    for craft, craft_rows in by_craft.items():
+        dep_rows = [r for r in craft_rows if r[0].get('direction') == 'DEP']
+        arr_rows = [r for r in craft_rows if r[0].get('direction') == 'ARR']
+        if dep_rows and arr_rows:
+            dep_flight, dep_proc = max(dep_rows, key=_rank_flight_row)
+            in_flight, in_proc = max(arr_rows, key=_rank_flight_row)
+            merged_proc = dict(dep_proc)
+            in_act_arr = in_flight.get('actual_arrival') or in_proc.get('inbound_actual_arrival')
+            in_plan_arr = in_flight.get('scheduled_arrival') or in_proc.get('inbound_scheduled_arrival')
+            if in_act_arr:
+                merged_proc['inbound_actual_arrival'] = in_act_arr
+            if in_plan_arr:
+                merged_proc['inbound_scheduled_arrival'] = in_plan_arr
+            if in_proc.get('actual_on_block') and not merged_proc.get('actual_on_block'):
+                merged_proc['actual_on_block'] = in_proc.get('actual_on_block')
+            if in_proc.get('real_open_cabin_time') and not merged_proc.get('real_open_cabin_time'):
+                merged_proc['real_open_cabin_time'] = in_proc.get('real_open_cabin_time')
+            if in_proc.get('real_by_bridge_time') and not merged_proc.get('real_by_bridge_time'):
+                merged_proc['real_by_bridge_time'] = in_proc.get('real_by_bridge_time')
+            payload = build_standard_turnaround(dep_flight, merged_proc, identifier, bool(flight_date))
+            payload['in_flight'] = in_flight.get('flight_no') or dep_flight.get('flight_no')
+            payload['out_flight'] = dep_flight.get('flight_no')
+            payload['stand'] = dep_flight.get('stand_code') or in_flight.get('stand_code') or ''
+            payload['gate'] = dep_flight.get('gate_code') or in_flight.get('gate_code') or ''
+            payload['association_note'] = f'飞机 {payload["craft_no"]} · 进出港连班过站（机位 {payload["stand"] or "未分配"} · 登机口 {payload["gate"] or "未分配"}）'
+            refresh_turnaround_summary(payload)
+            records.append(payload)
+        elif dep_rows:
+            dep_flight, dep_proc = max(dep_rows, key=_rank_flight_row)
+            payload = build_standard_turnaround(dep_flight, dep_proc, identifier, bool(flight_date))
+            payload['in_flight'] = ''
+            payload['out_flight'] = dep_flight.get('flight_no')
+            payload['stand'] = dep_flight.get('stand_code') or ''
+            payload['gate'] = dep_flight.get('gate_code') or ''
+            payload['association_note'] = f'飞机 {payload["craft_no"]} · 出港航班（机位 {payload["stand"] or "未分配"} · 登机口 {payload["gate"] or "未分配"}）'
+            refresh_turnaround_summary(payload)
+            records.append(payload)
+        elif arr_rows:
+            arr_flight, arr_proc = max(arr_rows, key=_rank_flight_row)
+            payload = build_standard_turnaround(arr_flight, arr_proc, identifier, bool(flight_date))
+            payload['in_flight'] = arr_flight.get('flight_no')
+            payload['out_flight'] = ''
+            payload['stand'] = arr_flight.get('stand_code') or ''
+            payload['gate'] = arr_flight.get('gate_code') or ''
+            payload['association_note'] = f'飞机 {payload["craft_no"]} · 进港航班（机位 {payload["stand"] or "未分配"}）'
+            refresh_turnaround_summary(payload)
+            records.append(payload)
+
+    def _score_record(r):
+        is_pair = 2 if r.get('in_flight') and r.get('out_flight') else 1
+        ended_ops = sum(1 for o in r.get('operations', []) if o.get('actual_end'))
+        recorded_nodes = sum(1 for n in r.get('ground_nodes', []) if n.get('actual_time'))
+        return (is_pair, ended_ops, recorded_nodes, r.get('flight_id', 0))
+
+    records.sort(key=_score_record, reverse=True)
+    payload = records[0]
+    records_clean = [{k: v for k, v in r.items() if k != 'flight_records'} for r in records]
+    payload['flight_records'] = records_clean
+    payload['matched_total'] = len(records)
+
+    if len(records) > 1:
+        multi_summary = build_multi_flight_summary(records, identifier, flight_date)
+        payload['conclusion']['summary'] = multi_summary
+        payload['dynamic_narrative'] = multi_summary
+
     if not any(has_operation_times(operation) for operation in payload['operations']):
-        acdm_date = flight_date or (str(flight.get('flight_date') or '')[:10] if flight_id is not None else None)
+        acdm_date = flight_date or (str(payload['source_row'].get('flight_date') or '')[:10] if flight_id is not None else None)
         recorded = get_recorded_acdm_turnaround(identifier, acdm_date)
         if recorded:
-            if acdm_date and (recorded['flight_pair'] != flight['flight_no'] or
-                              recorded['craft_no'].replace('-', '').upper() != str(flight.get('aircraft_reg') or '').replace('-', '').upper()):
+            if acdm_date and (recorded['flight_pair'] != payload['flight_pair'] or
+                              recorded['craft_no'].replace('-', '').upper() != str(payload['craft_no'] or '').replace('-', '').upper()):
                 return payload
             note = f'标准表最新匹配为 {payload["flight_pair"]}（{payload["flight_date"]}），未提供作业时刻；本图展示同库已同步的 ACDM 保障记录（{recorded["flight_date"]}），不是该最新航班的作业。'
             if not flight_date:
@@ -184,14 +317,14 @@ def get_standard_turnaround_data(identifier, flight_date=None, flight_id=None):
                 recorded['dynamic_narrative'] = note + '\n\n' + recorded['dynamic_narrative']
                 recorded['available_record'] = record_option(payload)
             return recorded
-    elif payload['flight_date']:
+    elif payload['flight_date'] and len(records) == 1:
         # Enrich only the exact same flight/day/aircraft; historical fallbacks stay separate.
-        recorded = get_recorded_acdm_turnaround(flight['flight_no'], payload['flight_date'])
+        recorded = get_recorded_acdm_turnaround(payload['flight_pair'], payload['flight_date'])
         if (recorded and recorded.get('craft_no') and payload.get('craft_no') and
                 recorded['flight_date'] == payload['flight_date'] and
                 recorded['flight_pair'] == payload['flight_pair'] and
                 recorded['craft_no'].replace('-', '').upper() == payload['craft_no'].replace('-', '').upper()):
-            if flight.get('direction') == 'ARR' and recorded.get('out_flight'):
+            if payload.get('source_row', {}).get('direction') == 'ARR' and recorded.get('out_flight'):
                 for node in payload['flight_nodes']:
                     if node['key'] == 'aldt':
                         node.update(key='inbound_landing', name='落地', code='IN_ALDT',
@@ -277,10 +410,11 @@ def get_recorded_acdm_turnaround(identifier, flight_date=None):
         conn.close()
     if not rows:
         return None
-    if len(rows) > 1 and str(rows[0].get('EXEC_DATE'))[:10] == str(rows[1].get('EXEC_DATE'))[:10]:
-        numbers = '、'.join(row['FLIGHT_NO'] for row in rows)
+    distinct_flight_nos = {row['FLIGHT_NO'] for row in rows if row.get('FLIGHT_NO')}
+    if len(distinct_flight_nos) > 1 and str(rows[0].get('EXEC_DATE'))[:10] == str(rows[1].get('EXEC_DATE'))[:10]:
+        numbers = '、'.join(list(distinct_flight_nos)[:5])
         raise ValueError(f'{identifier} 在 {str(rows[0]["EXEC_DATE"])[:10]} 有多个 ACDM 航班（{numbers}），请使用具体航班号和日期查询')
-    raw = rows[0]
+    raw = max(rows, key=lambda r: (1 if r.get('NORMAL_FLIGHT_STAT_CD') == 'DEP' else 0, r.get('FLIGHT_ID', 0)))
     inbound = (raw if raw.get('NORMAL_FLIGHT_STAT_CD') == 'ARR' else associated) if associated else None
     outbound = (raw if raw.get('NORMAL_FLIGHT_STAT_CD') == 'DEP' else associated) if associated else None
     service = outbound or raw
@@ -325,25 +459,48 @@ def build_standard_turnaround(flight, process, identifier, explicit_date=False):
     if isinstance(ext, str):
         ext = json.loads(ext)
     specs = [
-        ('boarding', '旅客登机', process.get('boarding_start'), process.get('boarding_end'), 'ALTERATE_BEGIN_BOARD_TIME', 'ALTERATE_END_BOARD_TIME'),
-        ('loading', '行李装卸', ext.get('LOAD_START_TIME'), ext.get('LOAD_END_TIME'), 'PLAN_LOAD_START_TIME', 'PLAN_LOAD_END_TIME'),
-        ('cleaning', '保洁', ext.get('REAL_START_CLEAN_TIME'), ext.get('REAL_END_CLEAN_TIME'), 'ALTERATE_START_CLEAN_TIME', 'ALTERATE_END_CLEAN_TIME'),
-        ('fueling', '加油', ext.get('REAL_START_SUPPLY_TIME'), ext.get('REAL_END_SUPPLY_TIME'), 'ALTERATE_START_SUPPLY_TIME', 'ALTERATE_END_SUPPLY_TIME'),
-        ('catering', '配餐', ext.get('REAL_MEAL_START_TIME'), ext.get('REAL_MEAL_END_TIME'), 'ALTERATE_MEAL_START_TIME', 'ALTERATE_MEAL_END_TIME'),
+        ('boarding', '旅客登机',
+         process.get('boarding_start') or ext.get('REAL_BEGIN_BOARD_TIME'),
+         process.get('boarding_end') or ext.get('REAL_END_BOARD_TIME'),
+         process.get('alterate_begin_board_time') or ext.get('ALTERATE_BEGIN_BOARD_TIME'),
+         process.get('alterate_end_board_time') or ext.get('ALTERATE_END_BOARD_TIME')),
+        ('loading', '行李装卸',
+         process.get('first_baggage') or ext.get('LOAD_START_TIME'),
+         process.get('last_baggage') or ext.get('LOAD_END_TIME'),
+         process.get('plan_load_start_time') or ext.get('PLAN_LOAD_START_TIME'),
+         process.get('plan_load_end_time') or ext.get('PLAN_LOAD_END_TIME')),
+        ('cleaning', '保洁',
+         process.get('real_start_clean_time') or ext.get('REAL_START_CLEAN_TIME'),
+         process.get('real_end_clean_time') or ext.get('REAL_END_CLEAN_TIME'),
+         process.get('alterate_start_clean_time') or ext.get('ALTERATE_START_CLEAN_TIME'),
+         process.get('alterate_end_clean_time') or ext.get('ALTERATE_END_CLEAN_TIME')),
+        ('fueling', '加油',
+         process.get('real_start_supply_time') or ext.get('REAL_START_SUPPLY_TIME'),
+         process.get('real_end_supply_time') or ext.get('REAL_END_SUPPLY_TIME'),
+         process.get('alterate_start_supply_time') or ext.get('ALTERATE_START_SUPPLY_TIME'),
+         process.get('alterate_end_supply_time') or ext.get('ALTERATE_END_SUPPLY_TIME')),
+        ('catering', '配餐',
+         process.get('real_meal_start_time') or ext.get('REAL_MEAL_START_TIME'),
+         process.get('real_meal_end_time') or ext.get('REAL_MEAL_END_TIME'),
+         process.get('alterate_meal_start_time') or ext.get('ALTERATE_MEAL_START_TIME'),
+         process.get('alterate_meal_end_time') or ext.get('ALTERATE_MEAL_END_TIME')),
     ]
     operations = []
     for key, name, start, end, plan_start, plan_end in specs:
-        start, end, plan_start, plan_end = map(_dt, [start, end, ext.get(plan_start), ext.get(plan_end)])
-        status = 'completed' if end else 'in_progress' if start else 'planned'
+        start_dt, end_dt, p_start_dt, p_end_dt = map(_dt, [start, end, plan_start, plan_end])
+        status = 'completed' if end_dt else 'in_progress' if start_dt else 'planned'
         operations.append({'id': key, 'name': name, 'status': status, 'icon': '',
-                           'actual_start': _clock(start), 'actual_end': _clock(end),
-                           'plan_start': _clock(plan_start), 'plan_end': _clock(plan_end),
-                           'actual_start_at': start.isoformat() if start else None,
-                           'actual_end_at': end.isoformat() if end else None,
-                           'plan_start_at': plan_start.isoformat() if plan_start else None,
-                           'plan_end_at': plan_end.isoformat() if plan_end else None})
-    milestones = {key: _dt(process.get(field)) for key, field in
-                  [('aibt', 'actual_on_block'), ('sobt', 'scheduled_off_block'), ('tobt', 'tobt'), ('tsat', 'tsat')]}
+                           'actual_start': _clock(start_dt), 'actual_end': _clock(end_dt),
+                           'plan_start': _clock(p_start_dt), 'plan_end': _clock(p_end_dt),
+                           'actual_start_at': start_dt.isoformat() if start_dt else None,
+                           'actual_end_at': end_dt.isoformat() if end_dt else None,
+                           'plan_start_at': p_start_dt.isoformat() if p_start_dt else None,
+                           'plan_end_at': p_end_dt.isoformat() if p_end_dt else None})
+    milestones = {key: _dt(process.get(field) or ext.get(ext_field)) for key, field, ext_field in
+                  [('aibt', 'actual_on_block', 'REAL_BLOCK_ON_TIME'),
+                   ('sobt', 'scheduled_off_block', 'ALTERATE_BLOCK_OFF_TIME'),
+                   ('tobt', 'tobt', 'TARGT_BLOCK_OFF_TIME'),
+                   ('tsat', 'tsat', 'TARGT_DRIVE_TIME')]}
     day = str(flight.get('flight_date') or '')[:10]
     selection = ('指定业务日' if explicit_date else '未指定日期，取当前标准数据源最新业务日') + f'：{day}'
     number, craft = flight.get('flight_no') or '', flight.get('aircraft_reg') or ''

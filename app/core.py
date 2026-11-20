@@ -1182,7 +1182,7 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
         elif intent == 'turnaround':
             t_data = plan.get('turnaround_data') or {}
             main = [clean_rows(catalog, subject, [t_data['source_row']])[0] if t_data.get('source_row') else t_data]
-            main_total = 1
+            main_total = int(t_data.get('matched_total') or 1)
             related = ([{'table': 'std_flight_process', 'name': catalog.entities['std_flight_process']['name'],
                          'note': 'flight_id = std_flight_core.id', 'type': 'fk', 'level': 1, 'count': 1,
                          'rows': clean_rows(catalog, 'std_flight_process', [t_data['process_row']])}]

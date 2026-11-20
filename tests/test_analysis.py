@@ -32,6 +32,28 @@ class AnalysisTests(unittest.TestCase):
             self.assertTrue(any(c.get('value') in ('D', 'DEP') for c in q['plan']['conditions']))
             Compiler(self.catalog).validate(q['plan'])
 
+    def test_route_grouping_keeps_the_requested_metrics(self):
+        question = ('2026-11-02至2026-11-15，按航线统计旅客吞吐量、货邮吞吐量、'
+                    '实际执行航班架次和过站平均保障时长，分别是多少？')
+        plan = self.coordinator.plan(question)
+        self.assertEqual(plan.get('intent'), 'analysis', plan.get('answer'))
+        children = [query['plan'] for query in plan['queries']]
+        self.assertEqual([child['metric'] for child in children], [
+            'pax_total_sum', 'cargo_mail_sum', 'operated_flight_count', 'avg_turnaround_service_minutes',
+        ])
+        compiler = Compiler(self.catalog)
+        for child in children:
+            self.assertEqual(child['group_by'], ['origin_airport', 'dest_airport'])
+            group_sql = compiler.aggregate(child).sql.split(' GROUP BY ', 1)[1]
+            self.assertIn('c.origin_airport', group_sql)
+            self.assertIn('c.dest_airport', group_sql)
+            self.assertEqual({c['col'] for c in child['conditions']}, {
+                'airport_code', self.catalog.metrics[child['metric']]['date_field'],
+            })
+        fpa = self.coordinator.plan('2026-11-02至2026-11-15航线统计旅客')
+        self.assertEqual(fpa.get('metric'), 'pax_fpa_sum')
+        self.assertEqual(fpa.get('group_by'), [])
+
     def test_month_and_year_windows_in_analysis_and_followup(self):
         with patch('app.agent.coordinator.datetime', wraps=datetime) as clock:
             clock.now.return_value = datetime(2026, 11, 18, 16, tzinfo=BEIJING)
@@ -482,7 +504,8 @@ class ChainedMultiStepTests(unittest.TestCase):
                 self.assertTrue(plan.get('chained'))
                 self.assertEqual(len(plan['queries']), 4)
                 intents = [q['plan']['intent'] for q in plan['queries']]
-                self.assertEqual(intents, ['count', 'count', 'count', 'detail'])
+                self.assertTrue(all(it in ('count', 'metric') for it in intents[:3]))
+                self.assertEqual(intents[3], 'detail')
                 dirs = [
                     next((c['value'] for c in q['plan']['conditions'] if c.get('col') == 'direction'), None)
                     for q in plan['queries']

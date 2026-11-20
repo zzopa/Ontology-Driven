@@ -423,6 +423,19 @@ def _build_detail_table_meta(
             raw_delay_reason = safe_str(_first_val(r, 'delay_reason_text', 'delay_reason', 'abnormal_reason'))
             delay_reason = get_delay_reason_name(raw_delay_reason) or raw_delay_reason
 
+            # 客运、货运、航线属性扩展
+            raw_attr = safe_str(_first_val(r, 'attribute', 'flight_task_cd'))
+            raw_country = safe_str(_first_val(r, 'flight_country_type', 'route_type'))
+            attr_display = ' / '.join(filter(None, [raw_attr, raw_country]))
+            pax_val = _first_val(r, 'dep_dpsr_depe_num', 'psg_arrival_num', 'passenger_volume', 'adult_count')
+            pax_num = str(int(pax_val)) if pax_val not in (None, '') and str(pax_val).replace('.', '', 1).isdigit() else None
+            cargo_val = _first_val(r, 'fpa_goods', 'cargo_weight')
+            cargo_num = str(round(float(cargo_val), 1)) if cargo_val not in (None, '') and str(cargo_val).replace('.', '', 1).isdigit() else None
+            mail_val = _first_val(r, 'fpa_mail', 'mail_weight')
+            mail_num = str(round(float(mail_val), 1)) if mail_val not in (None, '') and str(mail_val).replace('.', '', 1).isdigit() else None
+            seat_val = _first_val(r, 'fpa_available_seat', 'available_seat', 'seat_capacity')
+            seat_num = str(int(seat_val)) if seat_val not in (None, '') and str(seat_val).replace('.', '', 1).isdigit() else None
+
             if status == '延误' and (delay_min is None or delay_min <= 15):
                 delayed_count += 1
 
@@ -438,6 +451,13 @@ def _build_detail_table_meta(
                 'destination': dest,
                 'destination_code': dest_raw,
                 'route': route,
+                'attribute': raw_attr,
+                'flight_country_type': raw_country,
+                'attribute_display': attr_display,
+                'passenger_count': pax_num,
+                'seat_count': seat_num,
+                'cargo_weight': cargo_num,
+                'mail_weight': mail_num,
                 'plan_time': format_node_time(plan_dt or plan_raw, flight_date) or '—',
                 'actual_time': format_node_time(act_dt or act_raw, flight_date) or '—',
                 'stand': stand,
@@ -471,6 +491,29 @@ def _build_detail_table_meta(
 
         planned_count = sum(1 for r in rows if r.get('status') == '计划' or not r.get('actual_time') or r.get('actual_time') == '—')
 
+        cols = [
+            {'key': 'flight_no', 'label': '航班号'},
+            {'key': 'route', 'label': '航线'},
+        ]
+        if any(r.get('attribute_display') for r in rows):
+            cols.append({'key': 'attribute_display', 'label': '属性/性质'})
+        if any(r.get('passenger_count') for r in rows):
+            cols.append({'key': 'passenger_count', 'label': '旅客数(人)'})
+        if any(r.get('seat_count') for r in rows):
+            cols.append({'key': 'seat_count', 'label': '可用座位'})
+        if any(r.get('cargo_weight') for r in rows):
+            cols.append({'key': 'cargo_weight', 'label': '货运重量(kg)'})
+        if any(r.get('mail_weight') for r in rows):
+            cols.append({'key': 'mail_weight', 'label': '邮件重量(kg)'})
+
+        cols.extend([
+            {'key': 'plan_time', 'label': '计划时刻'},
+            {'key': 'actual_time', 'label': '实际时刻'},
+            {'key': 'stand', 'label': '机位 / 登机口'},
+            {'key': 'aircraft', 'label': '机型 / 机号'},
+            {'key': 'status', 'label': '状态'},
+        ])
+
         return {
             'kind': 'detail_table',
             'is_flight': True,
@@ -485,15 +528,7 @@ def _build_detail_table_meta(
                 'planned_count': planned_count,
                 'hourly_distribution': hourly_distribution,
             },
-            'columns': [
-                {'key': 'flight_no', 'label': '航班号'},
-                {'key': 'route', 'label': '航线'},
-                {'key': 'plan_time', 'label': '计划时刻'},
-                {'key': 'actual_time', 'label': '实际时刻'},
-                {'key': 'stand', 'label': '机位 / 登机口'},
-                {'key': 'aircraft', 'label': '机型 / 机号'},
-                {'key': 'status', 'label': '状态'},
-            ],
+            'columns': cols,
             'rows': rows,
         }
 
@@ -502,7 +537,12 @@ def _build_detail_table_meta(
     attrs = spec.get('attributes', {})
     identity_fields = list(spec.get('identity_fields') or [])
     sample_keys = list(dict.fromkeys([*identity_fields, *main_rows[0].keys()]))
-    skip_cols = {'id', 'deleted_at', 'row_version', 'ext_json', 'raw_json', 'created_at', 'updated_at'}
+    skip_cols = {
+        'id', 'deleted_at', 'row_version', 'ext_json', 'raw_json', 'created_at', 'updated_at',
+        'biz_key', 'link_id', 'record_key', 'source_system', 'primary_source_id',
+        'pg_flight_id', 'associated_flight_id', 'source_flight_id', 'source_ffid',
+        'sync_run_id', 'sync_checkpoint', 'sync_error'
+    }
     picked: List[str] = []
     for key in sample_keys:
         if key in skip_cols or key.endswith('_json'):
@@ -687,6 +727,16 @@ def build_visual_meta(
                     label_val = f"{ap_name}（{raw_group_val}）"
                 else:
                     label_val = str(raw_group_val or '未标注')
+            elif group_key in ('delay_reason', 'abnormal_reason', 'abnormal_reason_cd') or attr_label in ('延误原因', '不正常原因', '异常原因'):
+                reason_name = str(r.get('abnormal_reason') or '').strip()
+                if not reason_name or reason_name in ('正常/未标', '未标注'):
+                    reason_name = get_delay_reason_name(raw_group_val)
+                if reason_name and reason_name != str(raw_group_val) and reason_name not in ('正常/未标', '未标注'):
+                    label_val = f"{reason_name}（{raw_group_val}）" if raw_group_val and raw_group_val != reason_name else reason_name
+                elif raw_group_val is None or str(raw_group_val).strip() in ('', 'None'):
+                    label_val = '未标注'
+                else:
+                    label_val = str(raw_group_val)
             else:
                 label_val = str(raw_group_val or '未标注') if group_key else f'项目 {i+1}'
             items.append({

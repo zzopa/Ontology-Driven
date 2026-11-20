@@ -3,7 +3,7 @@
 本模块集中维护运营问数总控（Coordinator）使用的所有码表值、同义词表、展示字段白名单与文本匹配辅助方法。
 需要新增或调整码表值时，可直接编辑对应码表分组，或通过 `register_*` 方法动态扩展，无需改动 `coordinator.py` 主流程。
 """
-from datetime import timedelta, timezone
+from datetime import date, timedelta, timezone
 import json
 import re
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
@@ -324,6 +324,14 @@ MONTH_YEAR_PERIOD = (rf'(?:{_CALENDAR_MONTH}|{_CALENDAR_YEAR}|{_ROLLING_MONTH}|{
 
 
 def month_year_window(question, today):
+    # 支持形如 "2026年10月"、"10月份"、"10月" 的特定自然月
+    m_spec = re.search(r'(?:(20\d{2})[年\-\./])?(?<!\d)(1[0-2]|0?[1-9])月份?(?!\d)', question)
+    if m_spec:
+        yr = int(m_spec[1]) if m_spec[1] else today.year
+        mo = int(m_spec[2])
+        start = date(yr, mo, 1)
+        end = date(yr + 1, 1, 1) if mo == 12 else date(yr, mo + 1, 1)
+        return (start.isoformat(), end.isoformat()), 'month'
     match = re.search(MONTH_YEAR_PERIOD, question)
     if not match:
         return None
@@ -339,7 +347,7 @@ def month_year_window(question, today):
 
 
 DATE_RANGE_STRIP_RE = re.compile(
-    rf'{DATE_PAT}(?:\s*(?:到|至|-|~)\s*{DATE_PAT})?|{MONTH_YEAR_PERIOD}|(?:最近|近)\d+天|本周|上周|这周|上一周|(?:最近|近|过去)\s*(?:一周|1周|7\s*[天日])'
+    rf'{DATE_PAT}(?:\s*(?:到|至|-|~)\s*{DATE_PAT})?|(?:20\d{{2}}年)?(?:1[0-2]|0?[1-9])月份?|{MONTH_YEAR_PERIOD}|(?:最近|近)\d+天|本周|上周|这周|上一周|(?:最近|近|过去)\s*(?:一周|1周|7\s*[天日])'
 )
 FOLLOWUP_DATE_STRIP_RE = re.compile(
     rf'{DATE_RANGE_STRIP_RE.pattern}|最近一周|近一周'
@@ -351,6 +359,7 @@ IDENTIFIER_STRIP_RE = re.compile(
 )
 TURNAROUND_RESIDUAL_STRIP_RE = re.compile(
     r'地服|地面|过站|保障|作业|诊断|甘特图?|时序图?|时间轴|时间线|流程|过程|配餐|保洁|加油|装卸|登机'
+    r'|看下|看看|查下|查查|查看|查询|看一下|查一下|调取|获取|显示|展示|给我|来个|分析|图|看'
     r'|情况|如何|怎么样|怎样|状况|状态|进度|节点|环节|已完成|完成了吗|完成了没|完成了|完成吗|完成情况|完成|好不好|和|与|及|吗|呢'
 )
 REPORT_RESIDUAL_STRIP_RE = re.compile(
@@ -653,7 +662,8 @@ def detect_basis(
     fallback_pat = '|'.join(re.escape(str(w)) for w in BASIS_CODE_TABLE['actual']['fallback_keywords'])
 
     planned = bool(re.search(planned_pat, text)) or has_planned_metric
-    actual = bool(re.search(actual_pat, text)) or has_operated_metric
+    text_clean_for_actual = re.sub(r'执行计划|计划执飞|计划排班', '', text)
+    actual = bool(re.search(actual_pat, text_clean_for_actual)) or has_operated_metric
     if not planned and fallback_pat and re.search(fallback_pat, text):
         actual = True
     if actual and not planned:

@@ -64,6 +64,7 @@ from app.planner import (
     extract_home_airport_city_and_dir,
     match_acdm_report,
     resolve_concept_metric,
+    separate_route_grouping,
 )
 from app.query import Compiler
 
@@ -479,12 +480,13 @@ class Coordinator:
             updated = re.sub(r'有多少班|有多少条|有多少|多少班|多少条|多少|有几班|有几条|几班|几条|总数', '', updated)
         if view_switch == 'turnaround':
             updated = re.sub(
-                r'(?:实际执飞|实际执行|实际航班|计划航班|航班动态|详细信息|详情|明细|动态|进出港|出港|进港|离港|到港|有多少班|有多少条|有多少|多少班|多少条|多少|有几班|有几条|列出|有哪些)',
+                r'(?:查看|查一下|看一下|查|看|实际执飞|实际执行|实际航班|计划航班|航班动态|详细信息|详情|明细|动态|进出港|出港|进港|离港|到港|有多少班|有多少条|有多少|多少班|多少条|多少|有几班|有几条|列出|有哪些)',
                 '',
                 updated,
             )
+            updated = updated.strip()
             if not VIEW_TURNAROUND_RE.search(updated):
-                updated = f'{updated} 地服保障情况'.strip()
+                updated = f'{updated} 地服保障情况'.strip() if updated else '地服保障情况'
         elif view_switch == 'detail':
             updated = re.sub(
                 r'A-?CDM.*?(?:记录|作业)|地服|地面|过站|保障(?:情况|进度|状态|诊断)?|作业|诊断|甘特图?|时序图?|时间轴|时间线|流程|过程|情况',
@@ -857,6 +859,8 @@ class Coordinator:
         if view_switch == 'turnaround':
             for stale_key in ('intent', 'basis', 'direction', 'sequence', 'metric', 'references'):
                 confirmed.pop(stale_key, None)
+            if (delta.get('flight') or delta.get('aircraft')) and delta.get('period'):
+                original = follow_text
         elif metric_or_mod and metric_or_mod.get('metric_key'):
             confirmed.pop('intent', None)
             if self.catalog.metrics.get(metric_or_mod['metric_key'], {}).get('base_table') not in (CORE, ACTUAL):
@@ -882,7 +886,7 @@ class Coordinator:
         view_switch = None
         metric_or_mod = None
         raw_input = unicodedata.normalize('NFKC', question).strip()
-        original = raw_input
+        original = separate_route_grouping(raw_input)
         self._raw_question = raw_input
         self._normalized_question = original
         if clarification and not choice_id and self._should_break_clarification(original, clarification, anchor):
@@ -978,7 +982,7 @@ class Coordinator:
         """Run one semantic normalization pass and re-match rules without duplicating fallback logic."""
         if not self.chat or self._is_mock_model:
             return None
-        norm = self._normalize_with_model(question, anchor)
+        norm = separate_route_grouping(self._normalize_with_model(question, anchor) or '')
         if not norm or norm == question:
             return None
         if reject_comparison and re.search(r'对比|同比|环比|分别统计|分别查询', norm):
@@ -1023,7 +1027,8 @@ class Coordinator:
             f"示范：'2026-11-02至2026-11-15，按国内、国际、地区分别统计实际执行架次' -> '按航班属性统计 2026-11-02 至 2026-11-15 实际执行航班架次'\n"
             f"示范：'2026-11-02至2026-11-15，放行延误1至5分钟的航班多少架次？' -> '查询 2026-11-02 至 2026-11-15 1-5分钟短延误架次'\n"
             "示范：'2026-11-02至2026-11-15，哪个具体日期、哪个小时的起降架次最多？' -> '2026-11-02至2026-11-15 哪个小时起降架次最多'\n"
-            "7. 保持用户原意，仅输出一句标准化后的规范问数表达，严禁任何额外解释、标点废话或前后缀。"
+            "7. 严禁将查询特定航班的最长/最大延误（如'G53013航班最长延误时长'）改写为'平均延误'或添加今天日期；单航班最长延误属于单航班极值排序记录查询，保持'最长延误时长'原意。\n"
+            "8. 保持用户原意，仅输出一句标准化后的规范问数表达，严禁任何额外解释、标点废话或前后缀。"
         )
         try:
             norm = self.chat(prompt, question, max_tokens=80, temperature=0.0).strip()
@@ -1234,12 +1239,20 @@ class Coordinator:
         hints = catalog.resolve_ontology_hints(question) if hasattr(catalog, 'resolve_ontology_hints') else {'synonyms': [], 'concepts': [], 'scenarios': []}
         is_list_ask = bool(
             expected.get('intent') == 'detail'
-            or re.search(r'有哪些|是哪些|哪些航班|哪几班|航班明细|明细|清单|列表|前\s*\d+\s*(?:个|班)?航班|\d+\s*个航班', question)
+            or re.search(r'有哪些|是哪些|哪些航班|哪几班|航班明细|明细|清单|列表|前\s*\d+\s*(?:个|班)?航班|\d+\s*个航班|执行计划|航班计划|计划排班|排班计划', question)
+            or (expected.get('flight') and re.search(r'执行计划|航班计划|计划|排班', question) and not is_count(question) and not re.search(r'多少|几班|几架次|架次|统计|汇总|总量', question))
         )
-        metric = self._detect_metric(question, expected, non_flight_explicit, hints, is_list_ask)
+        is_flight_delay_extremum = bool(
+            expected.get('flight') and re.search(r'最长延误|最大延误|延误.*最长|最长.*延误|延误时长|延误时间', question)
+        )
+        metric = None if is_flight_delay_extremum else self._detect_metric(question, expected, non_flight_explicit, hints, is_list_ask)
 
         subject = expected.get('subject')
         if not subject and is_list_ask and re.search(r'放行延误.*(?:最长|降序|排序)|(?:最长|降序).*放行延误', question):
+            if 'mv_acdm_dyn_flight_detail' in catalog.entities:
+                subject = 'mv_acdm_dyn_flight_detail'
+                expected['intent'] = 'detail'
+        if not subject and is_flight_delay_extremum:
             if 'mv_acdm_dyn_flight_detail' in catalog.entities:
                 subject = 'mv_acdm_dyn_flight_detail'
                 expected['intent'] = 'detail'
@@ -1286,7 +1299,7 @@ class Coordinator:
             return self.notice('clarification_needed', '请确认比较出港、进港，还是全部方向。', question, anchor, expected, 'direction', get_direction_options())
         if subject:
             temporal = catalog.entities[subject].get('query_semantics', {})
-            if (temporal.get('date_required') or turnaround) and not expected.get('period'):
+            if (temporal.get('date_required') or turnaround) and not expected.get('period') and not is_flight_delay_extremum:
                 if allow_normalize:
                     norm_plan = self._try_normalize_and_replan(question, anchor)
                     if norm_plan is not None:
@@ -1331,11 +1344,35 @@ class Coordinator:
                     if top_opts:
                         candidate.update(top_opts)
             if candidate.get('intent') == 'detail' and subject == 'mv_acdm_dyn_flight_detail':
-                if re.search(r'放行延误.*(?:最长|降序|排序|前\s*\d+|top)|(?:最长|降序|前\s*\d+|top).*放行延误', question, re.I):
-                    m_lim = re.search(r'(?:前|top\s*)?(\d{1,2})\s*(?:个|班|条)?(?:航班)?', question, re.I)
-                    lim = int(m_lim.group(1)) if (m_lim and m_lim.group(1)) else 10
+                if is_flight_delay_extremum:
+                    if '放行' in question:
+                        delay_fld = 'clearance_delay_time'
+                    elif '出港' in question or '起飞' in question:
+                        delay_fld = 'dep_delay_time'
+                    elif '进港' in question or '到达' in question:
+                        delay_fld = 'arr_delay_time'
+                    else:
+                        delay_fld = 'flight_delay_time'
+                    candidate['order_by'] = [{'field': delay_fld, 'direction': 'desc'}]
+                    candidate['limit'] = 1
+                    self._turn_ignored_terms.extend([
+                        '放行延误', '放行延误时间', '延误时长', '延误时间', '最长时长', '最长延误时长',
+                        '最大延误时长', '最长延误时间', '最大延误时间', '最长延误', '最大延误',
+                        '最长', '最大', '时长', '时间', '航班', '情况',
+                    ])
+                elif re.search(r'放行延误.*(?:最长|降序|排序|前\s*\d+|top)|(?:最长|降序|前\s*\d+|top).*放行延误', question, re.I):
+                    m_lim = re.search(r'(?:前|top\s*)(\d{1,2})|(\d{1,2})\s*(?:个|班|条)(?:航班)?', question, re.I)
+                    lim = int(m_lim.group(1) or m_lim.group(2)) if m_lim else 10
                     candidate['order_by'] = [{'field': 'clearance_delay_time', 'direction': 'desc'}]
                     candidate['limit'] = lim
+                    conds = candidate.setdefault('conditions', [])
+                    if not any(c.get('col') in ('direction', 'is_off_in') for c in conds):
+                        conds.append({'table': subject, 'col': 'is_off_in', 'op': '=', 'value': 'D'})
+                    if not any(c.get('col') == 'is_operated_flight' for c in conds):
+                        conds.append({'table': subject, 'col': 'is_operated_flight', 'op': '=', 'value': 'Y'})
+                    if not any(c.get('col') == 'clearance_delay_time' for c in conds):
+                        conds.append({'table': subject, 'col': 'clearance_delay_time', 'op': '>', 'value': 0})
+                        conds.append({'table': subject, 'col': 'clearance_delay_time', 'op': '<', 'value': 1200})
                     self._turn_ignored_terms.extend([
                         '放行延误', '放行延误时间', '延误时长', '延误时间', '最长', '时间最长', '最长的',
                         '降序', '升序', '降序展示', '升序展示', '展示', '是哪些', '有哪些',
@@ -1825,6 +1862,11 @@ class Coordinator:
             normalized = {**condition, 'table': condition.get('table') or subject}
             if normalized in required:
                 continue
+            if subject == 'mv_acdm_dyn_flight_detail' and '放行' in question:
+                if condition.get('col') in ('is_off_in', 'is_operated_flight'):
+                    continue
+                if condition.get('col') == 'clearance_delay_time' and condition.get('op') in ('>', '<', '<=', '>='):
+                    continue
             attr = self.catalog.attribute(normalized['table'], condition.get('col'))
             quotes = [
                 g.get('quote')
@@ -1910,7 +1952,11 @@ class Coordinator:
                 r'最高是哪|最多是哪|峰值|高峰小时是哪个|高峰时段是哪个|哪一小时最多|哪个小时最多|哪[个一]?(?:具体)?(?:日期|天|日|小时|时段|航司|航空公司|机型|航站楼|机位).{0,12}最[多高大少低]',
                 question,
             )
-            if not peak_one and (not requested or plan['limit'] != req_limit):
+            extremum_one = plan['limit'] == 1 and (
+                peak_one
+                or bool(re.search(r'最长|最大|最短|最晚|最早|最高|最低|最多|最少', question))
+            )
+            if not extremum_one and (not requested or plan['limit'] != req_limit):
                 raise ValueError('模型添加了用户未要求的记录条数限制')
         if not plan.get('metric') and expected.get('intent') != 'detail' and is_count(question) and plan.get('intent') != 'count':
             raise ValueError('数量问题必须保留计数意图')
@@ -1949,7 +1995,10 @@ class Coordinator:
                 raise ValueError('实际执行必须使用实际执飞视图和实际发生日')
             if expected['basis'] == 'planned' and subject == ACTUAL:
                 raise ValueError('计划查询不能改用实际执行记录')
-        if spec.get('query_semantics', {}).get('date_required') and not expected.get('period'):
+        is_flight_delay_extremum_plan = bool(
+            expected.get('flight') and plan.get('order_by') and any('delay' in o.get('field', '') for o in plan['order_by'])
+        )
+        if spec.get('query_semantics', {}).get('date_required') and not expected.get('period') and not is_flight_delay_extremum_plan:
             return self.notice('clarification_needed', '请确认业务日期。', question, anchor, expected, 'period', self._period_choices(anchor))
         plan.setdefault('conditions', [])
         plan.setdefault('focus_tables', [])

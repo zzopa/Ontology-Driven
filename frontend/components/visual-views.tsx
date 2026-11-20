@@ -427,6 +427,10 @@ export function DetailTableVisual({
   const [delayedOnly, setDelayedOnly] = useState(false);
   const [selectedHour, setSelectedHour] = useState<number | null>(null);
 
+  const hasAttrCol = meta.columns.some(c => c.key === "attribute_display");
+  const hasPaxCol = meta.columns.some(c => c.key === "passenger_count");
+  const hasCargoCol = meta.columns.some(c => c.key === "cargo_weight");
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return meta.rows.filter(row => {
@@ -620,6 +624,9 @@ export function DetailTableVisual({
                 <th>#</th>
                 <th>航班</th>
                 <th>航线</th>
+                {hasAttrCol && <th>属性/性质</th>}
+                {hasPaxCol && <th>旅客(人)</th>}
+                {hasCargoCol && <th>货运(kg)</th>}
                 <th>实际 / 计划</th>
                 <th>机位 · 登机口</th>
                 <th>机型 · 机号</th>
@@ -630,7 +637,7 @@ export function DetailTableVisual({
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={onQuestion ? 8 : 7} style={{ textAlign: "center", padding: "24px 12px", color: "var(--muted)" }}>
+                  <td colSpan={7 + (hasAttrCol ? 1 : 0) + (hasPaxCol ? 1 : 0) + (hasCargoCol ? 1 : 0) + (onQuestion ? 1 : 0)} style={{ textAlign: "center", padding: "24px 12px", color: "var(--muted)" }}>
                     当前筛选条件下无匹配航班，请清空搜索或切换过滤条件。
                   </td>
                 </tr>
@@ -671,6 +678,21 @@ export function DetailTableVisual({
                         <span>{item.route ? item.route.split("→").map(s => formatAirport(s.trim())).join(" → ") : "—"}</span>
                       )}
                     </td>
+                    {hasAttrCol && (
+                      <td style={{ fontSize: 12 }}>
+                        {item.attribute_display || item.attribute || "—"}
+                      </td>
+                    )}
+                    {hasPaxCol && (
+                      <td style={{ fontWeight: 600, color: "var(--primary)" }}>
+                        {item.passenger_count != null ? `${Number(item.passenger_count).toLocaleString()}` : "—"}
+                      </td>
+                    )}
+                    {hasCargoCol && (
+                      <td style={{ fontWeight: 600, color: "var(--amber, #d97706)" }}>
+                        {item.cargo_weight != null ? `${Number(item.cargo_weight).toLocaleString()} kg` : "—"}
+                      </td>
+                    )}
                     <td>
                       <div className={v.timeCell}>
                         <span className={v.timePrimary}>

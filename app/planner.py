@@ -9,6 +9,8 @@ from app.agent.coordinator_lexicon import BEIJING, GROUND_BRIEFING_NAME, MONTH_Y
 from app.agent.planning import reconcile_anchor
 
 
+_ROUTE_GROUPING = r'(?:按(?:照)?\s*(?:各(?:条|个)?)?|各(?:条|个)?)\s*航线(?=\s*(?:的|统计|汇总|分组|查询|分别|列出|展示|[、，,。；;？?]|$))'
+
 _ACDM_DIM_PATTERNS = {
     'hour': r'(?:按|逐|分|各|每|各个)小时|小时(?:走势|趋势|分布)',
     'peak_hour': r'高峰小时|高峰时段|最忙小时|(?:哪[个一]?(?:具体)?(?:日期|天|日)[、,，和与及\s]*)?哪[个一](?:小时|时段).{0,10}最[多高]',
@@ -19,6 +21,8 @@ _ACDM_DIM_PATTERNS = {
     'month': r'(?:按|逐|每|各|各个)月',
     'origin_city': r'从哪个城市|来源城市|从哪里来|起站城市',
     'dest_city': r'到哪个城市|去哪儿|目的站城市|飞到哪',
+    'origin_airport': _ROUTE_GROUPING,
+    'dest_airport': _ROUTE_GROUPING,
     'terminal': r'(?:按|分|各|各个)航站楼|(?:按|分|各)(?:T[1-4])(?:[、/及和与]?(?:T[1-4]))+',
     'stand_type': r'(?:按|分|各)?(?:机位类型|近机位[与和及/]?远机位|远机位[与和及/]?近机位|近远机位|靠桥类型)(?:占比)?',
     'aircraft_type': r'(?:按|分|各|各个)机型',
@@ -32,6 +36,11 @@ _ACDM_DIM_PATTERNS = {
     'operation_plan_day': r'按运营计划日|按05[：:]?00运营日',
     'operation_exec_day': r'按运营执行日|按运营实飞日',
 }
+
+
+def separate_route_grouping(question):
+    # Keep the grouping clause from overlapping the metric alias “航线统计旅客”.
+    return re.sub(rf'({_ROUTE_GROUPING})(?=统计)', r'\1 ', question)
 
 
 def extract_acdm_dimensions_and_topn(question, catalog, target=None, allow_topn=True):

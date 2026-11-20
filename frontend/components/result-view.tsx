@@ -127,20 +127,143 @@ function VisualView({ meta, onQuestion, onOpenAllRecords, compact = false }: { m
 
 type Cell = { field: string; label: string; value: unknown; unit?: string; comment?: string };
 
+const TECHNICAL_FIELDS = new Set([
+  "id", "raw_json", "ext_json", "deleted_at", "created_at", "updated_at",
+  "row_version", "biz_key", "link_id", "record_key", "_serial_bucket",
+  "sync_run_id", "sync_checkpoint", "sync_error", "pg_flight_id",
+  "associated_flight_id", "primary_source_id", "source_system", "source_id",
+  "source_flight_id", "source_ffid", "last_seen_at"
+]);
+
+// 涵盖航班、客运、货运、航线网络、运行正常率、资源保障等业务优先排序
+const FIELD_ORDER_PRIORITY = [
+  // 1. 航班与航司核心标识
+  "flight_no", "flight_key", "flight_id", "airline_code", "airline_name",
+  "flight_date", "exec_date", "direction", "direction_label",
+  // 2. 航线与通航网络（航线、航段、始发、目的、经停）
+  "route_name_zh", "route", "leg", "leg_seq",
+  "origin_city", "dest_city", "via_city",
+  "origin_airport", "dest_airport", "takeoff_airport_iata", "arrival_airport_iata",
+  "flight_country_type", "route_type",
+  // 3. 业务属性（客运、货运、性质）
+  "attribute", "flight_task_cd",
+  // 4. 客运业务（旅客、座位、客座率、行李）
+  "dep_dpsr_depe_num", "psg_arrival_num", "passenger_volume", "pax_total_sum",
+  "fpa_available_seat", "available_seat", "max_seat", "seat_capacity", "load_factor",
+  "adult_count", "child_count", "infant_count",
+  "fpa_luggage", "baggage_weight",
+  // 5. 货运业务（货物、邮件、货邮量、业载）
+  "fpa_goods", "cargo_weight", "fpa_mail", "mail_weight", "cargo_mail_weight",
+  "max_payload", "available_payload", "ops_payload", "mtow",
+  // 6. 时刻与状态（计划时刻、实际时刻、起降日、状态）
+  "plan_takeoff_time", "real_takeoff_time", "plan_land_time", "real_land_time",
+  "plan_time", "actual_time", "flight_status", "status",
+  // 7. 延误与正常率（放行、起飞、延误时间、原因）
+  "release_on_time", "takeoff_on_time", "dep_on_time", "flight_on_time",
+  "clearance_delay_time", "takeoff_delay_time", "flight_delay_time", "delay_minutes",
+  "delay_reason", "abnormal_reason", "abnormal_reason_cd",
+  // 8. 机位、登机口、航站楼与飞机资源
+  "craft_site_cd", "stand_code", "craft_site_is_remote", "gate_cd", "gate_code", "terminal",
+  "aircraft_type", "craft_type_icao_cd", "aircraft_reg_no", "aircraft_reg", "craft_no",
+  // 9. 地面保障与设施节点
+  "node_name", "safeguard_code", "safeguard_real_time", "safeguard_alterate_time",
+  "air_bridge_cd", "bridge_duration", "bridge_start_time", "bridge_end_time",
+];
+
+const COMMON_FIELD_LABELS: Record<string, string> = {
+  attribute: "航班属性",
+  flight_country_type: "国际国内",
+  flight_task_cd: "任务性质",
+  route_name_zh: "航线名称",
+  leg: "航段",
+  leg_seq: "航段序号",
+  origin_city: "起飞城市",
+  dest_city: "到达城市",
+  via_city: "经停城市",
+  origin_airport: "起飞机场",
+  dest_airport: "到达机场",
+  takeoff_airport_iata: "起飞三字码",
+  arrival_airport_iata: "到达三字码",
+  fpa_goods: "货物重量(kg)",
+  cargo_weight: "货物重量(kg)",
+  fpa_mail: "邮件重量(kg)",
+  mail_weight: "邮件重量(kg)",
+  cargo_mail_weight: "货邮合计(kg)",
+  fpa_luggage: "行李重量(kg)",
+  baggage_weight: "行李重量(kg)",
+  dep_dpsr_depe_num: "出港旅客数",
+  psg_arrival_num: "进港旅客数",
+  passenger_volume: "旅客总人数",
+  pax_total_sum: "旅客量(人)",
+  fpa_available_seat: "可用座位数",
+  available_seat: "可用座位数",
+  load_factor: "客座率(%)",
+  adult_count: "成人数",
+  child_count: "儿童数",
+  infant_count: "婴儿数",
+  craft_site_is_remote: "是否远机位",
+  is_operated_flight: "是否执飞",
+  release_on_time: "放行正常",
+  takeoff_on_time: "起飞正常",
+  flight_delay_time: "延误时长(分)",
+  clearance_delay_time: "放行延误(分)",
+  safeguard_code: "保障节点代码",
+  safeguard_real_time: "节点实测时刻",
+  air_bridge_cd: "登机桥号",
+  bridge_duration: "靠桥时长(分)",
+};
+
 function fieldLabel(key: string, field: Field | undefined, index: number) {
-  return tableLabel(key, field?.label, identifier.test(key) ? `字段 ${index + 1}` : key);
+  const custom = COMMON_FIELD_LABELS[key.toLowerCase()];
+  return tableLabel(key, field?.label || custom, identifier.test(key) ? `字段 ${index + 1}` : key);
 }
 
 export function DataRows({ rows, table, meta, cards = false }: { rows: Row[]; table: string; meta: FieldMeta; cards?: boolean }) {
   const [cell, setCell] = useState<Cell | null>(null);
+  const [showAllCols, setShowAllCols] = useState(false);
   const close = useCallback(() => setCell(null), []);
   const fields = meta[table] || {};
-  const columns = Array.from(new Set(rows.flatMap(row => Object.keys(row)))).map((key, i) => ({
+
+  const allKeys = Array.from(new Set(rows.flatMap(row => Object.keys(row))));
+  const hasManyCols = allKeys.length > 8;
+
+  const activeKeys = useMemo(() => {
+    if (showAllCols || !hasManyCols) return allKeys;
+    // 过滤内部技术字段
+    const businessKeys = allKeys.filter(k => !TECHNICAL_FIELDS.has(k.toLowerCase()));
+    // 按业务优先级重新排序
+    businessKeys.sort((a, b) => {
+      const idxA = FIELD_ORDER_PRIORITY.indexOf(a.toLowerCase());
+      const idxB = FIELD_ORDER_PRIORITY.indexOf(b.toLowerCase());
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return 0;
+    });
+    // 默认展示最关键的 8~10 个业务列
+    return businessKeys.slice(0, 10);
+  }, [allKeys, showAllCols, hasManyCols]);
+
+  const columns = activeKeys.map((key, i) => ({
     key, label: fieldLabel(key, fields[key], i), unit: fields[key]?.unit, comment: fields[key]?.comment,
   }));
   const select = (column: typeof columns[number], value: unknown) => setCell({ ...column, field: column.key, value });
   if (!rows.length) return <div className="empty-panel"><Search size={20} aria-hidden="true" /><span>当前条件下未找到记录</span><p>可调整查询对象或时间范围后重试。</p></div>;
   return <>
+    {hasManyCols && (
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8, fontSize: 12 }}>
+        <button
+          type="button"
+          onClick={() => setShowAllCols(v => !v)}
+          style={{
+            background: "none", border: "1px solid var(--border)", borderRadius: 6,
+            padding: "2px 8px", cursor: "pointer", color: "var(--muted)", fontSize: 12,
+          }}
+        >
+          {showAllCols ? `收起冗余字段（当前已显全部 ${allKeys.length} 列）` : `只看关键字段（已精简为 ${columns.length} 列 / 共 ${allKeys.length} 列）`}
+        </button>
+      </div>
+    )}
     {cards ? <div className="record-cards">{rows.map((row, i) => <article className="record-card" key={i}>
       <div className="record-head">记录 {i + 1}</div>
       <div className="field-grid">{columns.filter(column => Object.hasOwn(row, column.key)).map(column => {
@@ -312,7 +435,7 @@ export function ResultView({ result, run, onQuestion, onClarify, compact = false
   const steps = run?.steps || result?.execution_trace || [];
   const elapsed = run?.elapsed ?? 0;
   const firstOutputElapsed = run?.firstOutputElapsed;
-  const [tab, setTab] = useState(result ? "answer" : "process"), [records, setRecords] = useState(false), [related, setRelated] = useState<QueryResult["related"][number] | null>(null), [cards, setCards] = useState(true);
+  const [tab, setTab] = useState(result ? "answer" : "process"), [records, setRecords] = useState(false), [related, setRelated] = useState<QueryResult["related"][number] | null>(null), [cards, setCards] = useState(false);
   const [claimIndex, setClaimIndex] = useState<number | null>(null);
   const [fbOpen, setFbOpen] = useState(false), [fbReasons, setFbReasons] = useState<string[]>(["WRONG_DATA"]), [fbComment, setFbComment] = useState(""), [fbBusy, setFbBusy] = useState(false), [fbStatus, setFbStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const closeRecords = useCallback(() => setRecords(false), []), closeRelated = useCallback(() => setRelated(null), []), closeFb = useCallback(() => setFbOpen(false), []);
@@ -486,7 +609,7 @@ export function ResultView({ result, run, onQuestion, onClarify, compact = false
   {records && result && <RecordPage result={result} onClose={closeRecords} />}
   {related && result && (related.count > 0 && result.related_token ? <RecordPage result={result} related={related} onClose={closeRelated} /> : <Modal title={tableLabel(related.table, related.name, "关联明细")} onClose={closeRelated}>
     <div className="data-toolbar"><span>{related.count.toLocaleString()} 条记录</span><MetadataHint label="查看数据表名" value={related.table} /></div>
-    <DataRows rows={related.rows} table={related.table} meta={result.field_meta} cards />
+    <DataRows rows={related.rows} table={related.table} meta={result.field_meta} />
   </Modal>)}
   {fbOpen && result && <Modal title="反馈回答不准确" subtitle="描述问题，便于核对和处理" onClose={closeFb}>
     <form onSubmit={submitFeedback}>

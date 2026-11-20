@@ -75,6 +75,9 @@ Copy-Item (Join-Path $Root "ask_web.py") $ReleaseDir
 Copy-Item (Join-Path $Root "config.json") $ReleaseDir
 Copy-Item (Join-Path $Root "docker-compose.yml") $ReleaseDir
 Copy-Item (Join-Path $Root "deploy\config.local.server.example.json") $ReleaseDir
+if (Test-Path (Join-Path $Root "docs\ops-ask-deployment-manual.md")) {
+    Copy-Item (Join-Path $Root "docs\ops-ask-deployment-manual.md") $ReleaseDir
+}
 
 # 确保 server-deploy.sh 为 Unix LF 换行符
 $deploySh = [IO.File]::ReadAllText((Join-Path $Root "deploy\server-deploy.sh"), [Text.Encoding]::UTF8)

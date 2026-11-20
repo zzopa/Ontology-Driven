@@ -35,6 +35,13 @@ export type VisualDetailFlightRow = {
   destination?: string;
   destination_code?: string;
   route?: string;
+  attribute?: string;
+  flight_country_type?: string;
+  attribute_display?: string;
+  passenger_count?: string | null;
+  seat_count?: string | null;
+  cargo_weight?: string | null;
+  mail_weight?: string | null;
   plan_time?: string;
   actual_time?: string;
   stand?: string;
@@ -150,6 +157,7 @@ export type VisualTurnaround = {
   flight_nodes_source?: string;
   ground_nodes?: FishboneNode[];
   association_note?: string;
+  flight_records?: VisualTurnaround[];
   available_record?: { flight_date: string; flight_no: string; source_label: string; recorded_operations: number; question: string };
   conclusion: {
     summary: string;

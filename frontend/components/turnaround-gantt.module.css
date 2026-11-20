@@ -1,3 +1,8 @@
+.flightRecordTabs{display:flex;gap:10px;margin:0 0 14px;padding:4px 0;overflow-x:auto}
+.flightRecordTab{display:flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid var(--line);border-radius:6px;background:var(--paper,var(--panel));color:var(--muted);font-size:13px;cursor:pointer;white-space:nowrap;transition:all .15s ease}
+.flightRecordTab:hover{border-color:var(--record-good);color:var(--text)}
+.flightRecordTabActive{border-color:var(--record-good);background:color-mix(in srgb,var(--record-good) 12%,var(--paper,var(--panel)));color:var(--record-good);font-weight:600}
+.flightRecordMeta{font-size:12px;opacity:.85}
 .sheet{min-width:0;background:transparent;border:0;border-radius:0;overflow:visible;--record-good:var(--success);--record-open:var(--warning);--record-info:var(--info);font-variant-numeric:tabular-nums}
 .focused{--record-good:var(--accent)}
 .focused .caseHeader{padding:16px 20px;margin:0;border:1px solid var(--line);border-bottom:0;border-radius:8px 8px 0 0;background:var(--panel);gap:16px;flex-wrap:wrap}

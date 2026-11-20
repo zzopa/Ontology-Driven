@@ -1278,3 +1278,59 @@ class AdditionalMultiTurnMemoryTests(unittest.TestCase):
         self.assertEqual(p3['subject'], 'mv_acdm_dyn_flight_detail')
         self.assertIn('date', p3['group_by'])
         self.assertIn('stand_type', p3['group_by'])
+
+    def test_single_flight_delay_extremum_query(self):
+        # 1. 航班最长延误时长（无日期范围，默认查询该航班全量记录中极值）
+        p1 = self.coord.plan('G53013航班最长延误时长')
+        self.assertIsNone(p1.get('outcome'))
+        self.assertEqual(p1['subject'], 'mv_acdm_dyn_flight_detail')
+        self.assertEqual(p1['intent'], 'detail')
+        self.assertEqual(p1['limit'], 1)
+        self.assertEqual(p1['order_by'], [{'field': 'flight_delay_time', 'direction': 'desc'}])
+        self.assertTrue(any(c['col'] == 'flight_no' and c['value'] == 'G53013' for c in p1['conditions']))
+
+        # 2. 存在记录的单航班最长延误时长
+        p2 = self.coord.plan('G53007航班最长延误时长')
+        self.assertIsNone(p2.get('outcome'))
+        self.assertEqual(p2['subject'], 'mv_acdm_dyn_flight_detail')
+        self.assertEqual(p2['limit'], 1)
+        self.assertEqual(p2['order_by'], [{'field': 'flight_delay_time', 'direction': 'desc'}])
+        self.assertTrue(any(c['col'] == 'flight_no' and c['value'] == 'G53007' for c in p2['conditions']))
+
+        # 3. 指定日期区间 + 指定放行延误排序
+        p3 = self.coord.plan('2026-11-02至2026-11-15 CZ3912放行延误最长时长')
+        self.assertIsNone(p3.get('outcome'))
+        self.assertEqual(p3['subject'], 'mv_acdm_dyn_flight_detail')
+        self.assertEqual(p3['limit'], 1)
+        self.assertEqual(p3['order_by'], [{'field': 'clearance_delay_time', 'direction': 'desc'}])
+        self.assertTrue(any(c['col'] == 'flight_no' and c['value'] == 'CZ3912' for c in p3['conditions']))
+        self.assertTrue(any(c['col'] == 'exec_date' and c['op'] == '>=' and c['value'] == '2026-11-02' for c in p3['conditions']))
+
+        # 4. 放行延误最长TopN航班（自动补全出港、实际执飞与合理延误界限约束）
+        p4 = self.coord.plan('今年武汉天河机场放行延误时间最长的10个航班是哪些？按延误时长降序展示')
+        self.assertIsNone(p4.get('outcome'))
+        self.assertEqual(p4['subject'], 'mv_acdm_dyn_flight_detail')
+        self.assertEqual(p4['limit'], 10)
+        self.assertEqual(p4['order_by'], [{'field': 'clearance_delay_time', 'direction': 'desc'}])
+        self.assertTrue(any(c['col'] == 'is_off_in' and c['value'] == 'D' for c in p4['conditions']))
+        self.assertTrue(any(c['col'] == 'is_operated_flight' and c['value'] == 'Y' for c in p4['conditions']))
+        self.assertTrue(any(c['col'] == 'clearance_delay_time' and c['op'] == '>' and c['value'] == 0 for c in p4['conditions']))
+        self.assertTrue(any(c['col'] == 'clearance_delay_time' and c['op'] == '<' and c['value'] == 1200 for c in p4['conditions']))
+
+    def test_flight_plan_detail_and_turnaround_followup(self):
+        # 1. 航班执行计划应直接解析为明细查询，而不是架次聚合
+        p1 = self.coord.plan('AE218 10月份执行计划')
+        self.assertIsNone(p1.get('outcome'))
+        self.assertEqual(p1['intent'], 'detail')
+        self.assertTrue(any(c['col'] in ('flight_no', 'flight_id') and c['value'] == 'AE218' for c in p1['conditions']))
+        self.assertTrue(any(c['op'] == '>=' and '2026-10-01' in str(c['value']) for c in p1['conditions']))
+
+        # 2. 从明细追问到单个航班具体日期的时序图，应直接进入 turnaround 意图且不丢失条件
+        p2 = self.coord.plan('看明细', previous_plan=p1)
+        self.assertEqual(p2['intent'], 'detail')
+
+        p3 = self.coord.plan('2026-10-24 AE218 时序图', previous_plan=p2)
+        self.assertIsNone(p3.get('outcome'))
+        self.assertEqual(p3['intent'], 'turnaround')
+        self.assertEqual(p3.get('query_identifier'), 'AE218')
+        self.assertEqual(p3.get('flight_date'), '2026-10-24')

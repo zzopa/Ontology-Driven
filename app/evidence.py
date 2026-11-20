@@ -238,6 +238,14 @@ def _single_flight_summary(props):
         parts.append(f'登机口 {gate}')
     if status:
         parts.append(f'状态 {status}')
+    delay_mins = _prop_val(props, 'flight_delay_time', 'clearance_delay_time', 'dep_delay_time', 'arr_delay_time')
+    if delay_mins is not None:
+        try:
+            d_val = int(delay_mins)
+            if d_val > 0:
+                parts.append(f'延误 {d_val} 分钟')
+        except (ValueError, TypeError):
+            pass
     return '；'.join(parts)
 
 
@@ -293,6 +301,9 @@ def fallback_claims(catalog, plan, evidence, main_total):
         text = f'{day} {scope}{label}航班是 {number}，{event}时间为 {value:%Y-%m-%d %H:%M:%S}（北京时间{mode_label}）。按本场实际起降时间排序，仅比较当前数据库已同步且有实际时刻的记录。'
         return [{'text': text, 'fact_ids': [record['id']]}], text
     if not evidence['facts']:
+        fno = next((c['value'] for c in plan.get('conditions', []) if c.get('col') == 'flight_no'), None)
+        if fno:
+            return [], f'按当前数据库与查询条件，未检索到航班 {fno} 的相关执行记录。'
         return [], '按当前数据库与查询条件，未命中%s记录。' % subject
     facts = evidence['facts']
     if plan.get('safeguard_node_breakdown'):

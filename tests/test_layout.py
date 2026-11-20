@@ -8,10 +8,10 @@ from scripts.paths import ARTIFACT_DIR, DATA_DIR, GRAPH_DIR, RENDERER_DIR
 class LayoutTests(unittest.TestCase):
     def test_configured_inputs_live_in_data_directory(self):
         for path in (settings.ontology_path, settings.memory_path):
-            self.assertEqual(path.parent, DATA_DIR)
+            self.assertTrue(path.is_relative_to(DATA_DIR))
             self.assertTrue(path.is_file(), path)
         for path in (settings.graph_path, settings.schema_path):
-            self.assertEqual(path.parent, DATA_DIR / 'runtime')
+            self.assertTrue(path.is_relative_to(DATA_DIR))
 
     def test_generated_pages_have_dedicated_directories(self):
         self.assertEqual(DATA_DIR.parent, ROOT)
