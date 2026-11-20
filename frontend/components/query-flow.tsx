@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Check, ChevronDown, CircleAlert, Clock3, FileText, Flag, Pause, Plane, Settings2, SkipForward } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, CircleAlert, Clock3, FileText, Flag, GitBranch, Pause, Plane, Settings2, SkipForward } from "lucide-react";
 import { formatStepElapsed } from "@/lib/execution";
 import { queryFlow, queryFlowExpressions, type FlowNodeId } from "@/lib/query-flow";
 import type { ExecutionStep } from "@/lib/types";
@@ -18,8 +18,18 @@ const EDGES: { from: FlowNodeId; to: FlowNodeId; kind?: "direct" | "optional" }[
   { from: "rules", to: "model", kind: "optional" }, { from: "normalize", to: "model", kind: "optional" },
 ];
 
-export function QueryFlow({ steps, busy, elapsed, question, detailsId, detailsOpen, onToggleDetails }: {
+export function QueryTimings({ total, firstOutputElapsed, compact = false }: {
+  total: number; firstOutputElapsed?: number; compact?: boolean;
+}) {
+  return <div className={compact ? `${s.timings} ${s.compactTimings}` : s.timings}>
+    <div className={s.total}><span><Clock3 size={15} aria-hidden="true" />查询耗时</span><time>{formatStepElapsed(total)}</time></div>
+    {firstOutputElapsed !== undefined && <div className={s.firstOutput}><span>首次响应</span><time>{formatStepElapsed(firstOutputElapsed)}</time></div>}
+  </div>;
+}
+
+export function QueryFlow({ steps, busy, elapsed, firstOutputElapsed, question, detailsId, detailsOpen, onToggleDetails }: {
   steps: ExecutionStep[]; busy: boolean; elapsed: number; question: string;
+  firstOutputElapsed?: number;
   detailsId: string; detailsOpen: boolean; onToggleDetails: () => void;
 }) {
   const { nodes, current, currentNode, total } = queryFlow(steps, busy, elapsed);
@@ -76,15 +86,12 @@ export function QueryFlow({ steps, busy, elapsed, question, detailsId, detailsOp
   }, []);
   const directTaken = used.validate.recorded && !used.normalize.recorded && !used.model.recorded;
   const active = currentNode ? used[currentNode] : undefined;
-  const summary = active?.message || (busy ? "正在准备本轮问询，等待执行步骤更新" : steps.at(-1)?.message || "等待开始问询");
   return <section className={s.flow} aria-label="问询执行流程图">
     <header className={s.header}>
-      <span className={s.brand}><Plane size={22} fill="currentColor" aria-hidden="true" />航线分流</span>
       <div className={s.heading}>
-        <div><h3>问询执行流程</h3><span className={s.current} data-running={busy} role="status" aria-live="polite" aria-atomic="true">{current ? `当前 · ${active?.label || current}` : busy ? "处理中" : "本轮已结束"}</span></div>
-        <p title={summary}>{summary}</p>
+        <div><h3><GitBranch size={18} aria-hidden="true" />问询流程</h3>{busy && <span className={s.current} role="status">{active?.label || current || "处理中"}</span>}</div>
       </div>
-      <div className={s.total}><span><Clock3 size={16} aria-hidden="true" />本轮耗时</span><time>{formatStepElapsed(total)}</time></div>
+      <QueryTimings total={total} firstOutputElapsed={firstOutputElapsed} />
     </header>
     <div className={s.map} ref={map}>
       <span className={s.origin} aria-hidden="true"><Plane size={18} fill="currentColor" /></span>

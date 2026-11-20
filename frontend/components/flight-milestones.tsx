@@ -55,7 +55,7 @@ export function FlightNodeList({ nodes, direction, source }: { nodes: FishboneNo
       const status = target ? (node.plan_time ? "目标时刻" : "未记录") : node.actual_time ? node.status_label : node.estimated_time ? "有预计时刻" : node.plan_time ? "有计划时刻" : "未记录";
       return <li key={node.key} className={s.milestone} data-state={state}>
         <div className={s.nodeHeading}><span className={s.nodeIndex}>{String(i + 1).padStart(2, "0")}</span><span className={s.nodeState}><Icon size={13} aria-hidden="true" />{status}</span></div>
-        <h5>{node.name}<small>{node.code}</small></h5>
+        <h5 title={node.code}>{node.name}</h5>
         <dl>{[[target ? "参考记录" : "实际", node.actual_time, node.actual_at], ["预计", node.estimated_time, node.estimated_at], [target ? "目标" : "计划", node.plan_time, node.plan_at]].map(([label, value, timestamp]) => <div key={label}><dt>{label}</dt><dd data-missing={!value}><time dateTime={timestamp || undefined} title={timestamp || undefined}>{value || "未记录"}</time></dd></div>)}</dl>
         {node.note && <p>{node.note}</p>}
       </li>;

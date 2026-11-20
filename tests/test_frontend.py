@@ -59,6 +59,16 @@ class FrontendContractTests(unittest.IsolatedAsyncioTestCase):
         for path in (ROOT / 'frontend/components').rglob('*.tsx'):
             self.assertNotIn('dangerouslySetInnerHTML', path.read_text(encoding='utf-8'), path)
 
+    async def test_swarm_assets_and_trigger_are_served(self):
+        status, _, body = await get('/swarm/swarm-trigger.js')
+        self.assertEqual(status, 200)
+        self.assertIn(b'__swarmToggle', body)
+        status_js, _, _ = await get('/swarm/swarm.js')
+        self.assertEqual(status_js, 200)
+        status_idx, _, idx_body = await get('/')
+        self.assertEqual(status_idx, 200)
+        self.assertIn(b'/swarm/swarm-trigger.js', idx_body)
+
 
 if __name__ == '__main__':
     unittest.main()

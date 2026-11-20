@@ -63,6 +63,33 @@ class CoordinatorTests(unittest.TestCase):
         self.assertEqual(plan['subject'], ACTUAL)
         self.assertEqual(plan['limit'], 1)
 
+    def test_month_and_year_periods_for_turnaround_service_to_beijing(self):
+        with patch('app.agent.coordinator.datetime', wraps=datetime) as clock:
+            clock.now.return_value = datetime(2026, 11, 18, 16, tzinfo=BEIJING)
+            for question, start in (
+                ('统计本月截至今天飞北京航班的平均保障时长', '2026-11-01'),
+                ('统计一个月飞北京航班的平均保障时长', '2026-10-20'),
+                ('查询1个月内飞北京航班的平均保障时长', '2026-10-20'),
+                ('最近一个月飞往北京的过站航班平均保障时长', '2026-10-20'),
+                ('统计本年飞北京航班的平均保障时长', '2026-01-01'),
+                ('飞北京航班一年平均保障时长', '2025-11-19'),
+            ):
+                with self.subTest(question=question):
+                    plan = self.coordinator.plan(question)
+                    self.assertEqual(plan.get('metric'), 'avg_turnaround_service_minutes', plan.get('answer'))
+                    self.assertEqual(plan['query_context']['raw_question'], question)
+                    self.assertEqual({(c['col'], c['op'], c['value']) for c in plan['conditions']}, {
+                        ('arr_landin_day', '>=', start), ('arr_landin_day', '<', '2026-11-19'),
+                        ('direction', '=', 'DEP'), ('destCity', '=', '北京'), ('airport_code', '=', 'WUH'),
+                    })
+            followup = self.coordinator.plan('那本月呢？', previous_plan=plan)
+            self.assertTrue(followup.get('follow_up'), followup.get('answer'))
+            self.assertEqual(followup['query_context']['slots']['period'], ['2026-11-01', '2026-11-19'])
+            self.assertEqual(followup['query_context']['slots']['dest_city'], '北京')
+            future = self.coordinator.plan('统计一个月后飞北京航班的平均保障时长')
+            self.assertEqual(future['clarification']['slot'], 'period')
+            self.assertNotIn('origin_city', future['clarification']['confirmed'])
+
     def test_attribute_followup_binds_the_returned_flight_without_model(self):
         previous = self.coordinator.plan('2026-11-16最早出港实际执行航班是哪个')
         previous['query_context']['result_identity'] = {'id': 54282, 'flight_no': 'TR121', 'direction': 'DEP'}
@@ -1225,3 +1252,29 @@ class AdditionalMultiTurnMemoryTests(unittest.TestCase):
         finally:
             DISPLAY_FIELD_GROUPS.pop('custom_test', None)
             RESIDUAL_VOCABULARY_GROUPS.pop('custom_test', None)
+
+    def test_delay_and_stand_questions_from_user(self):
+        # 1. 延误原因中主分类的占比（按异常原因分类展示）
+        q1 = '武汉天河机场本月延误原因中主分类的占比是多少？按异常原因分类展示'
+        p1 = self.coord.plan(q1)
+        self.assertIsNone(p1.get('outcome'))
+        self.assertEqual(p1['subject'], 'mv_acdm_dyn_flight_detail')
+        self.assertEqual(p1['metric'], 'flight_delay_count')
+        self.assertIn('abnormal_reason', p1['group_by'])
+
+        # 2. 放行延误最长Top10航班（按延误时长降序展示）
+        q2 = '今年武汉天河机场放行延误时间最长的10个航班是哪些？按延误时长降序展示'
+        p2 = self.coord.plan(q2)
+        self.assertIsNone(p2.get('outcome'))
+        self.assertEqual(p2['subject'], 'mv_acdm_dyn_flight_detail')
+        self.assertEqual(p2['intent'], 'detail')
+        self.assertEqual(p2['limit'], 10)
+        self.assertEqual(p2['order_by'], [{'field': 'clearance_delay_time', 'direction': 'desc'}])
+
+        # 3. 外保障航班按天展示并给出近机位与远机位占比
+        q3 = '本月武汉天河机场外保障航班按天展示并给出近机位与远机位占比'
+        p3 = self.coord.plan(q3)
+        self.assertIsNone(p3.get('outcome'))
+        self.assertEqual(p3['subject'], 'mv_acdm_dyn_flight_detail')
+        self.assertIn('date', p3['group_by'])
+        self.assertIn('stand_type', p3['group_by'])

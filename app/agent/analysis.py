@@ -8,6 +8,7 @@ import re
 import unicodedata
 from time import perf_counter
 
+from app.agent.coordinator_lexicon import MONTH_YEAR_PERIOD, month_year_window
 from app.benchmarks import AIRPORTS, DATASET, METRICS, TABLE
 from app.execution import ExecutionTrace
 from app.query import Compiler, execute, json_safe
@@ -28,8 +29,8 @@ EXTRA_ALIASES = {
     'short_delay_5m_count': ['放行延误1至5分钟', '放行延误1到5分钟', '放行延误1-5分钟', '放行延误1~5分钟', '1至5分钟放行延误', '短延误架次', '短延误'],
 }
 DATE_TOKEN = (r'\d{4}-\d{1,2}-\d{1,2}|(?:\d{4}年)?\d{1,2}月\d{1,2}[日号]|'
-              r'\d{4}年\d{1,2}月|\d{4}-\d{2}(?!-)|今天|今日|昨天|昨日|前天|本周|上周|本月|上月|'
-              r'本季度|上季度|今年|去年|最近两周|近两周|最近一周|近一周|(?:最近|近)\d{1,2}天')
+              r'\d{4}年\d{1,2}月|\d{4}-\d{2}(?!-)|今天|今日|昨天|昨日|前天|本周|上周|上月|'
+              rf'本季度|上季度|去年|最近两周|近两周|最近一周|近一周|{MONTH_YEAR_PERIOD}|(?:最近|近)\d{{1,2}}天')
 WINDOW_TOKEN = rf'(?:{DATE_TOKEN})(?:\s*(?:至|到|~|～|—|–)\s*(?:{DATE_TOKEN}))?'
 ORDERED_COMPARISON = re.compile(rf'({WINDOW_TOKEN})\s*(?:比|较|相比|相较)(?:于)?\s*({WINDOW_TOKEN})')
 COMPARISON_WORDS = r'对比|比较|对照|相比|相较'
@@ -96,7 +97,10 @@ def windows(text, anchor):
             values.extend(w)
         return list(dict.fromkeys(values)), 'day'
     kind = 'day'
-    if re.search(r'最近两周|近两周', text):
+    month_year = month_year_window(text, today) if len(tokens) == 1 else None
+    if month_year:
+        w, kind = month_year
+    elif re.search(r'最近两周|近两周', text):
         w = [str(today - timedelta(days=13)), str(today + timedelta(days=1))]
     elif '上周' in text or '本周' in text:
         start = today - timedelta(days=today.weekday())
@@ -106,21 +110,16 @@ def windows(text, anchor):
         else:
             end = today + timedelta(days=1)
         w, kind = [str(start), str(end)], 'week'
-    elif '上月' in text or '本月' in text:
+    elif '上月' in text:
         start = today.replace(day=1)
-        if '上月' in text:
-            w = [str(shift_month(start, -1)), str(start)]
-        else:
-            w = [str(start), str(today + timedelta(days=1))]
-        kind = 'month'
+        w, kind = [str(shift_month(start, -1)), str(start)], 'month'
     elif '季度' in text:
         start = today.replace(month=(today.month - 1) // 3 * 3 + 1, day=1)
         w = [str(shift_month(start, -3)), str(start)] if '上季度' in text else [str(start), str(today + timedelta(days=1))]
         kind = 'quarter'
-    elif '今年' in text or '去年' in text:
+    elif '去年' in text:
         start = today.replace(month=1, day=1)
-        w = [str(start.replace(year=start.year - 1)), str(start)] if '去年' in text else [str(start), str(today + timedelta(days=1))]
-        kind = 'year'
+        w, kind = [str(start.replace(year=start.year - 1)), str(start)], 'year'
     elif len(tokens) == 1 and re.fullmatch(r'\d{4}年\d{1,2}月|\d{4}-\d{2}', tokens[0]):
         nums = re.findall(r'\d+', tokens[0])
         start = date(int(nums[0]), int(nums[1]), 1)
@@ -559,6 +558,10 @@ def plan(coordinator, question, anchor, previous=None, day_mode='AUTO', selected
             text = re.sub(r'出港|进港', '', prior['query_context']['question']) + direction
         elif re.fullmatch(r'(?:那)?(?:同比|环比|去年同期)(?:呢)?[？?]?', text):
             text = re.sub(r'同比|环比', '', prior['query_context']['question']) + ('同比' if '去年' in text or '同比' in text else '环比')
+        elif not (prior.get('comparison_mode') or prior.get('chained') or prior.get('analysis_kind')):
+            follow_period = re.fullmatch(rf'(?:那么|那|换成|改成|再看|再查)?\s*({MONTH_YEAR_PERIOD})[的呢吗呀吧？?。\s]*', text)
+            if follow_period:
+                text = follow_period[1] + ' ' + re.sub(WINDOW_TOKEN, ' ', prior['query_context']['question'])
     if re.search(r'预测|预估', text):
         cap = next((c for c in catalog.capabilities if c.get('code') == 'acdm.forecast'), None)
         if not cap or cap.get('status') != 'AVAILABLE':
@@ -617,7 +620,9 @@ def plan(coordinator, question, anchor, previous=None, day_mode='AUTO', selected
         if start >= anchor.date():
             raise ValueError('当前业务日尚未结束，请选择完整历史日进行同环比，或先查询当天累计')
         if end > anchor.date() and start < anchor.date():
-            if re.search(r'最近两周|近两周|最近一周|近一周|(?:最近|近)\d{1,2}天', text):
+            relative = month_year_window(text, anchor.date())
+            if (relative == (ws[0], 'range')
+                    or re.search(r'最近两周|近两周|最近一周|近一周|(?:最近|近)\d{1,2}天', text)):
                 start -= timedelta(days=1)
             ws = [(str(start), str(anchor.date()))]
         ws.append(comparison_window(ws[0], kind, mode))

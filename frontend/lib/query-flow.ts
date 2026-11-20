@@ -32,6 +32,10 @@ export function stepElapsed(step: ExecutionStep, busy: boolean, elapsed: number)
   return step.state === "running" && busy ? Math.max(step.elapsed, elapsed - step.started_at, 0) : step.elapsed;
 }
 
+export function queryElapsed(steps: ExecutionStep[], busy: boolean, elapsed: number): number {
+  return Math.max(elapsed, ...steps.map(step => step.started_at + stepElapsed(step, busy, elapsed)), 0);
+}
+
 export function queryFlow(steps: ExecutionStep[], busy: boolean, elapsed: number) {
   const recordedRoute = steps.some(step => /(?:^|:)(?:rule_(?:re)?match_|semantic_normalize_|model_(?:plan|route)_)/.test(step.id));
   const pastPlanning = steps.some(step => ["validate", "query", "answer", "done"].includes(nodeFor(step) || ""));
@@ -53,7 +57,7 @@ export function queryFlow(steps: ExecutionStep[], busy: boolean, elapsed: number
   });
   const current = steps.filter(step => step.state === "running" && nodeFor(step))
     .sort((a, b) => a.started_at - b.started_at).at(-1);
-  const total = Math.max(elapsed, ...steps.map(step => step.started_at + stepElapsed(step, busy, elapsed)), 0);
+  const total = queryElapsed(steps, busy, elapsed);
   return { nodes, current: busy ? current?.label : undefined, currentNode: busy && current ? nodeFor(current) : undefined, total };
 }
 

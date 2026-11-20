@@ -6,6 +6,7 @@ import re
 from statistics import mean
 from time import perf_counter
 
+from app.agent.coordinator_lexicon import MONTH_YEAR_PERIOD
 from app.query import Compiler, execute, json_safe
 
 METHODS = ('上周同日', '近两周同星期均值')
@@ -31,6 +32,8 @@ def make_plan(coordinator, question, anchor, day_mode):
         if history_end > anchor.date():
             raise ValueError('请使用已结束的业务日作为历史数据截止日')
         text = text[:cutoff.start()] + ' ' + text[cutoff.end():]
+    if re.search(MONTH_YEAR_PERIOD, text):
+        raise ValueError('短期预测仅支持1至7天，请指定具体日期或预测天数')
     matches = matched_metrics(text, coordinator.catalog)
     if len({m[2] for m in matches}) > 1:
         raise ValueError('本轮预测请选择一个指标；多个指标请分别预测')

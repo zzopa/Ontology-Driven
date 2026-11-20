@@ -203,8 +203,8 @@ class VisualBuilderTests(unittest.TestCase):
             ]
         }
         claims, text = fallback_claims(cat, plan, evidence, 69)
-        self.assertIn('航司=四川航空（3U）：放行正常率为 100.00 %，参与 10 条记录。', text)
-        self.assertIn('航司=中国国航（CA）：放行正常率为 100.00 %，参与 59 条记录。', text)
+        self.assertIn('航司=四川航空（3U）：放行正常率为 100.00 % （匹配 10 条记录）。', text)
+        self.assertIn('航司=中国国航（CA）：放行正常率为 100.00 % （匹配 59 条记录）。', text)
 
     def test_flight_count_stats_uses_flight_unit(self):
         plan = {'subject': 'flight_execution', 'intent': 'count', 'conditions': []}

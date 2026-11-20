@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { TessellateModifier } from "three/addons/modifiers/TessellateModifier.js";
 import { frontRoadDecks, frontRoadLayers, frontRoadPaths, frontRoadPiers } from "./apron-network-v7.ts";
+import { clearTrafficPoint, faceTravel, trafficSections } from "./apron-traffic.ts";
 
 const material = (color: number, metalness = .25, roughness = .45) => new THREE.MeshStandardMaterial({ color, metalness, roughness });
 
@@ -63,7 +65,29 @@ export function createVehicle(color: number, kind: "van" | "fuel" | "catering" |
     box(1.8, .15, 7.8, 0, 2.7, 1, dark).rotation.x = -.2;
   } else box(2.7, 2.8, 4.6, 0, 2.5, 1);
   box(.45, .3, .1, -.8, 1.7, -3.55, material(0xffefbc)); box(.45, .3, .1, .8, 1.7, -3.55, material(0xffefbc));
+  box(.35, .23, .12, -.94, 1.55, 3.52, material(0xe34e42)); box(.35, .23, .12, .94, 1.55, 3.52, material(0xe34e42));
   return root;
+}
+
+function roadVehicleGeometry(paint: number, bus: boolean) {
+  const parts: THREE.BufferGeometry[] = [];
+  function part(geometry: THREE.BufferGeometry, color: number, x: number, y: number, z: number) {
+    const unindexed = geometry.toNonIndexed().translate(x, y, z), rgb = new THREE.Color(color);
+    const colors = new Float32Array(unindexed.getAttribute('position').count * 3);
+    for (let i = 0; i < colors.length; i += 3) rgb.toArray(colors, i);
+    unindexed.setAttribute('color', new THREE.BufferAttribute(colors, 3)); parts.push(unindexed); geometry.dispose();
+  }
+  const size = bus ? 3.8 : 2.54, cabin = bus ? 1.1 : .56;
+  part(new THREE.BoxGeometry(1.25, .34, size), paint, 0, .39, 0);
+  part(new THREE.BoxGeometry(1.12, cabin, bus ? 3.66 : 1.32), 0x334757, 0, .54 + cabin / 2, bus ? 0 : .18);
+  part(new THREE.BoxGeometry(1.18, .12, bus ? 3.7 : 1.36), paint, 0, .55 + cabin, bus ? 0 : .18);
+  for (const side of [-1, 1]) {
+    for (const z of [-size * .32, size * .34]) part(new THREE.CylinderGeometry(.23, .23, .16, 8).rotateZ(Math.PI / 2), 0x20282e, side * .61, .23, z);
+    part(new THREE.BoxGeometry(.24, .12, .06), 0xffeed0, side * .42, .47, -size / 2);
+    part(new THREE.BoxGeometry(.2, .12, .06), 0xc2342b, side * .43, .46, size / 2);
+  }
+  const geometry = mergeGeometries(parts)!; parts.forEach(part => part.dispose());
+  return geometry;
 }
 
 // Geometry adapted from the supplied code_artifact_network_v7.html; illustrative, not surveyed.
@@ -173,9 +197,10 @@ export const apronStandLayout = referenceStands.map(s => ({ ref: s.ref, x: s.px,
 
 export function buildAirport() {
   const scene = new THREE.Group(); scene.name = 'Pure 3D airport';
-  const roadCars: { mesh: THREE.Mesh; pathIdx: number; t: number; speed: number }[] = [];
-  const intercityTrains: { mesh: THREE.Group; start: THREE.Vector3; end: THREE.Vector3; t: number; dir: number; speed: number }[] = [];
-  const roadSplinePaths: THREE.CatmullRomCurve3[] = [];
+  const roadCars: { mesh: THREE.Mesh; curve: THREE.Curve<THREE.Vector3>; start: number; end: number; length: number; heightAt?: (x: number, z: number) => number | undefined; phase: number; speed: number; offset: number }[] = [];
+  const intercityTrains: { mesh: THREE.Group; start: THREE.Vector3; end: THREE.Vector3; t: number; speed: number }[] = [];
+  const roadSplinePaths: { curve: THREE.CatmullRomCurve3; heightAt?: (x: number, z: number) => number | undefined; offset?: number }[] = [];
+  const buildings: THREE.Object3D[] = [], obstacles: THREE.Box3[] = [];
   const allRoadClearanceCurves: { points: THREE.Vector3[]; halfWidth: number }[] = [];
   let seed = 71;
   const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
@@ -396,11 +421,9 @@ export function buildAirport() {
       });
 
       const glassFacadeMat = new THREE.MeshStandardMaterial({
-          color: 0x38bdf8,
-          roughness: 0.15,
-          metalness: 0.82,
-          emissive: 0x0284c7,
-          emissiveIntensity: 0.08
+          color: 0x708999,
+          roughness: 0.28,
+          metalness: 0.35
       });
 
       const northSpanShape = new THREE.Shape();
@@ -419,7 +442,7 @@ export function buildAirport() {
           bevelThickness: 2.4
       });
       northGeo.rotateX(-Math.PI / 2);
-      const northMesh = new THREE.Mesh(northGeo, roofWhiteMat);
+      const northMesh = new THREE.Mesh(northGeo, [roofWhiteMat, glassFacadeMat]);
       northMesh.position.y = 1.5;
       northMesh.castShadow = true;
       northMesh.receiveShadow = true;
@@ -451,7 +474,7 @@ export function buildAirport() {
       });
 
       const bodyGeo = new THREE.ExtrudeGeometry(bodyShape, {
-          depth: 13.5,
+          depth: 11.9,
           bevelEnabled: true,
           bevelSegments: 5,
           steps: 1,
@@ -459,42 +482,38 @@ export function buildAirport() {
           bevelThickness: 2.8
       });
       bodyGeo.rotateX(-Math.PI / 2);
-      const bodyMesh = new THREE.Mesh(bodyGeo, roofWhiteMat); bodyMesh.name = 'T3 courtyard roof';
+      const bodyMesh = new THREE.Mesh(bodyGeo, [roofWhiteMat, glassFacadeMat]);
       bodyMesh.position.y = 1.5;
       bodyMesh.castShadow = true;
       bodyMesh.receiveShadow = true;
       t3Group.add(bodyMesh);
 
-      const glassCenter = new THREE.Mesh(new THREE.BoxGeometry(182, 10.5, 68), glassFacadeMat);
-      glassCenter.position.set(0, 5.2, -48);
-      t3Group.add(glassCenter);
+      const rise = (x: number, z: number) => 5.2 * Math.max(0, 1 - (x / 94) ** 2) * Math.max(0, 1 - ((z + 47) / 39) ** 2);
+      const roofSkin = new THREE.ExtrudeGeometry(bodyShape, { depth: .95, bevelEnabled: false, curveSegments: 24 });
+      roofSkin.rotateX(-Math.PI / 2);
+      const curved = new TessellateModifier(9, 8).modify(roofSkin), roofPoints = curved.getAttribute('position');
+      for (let i = 0; i < roofPoints.count; i++) roofPoints.setY(i, roofPoints.getY(i) + rise(roofPoints.getX(i), roofPoints.getZ(i)));
+      roofSkin.setAttribute('position', roofPoints); roofSkin.setAttribute('uv', curved.getAttribute('uv'));
+      roofSkin.clearGroups(); roofSkin.deleteAttribute('normal'); roofSkin.computeVertexNormals(); curved.dispose();
+      const roof = new THREE.Mesh(roofSkin, roofWhiteMat); roof.name = 'T3 courtyard roof';
+      roof.position.y = 16.15; roof.castShadow = true; roof.receiveShadow = true; t3Group.add(roof);
 
-      for (let i = -34; i <= 34; i++) {
-          const xPos = i * 2.4;
-          const distRatio = 1 - Math.abs(i) / 36;
-          const stripLen = 14 + distRatio * 44;
-          const zCenter = -52 + Math.sin(Math.abs(i) * 0.16) * 8;
-
-          const skylightStrip = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.45, stripLen), skylightGlassMat);
-          skylightStrip.position.set(xPos, 17.85, zCenter);
-          t3Group.add(skylightStrip);
-
-          const metalRib = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.65, stripLen + 2), roofSilverRibMat);
-          metalRib.position.set(xPos + 0.9, 17.9, zCenter);
-          t3Group.add(metalRib);
+      for (let i = -13; i <= 13; i++) {
+          const x = i * 4, fan = Math.abs(i) / 13;
+          const zStart = -77 + fan * 7, zEnd = -20 - fan * 20;
+          for (const [offset, width, mat] of [[0, .86, skylightGlassMat], [1.3, .32, roofSilverRibMat]] as const) {
+              const strip = new THREE.PlaneGeometry(width, zEnd - zStart, 1, 12).rotateX(-Math.PI / 2);
+              const coords = strip.getAttribute('position'), center = (zStart + zEnd) / 2;
+              for (let j = 0; j < coords.count; j++) {
+                  const px = coords.getX(j) + x + offset, pz = coords.getZ(j) + center;
+                  coords.setXYZ(j, px, 17.27 + rise(px, pz), pz);
+              }
+              strip.computeVertexNormals(); t3Group.add(new THREE.Mesh(strip, mat));
+          }
       }
 
-      [-32, 32].forEach(eyeX => {
-          const eyeFrame = new THREE.Mesh(new THREE.BoxGeometry(28, 0.7, 5.5), roofSilverRibMat);
-          eyeFrame.position.set(eyeX, 17.7, -80);
-          t3Group.add(eyeFrame);
-
-          const eyeGlass = new THREE.Mesh(new THREE.BoxGeometry(26, 0.85, 4.2), skylightGlassMat);
-          eyeGlass.position.set(eyeX, 17.75, -80);
-          t3Group.add(eyeGlass);
-      });
-
-      const swConcourse = new THREE.Mesh(new THREE.BoxGeometry(98, 10.5, 13), roofWhiteMat);
+      const glazedPier = [glassFacadeMat, glassFacadeMat, roofWhiteMat, roofWhiteMat, glassFacadeMat, glassFacadeMat];
+      const swConcourse = new THREE.Mesh(new THREE.BoxGeometry(98, 10.5, 13), glazedPier);
       swConcourse.position.set(-151, 6.2, 15);
       swConcourse.castShadow = true;
       swConcourse.receiveShadow = true;
@@ -508,7 +527,7 @@ export function buildAirport() {
       swGlass.position.set(-151, 4.4, 15);
       t3Group.add(swGlass);
 
-      const seConcourse = new THREE.Mesh(new THREE.BoxGeometry(100, 10.5, 13), roofWhiteMat);
+      const seConcourse = new THREE.Mesh(new THREE.BoxGeometry(100, 10.5, 13), glazedPier);
       seConcourse.position.set(148, 6.2, 23);
       seConcourse.castShadow = true;
       seConcourse.receiveShadow = true;
@@ -538,7 +557,7 @@ export function buildAirport() {
       westLinkGlass.position.set(-100, 4.0, 52);
       t3Group.add(westLinkGlass);
 
-      scene.add(t3Group);
+      buildings.push(t3Group); scene.add(t3Group);
   }
 
   function buildT2Terminal() {
@@ -555,14 +574,13 @@ export function buildAirport() {
           metalness: 0.35
       });
       const t2GlassMat = new THREE.MeshStandardMaterial({
-          color: 0x0284c7,
-          roughness: 0.2,
-          metalness: 0.8,
-          emissive: 0x0369a1,
-          emissiveIntensity: 0.08
+          color: 0x8fa5b1,
+          roughness: 0.26,
+          metalness: 0.32
       });
 
-      const mainHall = new THREE.Mesh(new THREE.BoxGeometry(24, 12, 118), t2RoofMat);
+      const glazedHall = [t2GlassMat, t2GlassMat, t2RoofMat, t2RoofMat, t2GlassMat, t2GlassMat];
+      const mainHall = new THREE.Mesh(new THREE.BoxGeometry(24, 12, 118), glazedHall);
       mainHall.position.set(-112, 6, 155);
       mainHall.castShadow = true;
       mainHall.receiveShadow = true;
@@ -582,17 +600,25 @@ export function buildAirport() {
       glassCurve.position.set(-101, 5, 155);
       t2Group.add(glassCurve);
 
-      const pierNorth = new THREE.Mesh(new THREE.BoxGeometry(86, 9.5, 12), t2RoofMat);
+      const pierNorth = new THREE.Mesh(new THREE.BoxGeometry(86, 9.5, 12), glazedHall);
       pierNorth.position.set(-167, 5, 108);
       pierNorth.castShadow = true;
       pierNorth.receiveShadow = true;
       t2Group.add(pierNorth);
 
-      const pierSouth = new THREE.Mesh(new THREE.BoxGeometry(86, 9.5, 12), t2RoofMat);
+      const pierSouth = new THREE.Mesh(new THREE.BoxGeometry(86, 9.5, 12), glazedHall);
       pierSouth.position.set(-167, 5, 200);
       pierSouth.castShadow = true;
       pierSouth.receiveShadow = true;
       t2Group.add(pierSouth);
+      for (const z of [108, 200]) {
+          const fascia = new THREE.Mesh(new THREE.BoxGeometry(86.7, .55, 13.2), t2RoofMat);
+          fascia.position.set(-167, 9.75, z); t2Group.add(fascia);
+          for (let i = -2; i <= 2; i++) {
+              const mullion = new THREE.Mesh(new THREE.BoxGeometry(.18, 7.8, .16), t2RibMat);
+              mullion.position.set(-210.16, 5.25, z + i * 2.15); t2Group.add(mullion);
+          }
+      }
 
       const fboMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.4, metalness: 0.2 });
       const fboBldg = new THREE.Mesh(new THREE.BoxGeometry(22, 8.5, 36), fboMat);
@@ -601,7 +627,7 @@ export function buildAirport() {
       fboBldg.receiveShadow = true;
       t2Group.add(fboBldg);
 
-      scene.add(t2Group);
+      buildings.push(t2Group); scene.add(t2Group);
   }
 
   function buildGTCAndTower() {
@@ -634,7 +660,7 @@ export function buildAirport() {
           bevelThickness: 1.5
       });
       gtcGeo.rotateX(-Math.PI / 2);
-      const gtcMesh = new THREE.Mesh(gtcGeo, whiteMat);
+      const gtcMesh = new THREE.Mesh(gtcGeo, [whiteMat, material(0x8ea2af, .28, .32)]);
       gtcMesh.position.y = 1.2;
       gtcMesh.castShadow = true;
       gtcMesh.receiveShadow = true;
@@ -667,7 +693,7 @@ export function buildAirport() {
       towerGroup.add(spire);
 
       centerGroup.add(towerGroup);
-      scene.add(centerGroup);
+      buildings.push(centerGroup); scene.add(centerGroup);
   }
 
   function buildDetailedViaductMesh(pointsArray: THREE.Vector3[], roadWidth: number, deckColor: number, closed = false, withPiers = true, layerPriority = 1) {
@@ -886,12 +912,12 @@ export function buildAirport() {
       }
       const dirOf = (a: THREE.Vector3, b: THREE.Vector3) => [b.x - a.x, b.z - a.z];
       function route(name: string, ramp: THREE.Vector3[], tun: THREE.Vector3[], sur: THREE.Vector3[], w: number) {
-          const rr = mkRoad(ramp, w, 0xea580c, false, 3); roadSplinePaths.push(rr.curve);
+          const rr = mkRoad(ramp, w, 0xea580c, false, 3); roadSplinePaths.push({ curve: rr.curve, offset: .09 });
           const c = buildTunnelGhost(tun, w + 1.2, name);
           const d0 = dirOf(tun[0], tun[1]), d1 = dirOf(tun[tun.length - 2], tun[tun.length - 1]);
           mkPortal(tun[0].x, tun[0].z, d0[0], d0[1]);
           mkPortal(tun[tun.length - 1].x, tun[tun.length - 1].z, d1[0], d1[1]);
-          const sr = mkRoad(sur, w, 0xea580c, false, 2); roadSplinePaths.push(sr.curve);
+          const sr = mkRoad(sur, w, 0xea580c, false, 2); roadSplinePaths.push({ curve: sr.curve, offset: .06 });
           return c;
       }
                   route('West under-apron tunnel', [
@@ -943,7 +969,7 @@ export function buildAirport() {
           new THREE.Vector3(10.7, 0.8, -520.8),
           new THREE.Vector3(14.9, 0.8, -556.0)
       ].concat([new THREE.Vector3(14, 0.8, -720)]), 7.4, 0xea580c, false, 3);
-      roadSplinePaths.push(northTrunk.curve);
+      roadSplinePaths.push({ curve: northTrunk.curve, offset: .09 });
 
       const cargoRoad2 = buildDetailedViaductMesh([
           new THREE.Vector3(-58, 0.6, -355),
@@ -979,6 +1005,7 @@ export function buildAirport() {
           body.position.set(b.x, b.h / 2 + 0.2, b.z);
           body.castShadow = true;
           body.receiveShadow = true;
+          buildings.push(body);
           macroGroup.add(body);
 
           const top = new THREE.Mesh(new THREE.BoxGeometry(b.w + 1.5, 0.8, b.d + 1.5), b.roof);
@@ -997,6 +1024,7 @@ export function buildAirport() {
           mesh.position.set(h.x, h.h / 2 + 0.2, h.z);
           mesh.castShadow = true;
           mesh.receiveShadow = true;
+          buildings.push(mesh);
           macroGroup.add(mesh);
 
           const archRoof = new THREE.Mesh(new THREE.BoxGeometry(h.w + 2, 1.4, h.d + 2), blueRoofMat);
@@ -1011,7 +1039,7 @@ export function buildAirport() {
           new THREE.Vector3(-6.5, 0.8, 276)
       ], 6.4, 0xbe123c, false, true, 2);
       macroGroup.add(s19InboundBridge.group);
-      roadSplinePaths.push(s19InboundBridge.curve);
+      roadSplinePaths.push({ curve: s19InboundBridge.curve, offset: .09 });
 
       const s19OutboundBridge = buildDetailedViaductMesh([
           new THREE.Vector3(6.5, 0.8, 276),
@@ -1020,7 +1048,7 @@ export function buildAirport() {
           new THREE.Vector3(6.5, 1.8, 620)
       ], 6.4, 0xbe123c, false, true, 2);
       macroGroup.add(s19OutboundBridge.group);
-      roadSplinePaths.push(s19OutboundBridge.curve);
+      roadSplinePaths.push({ curve: s19OutboundBridge.curve, offset: .09 });
 
       const westFirstRoad = buildDetailedViaductMesh([
           new THREE.Vector3(-22, 0.5, 620),
@@ -1058,6 +1086,7 @@ export function buildAirport() {
           bldg.position.set(b.x, b.h / 2 + 0.2, b.z);
           bldg.castShadow = true;
           bldg.receiveShadow = true;
+          buildings.push(bldg);
           macroGroup.add(bldg);
       });
 
@@ -1098,20 +1127,25 @@ export function buildAirport() {
       const stripeMat = new THREE.MeshBasicMaterial({ color: 0x0284c7 });
       for (let c = 0; c < 4; c++) {
           const car = new THREE.Mesh(carriageGeo, carriageMat);
-          car.position.z = c * 15.2;
+          car.position.z = (c - 1.5) * 15.2;
           car.position.y = 1.6;
           trainGroup.add(car);
           const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.45, 14), stripeMat);
-          stripe.position.set(0, 1.8, c * 15.2);
+          stripe.position.set(0, 1.8, car.position.z);
           trainGroup.add(stripe);
+      }
+      for (const side of [-1, 1]) {
+          const cab = new THREE.Mesh(new THREE.BoxGeometry(2.2, .66, .08), darkRoofMat);
+          cab.position.set(0, 2.03, side * 29.84); trainGroup.add(cab);
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(.12, .16, 435), darkRoofMat);
+          rail.position.set(3.7 + side * .86, .16, -537.5); macroGroup.add(rail);
       }
       macroGroup.add(trainGroup);
       intercityTrains.push({
           mesh: trainGroup,
-          start: new THREE.Vector3(14, 0, -355),
-          end: new THREE.Vector3(14, 0, -720),
+          start: new THREE.Vector3(3.7, -.12, -355),
+          end: new THREE.Vector3(3.7, -.12, -720),
           t: 0.2,
-          dir: 1,
           speed: 0.0022
       });
 
@@ -1233,14 +1267,20 @@ export function buildAirport() {
           const piers = new THREE.Group(); piers.name = 'Front viaduct piers'; landGroup.add(piers);
           const pm = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.8 });
           frontRoadPiers.forEach(p => { const h = BASE + hZ(p[2], p[1]) - TH; const m = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.1, h, 12), pm); m.position.set(p[0], h / 2, p[1]); m.castShadow = true; piers.add(m); });
+          buildings.push(piers);
           const inRing = (x: number, z: number, ring: number[][]) => { let ins = false; for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) { const a = ring[i], b = ring[j]; if (((a[1] > z) !== (b[1] > z)) && (x < (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) + a[0])) ins = !ins; } return ins; };
-          return (x: number, z: number) => { for (const D of frontRoadDecks) { if (inRing(x, z, D.p[0]) && !D.p.slice(1).some(h => inRing(x, z, h))) return hZ(D.z, z); } return 0; };
+          const onSurface = (x: number, z: number, rings: number[][][]) => inRing(x, z, rings[0]) && !rings.slice(1).some(h => inRing(x, z, h));
+          return (x: number, z: number) => {
+              let height: number | undefined;
+              for (const D of frontRoadDecks) if (onSurface(x, z, D.p)) height = Math.max(height ?? 0, BASE + hZ(D.z, z));
+              if (height !== undefined) return height;
+              if (frontRoadLayers[0].p.some(rings => onSurface(x, z, rings))) return frontRoadLayers[0].y + .12;
+          };
       })();
               frontRoadPaths.forEach(pp => {
-                  const cv = new THREE.CatmullRomCurve3(pp.map(a => new THREE.Vector3(a[0], 0.9 + deckH(a[0], a[1]), a[1])), false, 'centripetal');
+                  const cv = new THREE.CatmullRomCurve3(pp.map(a => new THREE.Vector3(a[0], deckH(a[0], a[1]) ?? .52, a[1])), false, 'centripetal');
                   allRoadClearanceCurves.push({ points: cv.getPoints(36), halfWidth: 6.5 });
-                  let len = 0; for (let i = 1; i < pp.length; i++) len += Math.hypot(pp[i][0] - pp[i-1][0], pp[i][1] - pp[i-1][1]);
-                  if (len > 70) roadSplinePaths.push(cv);
+                  roadSplinePaths.push({ curve: cv, heightAt: deckH });
               });
 
               const roundaboutRing = new THREE.Mesh(
@@ -1332,25 +1372,42 @@ export function buildAirport() {
               landGroup.add(trunkInst);
               landGroup.add(crownInst);
 
-              const carGeo = new THREE.BoxGeometry(1.2, 0.75, 2.5);
-              const carColors = [0xffffff, 0x38bdf8, 0xfbbf24, 0xef4444, 0xe2e8f0];
-              for (let i = 0; i < 56; i++) {
-                  const cMat = new THREE.MeshBasicMaterial({ color: carColors[i % carColors.length] });
-                  const car = new THREE.Mesh(carGeo, cMat);
-                  const pathIdx = i % roadSplinePaths.length;
-                  roadCars.push({
-                      mesh: car,
-                      pathIdx: pathIdx,
-                      t: (i / 56) % 1,
-                      speed: 0.0007 + (i % 4) * 0.00025
-                  });
-                  landGroup.add(car);
-              }
-
               scene.add(landGroup);
           }
   buildPure3DAirfieldAndRunways(); buildT3Terminal(); buildT2Terminal(); buildGTCAndTower();
   buildMacroDistrictBuildingsAndRoads(); buildLandscapeAndTraffic();
+  scene.updateMatrixWorld(true);
+  for (const building of buildings) building.traverse(object => {
+    if (object instanceof THREE.Mesh) {
+      object.geometry.computeBoundingBox();
+      obstacles.push(object.geometry.boundingBox!.clone().applyMatrix4(object.matrixWorld));
+    }
+  });
+  const roadTraffic = new THREE.Group(); roadTraffic.name = 'Road traffic'; scene.add(roadTraffic);
+  const carMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .48, metalness: .2 });
+  const carColors = [0xe5e7eb, 0x5c6d77, 0xa2342f, 0xafb8bf, 0x24556d];
+  const carModels = carColors.map((color, i) => roadVehicleGeometry(color, i === 0));
+  for (const { curve, heightAt, offset = 0 } of roadSplinePaths) {
+    const sections = trafficSections(curve, point => {
+      if (heightAt) {
+        const y = heightAt(point.x, point.z);
+        if (y === undefined || [[1.45, 0], [-1.45, 0], [0, 1.45], [0, -1.45]].some(([x, z]) => {
+          const edge = heightAt(point.x + x, point.z + z);
+          return edge === undefined || Math.abs(edge - y) > .6;
+        })) return false;
+        point.y = y;
+      }
+      return clearTrafficPoint(point, obstacles, 2.5, 1.9);
+    });
+    for (const section of sections) {
+      const count = Math.ceil(section.length / 55);
+      for (let i = 0; i < count; i++) {
+        const mesh = new THREE.Mesh(carModels[roadCars.length % carModels.length], carMat);
+        mesh.receiveShadow = true; roadTraffic.add(mesh);
+        roadCars.push({ mesh, curve, heightAt, offset, ...section, phase: (i + .5) / count, speed: heightAt ? 7 : 12 });
+      }
+    }
+  }
   scene.scale.setScalar(AIRPORT_SCALE); scene.position.y = -.6;
 
   // Bake repeated static parts by material; moving vehicles keep their own transforms.
@@ -1378,16 +1435,23 @@ export function buildAirport() {
   batch(scene);
   const retained = new Set<THREE.BufferGeometry>(); scene.traverse(o => { if (o instanceof THREE.Mesh) retained.add(o.geometry); });
   originals.forEach(g => { if (!retained.has(g)) g.dispose(); });
-  return Object.assign(scene, { animateTraffic(seconds: number) {
+  const tangent = new THREE.Vector3();
+  return Object.assign(scene, { trafficClear(position: THREE.Vector3, radius: number, height: number) {
+    const local = position.clone().sub(scene.position).divideScalar(AIRPORT_SCALE);
+    return clearTrafficPoint(local, obstacles, radius / AIRPORT_SCALE, height / AIRPORT_SCALE);
+  }, animateTraffic(seconds: number) {
     for (const car of roadCars) {
-      const curve = roadSplinePaths[car.pathIdx], t = (car.t + seconds * car.speed * 60) % 1;
-      car.mesh.position.copy(curve.getPointAt(t)); car.mesh.position.y += .7;
-      const tangent = curve.getTangentAt(t); car.mesh.rotation.y = Math.atan2(tangent.x, tangent.z);
+      const distance = (car.phase + seconds * car.speed / (car.length + 15)) % 1 * (car.length + 15);
+      const t = THREE.MathUtils.lerp(car.start, car.end, Math.min(distance / car.length, 1));
+      const point = car.curve.getPointAt(t, car.mesh.position);
+      const surface = car.heightAt ? car.heightAt(point.x, point.z) : point.y + car.offset;
+      point.y = (surface ?? point.y) + .035;
+      car.mesh.visible = surface !== undefined && distance <= car.length && clearTrafficPoint(point, obstacles, 2.35, 1.85);
+      faceTravel(car.mesh, car.curve.getTangentAt(t, tangent));
     }
     for (const train of intercityTrains) {
       const t = (train.t + seconds * train.speed * 60) % 2;
       train.mesh.position.lerpVectors(train.start, train.end, t <= 1 ? t : 2 - t);
-      train.mesh.rotation.y = t <= 1 ? Math.PI : 0;
     }
   } });
 }

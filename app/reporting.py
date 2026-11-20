@@ -223,6 +223,7 @@ def build_report(payload):
             report = acdm_reports.build_ground_briefing(conn, target_date=end)
         else:
             report = acdm_reports.build_safeguard_and_resource_board(conn, start_date=start, end_date=end)
+        report['start_date'], report['end_date'] = start.isoformat(), end.isoformat()
         report['ontology_version'] = core.current_catalog().version
         report['generated_at'] = now()
         cur = conn.cursor()
@@ -242,25 +243,6 @@ def build_report(payload):
     finally:
         conn.close()
 
-
-# SVG Icons for PDF report
-SVG_ICONS = {
-    'brand': '<svg class="report-brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>',
-    'plane': '<svg class="report-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>',
-    'check': '<svg class="report-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
-    'clock': '<svg class="report-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
-    'flag': '<svg class="report-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>',
-    'layers': '<svg class="report-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="22 17 12 22 2 17"/><polyline points="22 12 12 17 2 12"/></svg>',
-    'users': '<svg class="report-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
-    'chart': '<svg class="report-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>',
-    'alert': '<svg class="report-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>',
-    'shield': '<svg class="report-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>',
-    'info': '<svg class="report-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></svg>',
-    'compare': '<svg class="report-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M11 18H8a2 2 0 0 1-2-2V9"/></svg>',
-    'table': '<svg class="report-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>',
-    'calendar': '<svg class="report-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>',
-    'bullet': '<svg class="claim-bullet-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-}
 
 COLUMN_LABELS = {
     'load_factor_pax': '客座率样本旅客量',
@@ -390,7 +372,7 @@ COLUMN_LABELS = {
 }
 
 
-def _build_kpi_grid(report):
+def _report_metrics(report):
     summary = report.get('summary') or {}
     if not summary and report.get('main_rows') and isinstance(report['main_rows'], list) and len(report['main_rows']) == 1 and isinstance(report['main_rows'][0], dict):
         summary = report['main_rows'][0]
@@ -398,228 +380,183 @@ def _build_kpi_grid(report):
     plan = report.get('plan') or {}
     if not kind or kind == 'query':
         kind = plan.get('report_kind') or ('ground_briefing' if '地服' in str(plan.get('disp')) else '')
-    cards = []
+    metrics = []
 
     if kind == 'general' or ('operated_all' in summary and 'release_on_time_rate' in summary):
         if summary.get('operated_all') is not None:
-            cards.append({
+            metrics.append({
                 'label': '实际执行航班',
                 'val': f"{summary['operated_all']:,}" if isinstance(summary['operated_all'], (int, float)) else str(summary['operated_all']),
                 'unit': '架次',
                 'sub': f"计划 {summary.get('planned_all', '—')} 班 · 执行率 {summary.get('execution_rate', '—')}%",
-                'icon': 'plane',
-                'tone': 'blue',
             })
         if summary.get('release_on_time_rate') is not None:
-            cards.append({
+            metrics.append({
                 'label': '放行正常率',
                 'val': f"{summary['release_on_time_rate']}%",
                 'unit': '',
                 'sub': f"正常出港 {summary.get('release_normal_cnt', '—')} / {summary.get('dep_operated', '—')} 班",
-                'icon': 'check',
-                'tone': 'emerald',
             })
         if summary.get('takeoff_on_time_rate') is not None:
-            cards.append({
+            metrics.append({
                 'label': '起飞正常率',
                 'val': f"{summary['takeoff_on_time_rate']}%",
                 'unit': '',
                 'sub': f"正常起飞 {summary.get('takeoff_normal_cnt', '—')} 架次",
-                'icon': 'clock',
-                'tone': 'teal',
             })
         if summary.get('origin_dep_on_time_rate') is not None:
-            cards.append({
+            metrics.append({
                 'label': '始发正常率',
                 'val': f"{summary['origin_dep_on_time_rate']}%",
                 'unit': '',
                 'sub': f"始发出港 {summary.get('origin_normal_cnt', '—')} / {summary.get('origin_dep_cnt', '—')} 班",
-                'icon': 'flag',
-                'tone': 'indigo',
             })
         if summary.get('bridge_rate_all') is not None or summary.get('bridge_rate_arr') is not None:
             rate = summary.get('bridge_rate_all') if summary.get('bridge_rate_all') is not None else summary.get('bridge_rate_arr')
-            cards.append({
+            metrics.append({
                 'label': '综合靠桥率',
                 'val': f"{rate}%",
                 'unit': '',
                 'sub': f"进港靠桥率 {summary.get('bridge_rate_arr', '—')}%",
-                'icon': 'layers',
-                'tone': 'amber',
             })
         if summary.get('total_pax_sql') is not None:
-            cards.append({
+            metrics.append({
                 'label': '旅客吞吐量',
                 'val': f"{summary['total_pax_sql']:,}" if isinstance(summary['total_pax_sql'], (int, float)) else str(summary['total_pax_sql']),
                 'unit': '人次',
                 'sub': f"有效座位样本客座率 {summary.get('total_load_factor', '—')}%",
-                'icon': 'users',
-                'tone': 'purple',
             })
     elif kind == 'ground_briefing' or ('planned_today' in summary and 'operated_today' in summary):
         op = summary.get('operated_today') or summary.get('planned_today')
-        cards.append({
+        metrics.append({
             'label': '当日计划/执行',
             'val': f"{op:,}" if isinstance(op, (int, float)) else str(op),
             'unit': '架次',
             'sub': f"计划 {summary.get('planned_today', '—')} 班 · 取消 {summary.get('canceled_today', 0)} 班",
-            'icon': 'plane',
-            'tone': 'blue',
         })
         if summary.get('all_release_rate_22') is not None:
-            cards.append({
+            metrics.append({
                 'label': '出港放行正常率',
                 'val': f"{summary['all_release_rate_22']}%",
                 'unit': '',
                 'sub': f"正常出港 {summary.get('all_release_norm_22', '—')} / {summary.get('all_dep_22', '—')} 班",
-                'icon': 'check',
-                'tone': 'emerald',
             })
         if summary.get('all_takeoff_rate_22') is not None:
-            cards.append({
+            metrics.append({
                 'label': '出港起飞正常率',
                 'val': f"{summary['all_takeoff_rate_22']}%",
                 'unit': '',
                 'sub': f"正常起飞 {summary.get('all_takeoff_norm_22', '—')} / {summary.get('all_dep_22', '—')} 架次",
-                'icon': 'clock',
-                'tone': 'teal',
             })
         if summary.get('gh_release_rate_22') is not None:
-            cards.append({
+            metrics.append({
                 'label': '地服代理放行率',
                 'val': f"{summary['gh_release_rate_22']}%",
                 'unit': '',
                 'sub': f"放行正常 {summary.get('gh_release_norm_22', '—')} / {summary.get('gh_dep_22', '—')} 架次 · 延误 {summary.get('gh_release_delay_22', '—')} 班",
-                'icon': 'shield',
-                'tone': 'indigo',
             })
         if summary.get('gh_takeoff_rate_22') is not None:
-            cards.append({
+            metrics.append({
                 'label': '地服代理起飞率',
                 'val': f"{summary['gh_takeoff_rate_22']}%",
                 'unit': '',
                 'sub': f"起飞正常 {summary.get('gh_takeoff_norm_22', '—')} / 代理出港 {summary.get('gh_dep_22', '—')} 班",
-                'icon': 'flag',
-                'tone': 'purple',
             })
         if summary.get('early_origin_tomorrow') is not None:
-            cards.append({
+            metrics.append({
                 'label': '次日早始发准备',
                 'val': f"{summary['early_origin_tomorrow']} 班",
                 'unit': '',
                 'sub': f"远机位外场 {summary.get('origin_remote_tomorrow', '—')} 班 · 次日计划 {summary.get('planned_tomorrow', '—')} 班",
-                'icon': 'calendar',
-                'tone': 'amber',
             })
     elif kind == 'safeguard_board' or report.get('total'):
         tot = report.get('total')
         if tot:
-            cards.append({
+            metrics.append({
                 'label': '执飞航班总量',
                 'val': f"{tot:,}" if isinstance(tot, (int, float)) else str(tot),
                 'unit': '架次',
                 'sub': '本期执行航班覆盖总量',
-                'icon': 'plane',
-                'tone': 'blue',
             })
         rows = report.get('rows', [])
         if rows and isinstance(rows, list) and len(rows) > 0 and isinstance(rows[0], dict) and 'node_name' in rows[0]:
             total_records = sum(r.get('record_cnt', 0) for r in rows if isinstance(r.get('record_cnt'), (int, float)))
             if total_records:
-                cards.append({
+                metrics.append({
                     'label': '保障节点录入总数',
                     'val': f"{total_records:,}",
                     'unit': '条',
                     'sub': f"已覆盖 {len(rows)} 类核心保障节点",
-                    'icon': 'shield',
-                    'tone': 'teal',
                 })
 
-    # If cards empty, extract from visual_meta stats
-    if not cards:
+    # If metrics empty, extract from visual_meta stats
+    if not metrics:
         vm = report.get('visual_meta') or {}
         vm_stats = vm.get('stats') or []
         if vm_stats:
-            tones = ['blue', 'emerald', 'teal', 'indigo', 'amber', 'purple']
-            icons = ['plane', 'check', 'clock', 'shield', 'calendar', 'layers']
-            for i, s in enumerate(vm_stats):
-                cards.append({
+            for s in vm_stats:
+                metrics.append({
                     'label': s.get('label', ''),
                     'val': str(s.get('value', '—')),
                     'unit': s.get('unit', ''),
-                    'sub': s.get('sub', '核心指标口径'),
-                    'icon': icons[i % len(icons)],
-                    'tone': tones[i % len(tones)],
+                    'sub': s.get('sub') or '',
                 })
 
-    if not cards:
+    if not metrics:
         return ''
 
-    html_cards = []
-    for c in cards:
-        ic = SVG_ICONS.get(c['icon'], SVG_ICONS['chart'])
-        unit_html = f'<span class="kpi-unit">{escape(c["unit"])}</span>' if c['unit'] else ''
-        html_cards.append(f'''
-        <div class="kpi-card tone-{c['tone']}">
-          <div class="kpi-icon-wrap">{ic}</div>
-          <div class="kpi-body">
-            <div class="kpi-label">{escape(c['label'])}</div>
-            <div class="kpi-val-row">
-              <span class="kpi-val">{escape(c['val'])}</span>
-              {unit_html}
-            </div>
-            <div class="kpi-sub">{escape(c['sub'])}</div>
-          </div>
-        </div>
-        ''')
-    return f'<div class="kpi-grid">{"".join(html_cards)}</div>'
-
-
-def _pick_section_icon(title):
-    t = title or ''
-    if any(k in t for k in ('1.', '总体', 'KPI', '指标')):
-        return SVG_ICONS['chart']
-    if any(k in t for k in ('2.', '结构', '概况', '航班')):
-        return SVG_ICONS['plane']
-    if any(k in t for k in ('3.', '过站', '效率', '正常率')):
-        return SVG_ICONS['clock']
-    if any(k in t for k in ('4.', '延误', '不正常', '取消', '原因')):
-        return SVG_ICONS['alert']
-    if any(k in t for k in ('5', '6', '靠桥', '高峰', '机位')):
-        return SVG_ICONS['layers']
-    if any(k in t for k in ('7', '8', '协同', '滑行', '保障', '节点')):
-        return SVG_ICONS['shield']
-    if any(k in t for k in ('边界', '标注', '缺口', '口径')):
-        return SVG_ICONS['info']
-    return SVG_ICONS['chart']
+    rows = []
+    for item in metrics:
+        value = ' '.join(filter(None, (item['val'], item['unit'])))
+        rows.append(f'<tr><th scope="row">{escape(item["label"])}</th>'
+                    f'<td class="metric-value">{escape(value)}</td><td>{escape(item["sub"])}</td></tr>')
+    return (
+        '<section><h2>主要指标</h2><table class="metric-table">'
+        '<thead><tr><th>指标</th><th>数值</th><th>说明</th></tr></thead>'
+        f'<tbody>{"".join(rows)}</tbody></table></section>'
+    )
 
 
 def html_report(report, title):
-    """Calibrated civil aviation executive report markup; all data and database strings escaped."""
+    """Render the report as an A4 document using escaped report data."""
     esc = lambda value: escape('是' if value is True else '否' if value is False else '—' if value is None else str(value))
 
     plan = report.get('plan') or {}
+    doc = report.get('document') or report.get('answer_document') or {}
     disp = plan.get('disp')
-    start_d = plan.get('report_start') or report.get('target_date') or ''
+    start_d = report.get('start_date') or plan.get('report_start') or report.get('target_date')
+    end_d = report.get('end_date') or plan.get('report_end') or start_d
+    span = str(start_d) if start_d == end_d else f'{start_d} 至 {end_d}'
     if disp:
-        display_title = f"{disp}（{start_d}）" if start_d else disp
+        display_title = disp
+    elif doc.get('title'):
+        display_title = doc['title'].replace('《', '').replace('》', '').strip()
+        if start_d:
+            title_span = str(start_d) if start_d == end_d else f'{start_d} ~ {end_d}'
+            display_title = display_title.removesuffix(f'· {title_span}').rstrip()
+    elif title:
+        title = title.removeprefix('武汉天河国际机场 · ')
+        display_title = re.sub(r'^(?:生成|请|导出|查询|出一份)\s*', '', title).strip()
     else:
-        doc_title = (report.get('document') or report.get('answer_document') or {}).get('title')
-        if doc_title:
-            display_title = doc_title.replace('《', '').replace('》', '').strip()
-        elif title:
-            display_title = re.sub(r'^(?:生成|请|导出|查询|出一份)\s*', '', title).strip()
-        else:
-            display_title = "运行分析简报"
+        display_title = '运行分析简报'
 
     gen_raw = str(report.get('generated_at') or now())
-    m_gen = re.match(r'^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})', gen_raw)
-    gen_display = f"{m_gen.group(1)} {m_gen.group(2)}" if m_gen else gen_raw[:16]
+    try:
+        generated = datetime.fromisoformat(gen_raw)
+        if generated.tzinfo is not None:
+            generated = generated.astimezone(TZ)
+        gen_display = generated.strftime('%Y-%m-%d %H:%M')
+    except ValueError:
+        gen_display = gen_raw[:16]
 
     if not report.get('summary') and report.get('main_rows') and len(report['main_rows']) == 1 and isinstance(report['main_rows'][0], dict):
         report['summary'] = report['main_rows'][0]
     if not report.get('kind') or report.get('kind') == 'query':
-        report['kind'] = (report.get('plan') or {}).get('report_kind') or report.get('kind')
+        report['kind'] = plan.get('report_kind') or report.get('kind')
+
+    def prose(value):
+        return re.sub(r'\*\*([^*\n]+)\*\*|`([^`\n]+)`',
+                      lambda match: f'<strong>{match[1]}</strong>' if match[1] else match[2], esc(value))
 
     def format_cell_html(k, val):
         if val is None or val == '' or val == '—':
@@ -628,44 +565,30 @@ def html_report(report, title):
         k_lower = k.lower()
         m_time = re.match(r'^\d{4}-\d{2}-\d{2}T(\d{2}:\d{2})(?::\d{2})?(?:\+\d{2}:\d{2})?$', val_str)
         if m_time:
-            return f'<span class="cell-time">{m_time.group(1)}</span>'
+            return m_time.group(1)
         if k_lower in ('outer_support_flag', 'out_support_flag'):
             if '是' in val_str or '外' in val_str:
-                return '<span class="badge-pill tone-amber">外场保障</span>'
+                return '外场保障'
             if '否' in val_str or '近' in val_str:
-                return '<span class="badge-pill tone-green">近机位</span>'
+                return '近机位'
         if k_lower in ('is_remote_stand', 'is_remote', 'remote_stand'):
             if val_str in ('Y', '是', '1', 'true', 'True'):
-                return '<span class="badge-pill tone-amber">远机位</span>'
+                return '远机位'
             if val_str in ('N', '否', '0', 'false', 'False'):
-                return '<span class="badge-pill tone-green">近机位</span>'
+                return '近机位'
         if k_lower in ('direction', 'is_off_in'):
             if val_str in ('ARR', '进港', 'A'):
-                return '<span class="badge-pill tone-blue">进港</span>'
+                return '进港'
             if val_str in ('DEP', '出港', 'D'):
-                return '<span class="badge-pill tone-teal">出港</span>'
-        if k_lower == 'terminal' and val_str:
-            return f'<span class="badge-pill tone-slate">{esc(val_str)}</span>'
-        if k_lower == 'agency':
-            if val_str == '210':
-                return '<span class="badge-pill tone-blue">地服(210)</span>'
-            return f'<span class="badge-pill tone-slate">{esc(val_str)}</span>'
+                return '出港'
+        if k_lower == 'agency' and val_str == '210':
+            return '地服（210）'
         if k_lower == 's_cnl_stauts':
             if '未填' in val_str:
-                return '<span class="badge-pill tone-slate">未填时段</span>'
-            return f'<span class="badge-pill tone-red">{esc(val_str)} 取消</span>'
-        if k_lower == 'abnormal_reason_cd':
-            if val_str in ('未填原因', '—', 'None'):
-                return '<span class="cell-empty">未填原因</span>'
-            return f'<span class="badge-pill tone-purple">{esc(val_str)}</span>'
-        if k_lower in ('clearance_delay_time', 'takeoff_delay_time', 'delay_time'):
-            try:
-                num = float(val_str)
-                if num > 0:
-                    return f'<span class="cell-delay">+{int(num) if num.is_integer() else num}m</span>'
-                return '<span class="cell-zero">0m</span>'
-            except Exception:
-                pass
+                return '未填时段'
+            return f'{esc(val_str)} 取消'
+        if k_lower == 'abnormal_reason_cd' and val_str in ('未填原因', 'None'):
+            return '<span class="cell-empty">未填原因</span>'
         if k_lower in ('flight_no', 'arr_flight_no', 'dep_flight_no'):
             return f'<span class="cell-flt">{esc(val_str)}</span>'
         if isinstance(val, float):
@@ -695,29 +618,25 @@ def html_report(report, title):
         out = []
         for c_idx, chunk in enumerate(chunks):
             sub_caption = f'<div class="table-sub-caption">第 {c_idx + 1} 组字段（共 {len(columns)} 列）</div>' if len(chunks) > 1 else ''
-            thead_th = ''.join('<th>' + esc(get_col_label(k)) + '</th>' for k in chunk)
+            thead_th = ''.join('<th scope="col">' + esc(get_col_label(k)) + '</th>' for k in chunk)
             tbody_tr = []
             for r_idx, row in enumerate(rows):
                 tds = []
                 for k in chunk:
                     val = row.get(k)
-                    is_num = isinstance(val, (int, float)) and not isinstance(val, bool) and 'time' not in k.lower()
+                    is_num = isinstance(val, (int, float)) and not isinstance(val, bool)
                     cls = ' class="num-cell"' if is_num else ''
                     tds.append(f'<td{cls}>{format_cell_html(k, val)}</td>')
                 tbody_tr.append(f'<tr><td class="idx-cell">{r_idx + 1}</td>' + ''.join(tds) + '</tr>')
-            out.append(f'{sub_caption}<div class="table-wrap"><table class="data-table"><thead><tr><th class="idx-col">序号</th>{thead_th}</tr></thead><tbody>{"".join(tbody_tr)}</tbody></table></div>')
+            out.append(f'{sub_caption}<table class="data-table"><thead><tr><th scope="col" class="idx-col">序号</th>{thead_th}</tr></thead><tbody>{"".join(tbody_tr)}</tbody></table>')
         return ''.join(out)
 
     warning = (
-        '<div class="warning-banner">'
-        f'<div class="warning-icon-box">{SVG_ICONS["alert"]}</div>'
-        '<div class="warning-content"><strong>测试与模拟数据提示</strong><p>包含模拟测试数据，不代表长沙、南京、郑州机场实际运行，不可用于实际机场排名。</p></div>'
-        '</div>'
+        '<p class="simulation-note"><strong>模拟测试数据</strong>　报告含模拟记录，仅供测试，不可用于实际运行分析或机场排名。</p>'
     ) if report.get('is_simulated') else ''
 
-    kpi_grid = _build_kpi_grid(report)
+    metric_table = _report_metrics(report)
 
-    doc = report.get('document') or report.get('answer_document') or {}
     sections = doc.get('sections', [])
     if not sections and report.get('answer'):
         raw_ans = report['answer']
@@ -738,19 +657,18 @@ def html_report(report, title):
     body = ''
     if sections:
         for s in sections:
-            sec_icon = _pick_section_icon(s.get('title'))
             sec_claims = s.get('claims') or []
             if not sec_claims and s.get('claim_ids'):
                 sec_claims = [claims_map[cid] for cid in s['claim_ids'] if cid in claims_map]
             claims_html = ''.join(
-                f'<div class="claim-item"><div class="claim-bullet">{SVG_ICONS["bullet"]}</div><div class="claim-text">{esc(c.get("text", ""))}</div></div>'
+                f'<p class="claim-text">{prose(c["text"])}</p>'
                 for c in sec_claims if c and c.get('text')
             )
             if claims_html:
-                body += f'<section class="report-section"><h2 class="section-title"><span class="section-icon-box">{sec_icon}</span><span>{esc(s["title"])}</span></h2><div class="claim-list">{claims_html}</div></section>'
+                body += f'<section><h2>{esc(s["title"])}</h2>{claims_html}</section>'
 
     if not body:
-        body = '<div class="answer-card"><div class="answer-text">' + esc(report.get('answer') or report.get('text', '')) + '</div></div>'
+        body = '<p class="claim-text">' + prose(report.get('answer') or report.get('text', '')) + '</p>'
 
     for item in report.get('sections', []):
         sub = item['result']
@@ -758,23 +676,25 @@ def html_report(report, title):
         metric = sub.get('metric') or {}
         if metric.get('field'):
             labels[metric['field']] = metric.get('name') or metric['field']
-        sim_badge = '<span class="sim-badge">模拟测试数据</span>' if item.get('is_simulated') else ''
-        body += f'<section class="report-section table-section"><h2 class="section-title"><span class="section-icon-box">{SVG_ICONS["table"]}</span><span>{esc(item["label"])}</span>{sim_badge}</h2>' + table(sub.get('main_rows', []), labels) + '</section>'
+        sim_label = '（模拟测试数据）' if item.get('is_simulated') else ''
+        body += f'<section><h2>{esc(item["label"])}{sim_label}</h2>' + table(sub.get('main_rows', []), labels) + '</section>'
 
     benchmark = report.get('benchmark')
     if benchmark:
         body += (
-            f'<section class="report-section benchmark-section">'
-            f'<h2 class="section-title"><span class="section-icon-box">{SVG_ICONS["compare"]}</span><span>机场对标分析</span><span class="sim-badge">包含模拟测试数据</span></h2>'
-            f'<div class="benchmark-answer"><div class="benchmark-lead">{SVG_ICONS["info"]} 对标结论说明</div><div class="answer-text">{esc(benchmark.get("answer", ""))}</div></div>'
+            '<section><h2>机场对标分析（包含模拟测试数据）</h2>'
+            f'<p class="claim-text">{prose(benchmark.get("answer", ""))}</p>'
             + table(benchmark.get('main_rows', []))
             + '</section>'
         )
 
     for item in report.get('related', []):
-        count_meta = f'<span class="table-meta-badge">共 {item["count"]} 条记录 · 展示前 {len(item.get("rows", []))} 条</span>' if item.get('count', 0) > len(item.get("rows", [])) else f'<span class="table-meta-badge">共 {len(item.get("rows", []))} 条记录</span>'
-        note_text = f'<div class="table-note">{esc(item["note"])}</div>' if item.get('note') else ''
-        body += f'<section class="report-section table-section"><div class="table-title-row"><h2 class="section-title"><span class="section-icon-box">{SVG_ICONS["table"]}</span><span>{esc(item.get("name") or item["table"])}</span></h2>{count_meta}</div>{note_text}' + table(item.get('rows', [])) + '</section>'
+        rows = item.get('rows', [])
+        count = len(rows)
+        count_meta = f'共 {esc(item["count"])} 条记录，本表列出前 {count} 条' if item.get('count', 0) > count else f'共 {count} 条记录'
+        if item.get('note'):
+            count_meta += f'　{esc(item["note"])}'
+        body += f'<section><h2>{esc(item.get("name") or item["table"])}</h2><p class="table-note">{count_meta}</p>' + table(rows) + '</section>'
 
     rows_to_render = report.get('main_rows') or report.get('rows') or []
     if rows_to_render and (not report.get('sections') or report.get('intent') == 'detail'):
@@ -786,582 +706,98 @@ def html_report(report, title):
         if metric.get('field'):
             labels[metric['field']] = metric.get('name') or metric['field']
         table_title = (report.get('plan') or {}).get('disp') or ('查询明细记录' if report.get('intent') == 'detail' else '数据明细')
-        body += f'<section class="report-section table-section"><h2 class="section-title"><span class="section-icon-box">{SVG_ICONS["table"]}</span><span>{esc(table_title)}</span></h2>' + table(rows_to_render, labels) + '</section>'
+        body += f'<section><h2>{esc(table_title)}</h2>' + table(rows_to_render, labels) + '</section>'
         if report.get('intent') == 'detail' and report.get('main_total', 0) > len(rows_to_render):
-            body += f'<p class="meta" style="margin-top: 8px; color: #64748b; font-size: 10px;">文件包含当前结果快照提供的 {len(rows_to_render)} 条记录，全部 {report.get("main_total", 0)} 条明细请在系统工作台分页查看。</p>'
+            body += f'<p class="footnote">本报告包含当前查询快照中的 {len(rows_to_render)} 条记录，全部 {report["main_total"]} 条明细可在工作台分页查看。</p>'
 
     boundary_notice = esc(report.get('boundary', '本报告只反映本地已同步记录，请结合来源口径核验。'))
-    ontology_str = esc(report.get('ontology_version', ''))
-    short_ont = ontology_str[:12] if len(ontology_str) > 12 else ontology_str
+    version = report.get('ontology_version')
+    version_html = f'<p>统计规则版本　{esc(version)}</p>' if version else ''
 
     watermarks = report.get('sync_watermarks', [])
     watermark_html = ''
     if watermarks and isinstance(watermarks, list):
-        chips = []
-        for w in watermarks[:4]:
-            job_name = esc(w.get('job', ''))
-            wm_val = esc(str(w.get('watermark') or ''))
-            chips.append(f'<span class="wm-chip"><strong>{job_name}</strong> {wm_val}</span>')
-        if chips:
-            watermark_html = f'<div class="wm-strip"><span class="wm-title">同步水位：</span>{" ".join(chips)}</div>'
+        records = '；'.join(f'{esc(w.get("job", ""))} {esc(w.get("watermark") or "")}' for w in watermarks[:4])
+        watermark_html = f'<p>同步记录　{records}</p>'
+
+    period_html = f'<div><dt>统计期间</dt><dd>{esc(span)}</dd></div>' if start_d else ''
 
     return f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>{esc(display_title)}</title>
 <style>
-  @page {{ size: A4; margin: 14mm 12mm; }}
+  @page {{ size: A4; margin: 17mm 16mm 18mm; }}
   * {{ box-sizing: border-box; }}
   body {{
-    font: 11px/1.65 "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", -apple-system, sans-serif;
-    color: #1e293b;
-    background: #ffffff;
     margin: 0;
-    padding: 0;
-  }}
-  .report-header {{
-    border-bottom: 2px solid #0f172a;
-    padding-bottom: 12px;
-    margin-bottom: 14px;
-  }}
-  .brand-bar {{
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
-  }}
-  .brand-badge {{
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #0f172a, #1e293b);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #38bdf8;
-    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
-  }}
-  .report-brand-icon {{
-    width: 18px;
-    height: 18px;
-  }}
-  .brand-text {{
-    flex: 1;
-  }}
-  .brand-org {{
-    display: block;
-    font-size: 11.5px;
-    font-weight: 700;
-    color: #0f172a;
-    letter-spacing: 0.3px;
-  }}
-  .brand-sub {{
-    display: block;
-    font-size: 9px;
-    color: #64748b;
-    margin-top: 1px;
-  }}
-  .report-tag {{
-    font-size: 9px;
-    font-weight: 600;
-    color: #0369a1;
-    background: #e0f2fe;
-    border: 1px solid #bae6fd;
-    padding: 2px 7px;
-    border-radius: 4px;
-    text-transform: uppercase;
-  }}
-  .report-title {{
-    font-size: 20px;
-    font-weight: 700;
-    color: #0f172a;
-    margin: 6px 0 8px;
-    line-height: 1.35;
-    letter-spacing: -0.3px;
-  }}
-  .meta-strip {{
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px 10px;
-    font-size: 9px;
-    color: #64748b;
-  }}
-  .meta-item {{
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-  }}
-  .meta-divider {{
-    color: #cbd5e1;
-  }}
-  .report-icon {{
-    width: 13px;
-    height: 13px;
-    vertical-align: -2px;
-  }}
-  .warning-banner {{
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    border: 1px solid #fde68a;
-    border-left: 4px solid #d97706;
-    background: #fffbeb;
-    border-radius: 6px;
-    padding: 9px 12px;
-    margin: 12px 0;
-    color: #92400e;
-    font-size: 10px;
-    line-height: 1.55;
-  }}
-  .warning-icon-box {{
-    color: #d97706;
-    margin-top: 1px;
-    flex-shrink: 0;
-  }}
-  .warning-icon-box .report-icon {{
-    width: 16px;
-    height: 16px;
-  }}
-  .warning-content strong {{
-    display: block;
-    font-size: 10.5px;
-    font-weight: 700;
-    margin-bottom: 2px;
-  }}
-  .warning-content p {{
-    margin: 0;
-  }}
-  .kpi-grid {{
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin: 14px 0 16px;
-    break-inside: avoid;
-  }}
-  .kpi-card {{
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    background: #ffffff;
-    padding: 9px 11px;
-    display: flex;
-    align-items: flex-start;
-    gap: 9px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-    position: relative;
-    overflow: hidden;
-  }}
-  .kpi-card::before {{
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 3px;
-    height: 100%;
-  }}
-  .kpi-card.tone-blue::before {{ background: #0284c7; }}
-  .kpi-card.tone-emerald::before {{ background: #059669; }}
-  .kpi-card.tone-teal::before {{ background: #0d9488; }}
-  .kpi-card.tone-indigo::before {{ background: #4f46e5; }}
-  .kpi-card.tone-amber::before {{ background: #d97706; }}
-  .kpi-card.tone-purple::before {{ background: #7c3aed; }}
-  .kpi-icon-wrap {{
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }}
-  .tone-blue .kpi-icon-wrap {{ background: #f0f9ff; color: #0284c7; }}
-  .tone-emerald .kpi-icon-wrap {{ background: #ecfdf5; color: #059669; }}
-  .tone-teal .kpi-icon-wrap {{ background: #f0fdfa; color: #0d9488; }}
-  .tone-indigo .kpi-icon-wrap {{ background: #eef2ff; color: #4f46e5; }}
-  .tone-amber .kpi-icon-wrap {{ background: #fffbeb; color: #d97706; }}
-  .tone-purple .kpi-icon-wrap {{ background: #faf5ff; color: #7c3aed; }}
-  .kpi-icon-wrap .report-icon {{ width: 14px; height: 14px; }}
-  .kpi-body {{ flex: 1; min-width: 0; }}
-  .kpi-label {{
-    font-size: 9px;
-    color: #64748b;
-    font-weight: 500;
-    margin-bottom: 2px;
-  }}
-  .kpi-val-row {{
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
-  }}
-  .kpi-val {{
-    font-size: 16px;
-    font-weight: 700;
-    color: #0f172a;
-    letter-spacing: -0.4px;
+    font: 10.5pt/1.65 "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+    color: #20262e;
     font-variant-numeric: tabular-nums;
   }}
-  .kpi-unit {{
-    font-size: 9px;
-    color: #64748b;
-    font-weight: 500;
+  .report-header {{ border-top: 2pt solid #263d56; padding-top: 10pt; margin-bottom: 15pt; }}
+  .organization {{ margin: 0; font-size: 10pt; color: #44515f; }}
+  h1 {{ font-size: 21pt; line-height: 1.32; margin: 6pt 0 8pt; overflow-wrap: anywhere; }}
+  .report-meta {{
+    display: flex; flex-wrap: wrap; gap: 2pt 20pt; margin: 0; padding-bottom: 8pt;
+    border-bottom: .5pt solid #a6afba; color: #44515f; font-size: 9pt;
   }}
-  .kpi-sub {{
-    font-size: 8.5px;
-    color: #94a3b8;
-    margin-top: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .report-meta > div {{ display: flex; gap: 6pt; }}
+  .report-meta dt {{ font-weight: 600; }}
+  .report-meta dd {{ margin: 0; }}
+  section {{ margin: 0 0 12pt; }}
+  h2 {{ margin: 13pt 0 5pt; font-size: 12pt; line-height: 1.45; color: #263d56; break-after: avoid; }}
+  p {{ margin: 0 0 5pt; overflow-wrap: anywhere; orphans: 2; widows: 2; }}
+  .claim-text {{ white-space: pre-line; }}
+  .simulation-note {{
+    border-left: 2pt solid #78501d; color: #5d411d; padding: 1pt 0 1pt 8pt;
+    margin: 0 0 12pt; font-size: 9.5pt; break-inside: avoid;
   }}
-  .report-section {{
-    margin-top: 14px;
-    break-inside: avoid;
+  table {{ width: 100%; border-collapse: collapse; font-size: 9pt; line-height: 1.45; }}
+  .data-table {{ table-layout: fixed; }}
+  thead {{ display: table-header-group; }}
+  tr {{ break-inside: avoid; }}
+  th, td {{ padding: 4pt 5pt; vertical-align: top; overflow-wrap: anywhere; }}
+  thead th {{
+    color: #263d56; background: #eef1f4; border-top: .75pt solid #7e8b9a;
+    border-bottom: .5pt solid #adb6c0; font-weight: 600; text-align: left;
   }}
-  .section-title {{
-    font-size: 12px;
-    font-weight: 700;
-    color: #0f172a;
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    border-bottom: 1.5px solid #e2e8f0;
-    padding-bottom: 5px;
-    margin: 0 0 8px;
-    break-after: avoid;
+  tbody td, tbody th {{ border-bottom: .5pt solid #d4dae0; }}
+  .metric-table th[scope="row"] {{ width: 28%; font-weight: 500; text-align: left; }}
+  .metric-value {{ width: 20%; font-weight: 600; }}
+  .idx-col {{ width: 29pt; text-align: center; }}
+  .idx-cell {{ text-align: center; color: #535f6d; }}
+  .num-cell {{ text-align: right; }}
+  .cell-flt {{ font-weight: 600; }}
+  .cell-empty {{ color: #5d6875; }}
+  .table-note, .table-sub-caption, .empty-hint, .footnote {{ font-size: 9pt; color: #4a5765; }}
+  .table-note, .table-sub-caption {{ break-after: avoid; }}
+  .table-sub-caption {{ margin: 7pt 0 3pt; }}
+  .footnote {{ margin-top: -7pt; }}
+  .source-note {{
+    margin-top: 9pt; border-top: .5pt solid #a6afba; color: #44515f; font-size: 9pt;
+    break-before: avoid; break-inside: avoid;
   }}
-  .section-icon-box {{
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: #475569;
-  }}
-  .section-icon-box .report-icon {{
-    width: 12px;
-    height: 12px;
-  }}
-  .claim-list {{
-    display: grid;
-    gap: 5px;
-    margin: 6px 0;
-  }}
-  .claim-item {{
-    display: flex;
-    align-items: flex-start;
-    gap: 7px;
-    font-size: 10px;
-    line-height: 1.65;
-    color: #334155;
-    background: #f8fafc;
-    border: 1px solid #f1f5f9;
-    border-radius: 6px;
-    padding: 6px 9px;
-  }}
-  .claim-bullet {{
-    color: #059669;
-    margin-top: 2px;
-    flex-shrink: 0;
-  }}
-  .claim-bullet-icon {{
-    width: 11px;
-    height: 11px;
-  }}
-  .claim-text {{
-    flex: 1;
-    overflow-wrap: anywhere;
-  }}
-  .sim-badge {{
-    font-size: 8.5px;
-    font-weight: 600;
-    color: #b45309;
-    background: #fef3c7;
-    border: 1px solid #fde68a;
-    padding: 1px 5px;
-    border-radius: 3px;
-    margin-left: 6px;
-  }}
-  .table-title-row {{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 4px;
-    break-after: avoid;
-  }}
-  .table-meta-badge {{
-    font-size: 8.5px;
-    color: #64748b;
-    background: #f1f5f9;
-    padding: 2px 6px;
-    border-radius: 4px;
-  }}
-  .table-note {{
-    font-size: 9px;
-    color: #64748b;
-    margin-bottom: 6px;
-  }}
-  .table-sub-caption {{
-    font-size: 8.5px;
-    color: #64748b;
-    margin: 5px 0 2px;
-    font-weight: 500;
-  }}
-  .table-wrap {{
-    margin: 6px 0 12px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-    break-inside: avoid;
-  }}
-  .data-table {{
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 8.5px;
-    table-layout: auto;
-    background: #ffffff;
-  }}
-  .data-table th {{
-    background: #0f172a;
-    color: #f8fafc;
-    font-weight: 600;
-    font-size: 8px;
-    letter-spacing: 0.2px;
-    text-align: left;
-    border: 1px solid #1e293b;
-    padding: 5px 6px;
-    white-space: nowrap;
-  }}
-  .data-table th.idx-col {{
-    width: 28px;
-    text-align: center;
-  }}
-  .data-table td {{
-    border: 1px solid #e2e8f0;
-    padding: 4.5px 6px;
-    vertical-align: middle;
-    font-size: 8.5px;
-    line-height: 1.4;
-    overflow-wrap: break-word;
-  }}
-  .data-table tbody tr:nth-child(even) {{
-    background: #f8fafc;
-  }}
-  .data-table tbody tr:hover {{
-    background: #f1f5f9;
-  }}
-  .idx-col {{
-    width: 28px;
-    text-align: center !important;
-  }}
-  .idx-cell {{
-    text-align: center;
-    color: #94a3b8;
-    font-weight: 500;
-    font-size: 8px;
-  }}
-  .num-cell {{
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-  }}
-  .cell-flt {{
-    font-weight: 700;
-    color: #0f172a;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 9px;
-  }}
-  .cell-time {{
-    font-weight: 600;
-    color: #0369a1;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 8.5px;
-  }}
-  .cell-delay {{
-    font-weight: 700;
-    color: #dc2626;
-    font-variant-numeric: tabular-nums;
-  }}
-  .cell-zero {{
-    color: #94a3b8;
-    font-variant-numeric: tabular-nums;
-  }}
-  .cell-empty {{
-    color: #cbd5e1;
-  }}
-  .badge-pill {{
-    display: inline-block;
-    padding: 1px 5px;
-    border-radius: 9999px;
-    font-size: 7.5px;
-    font-weight: 600;
-    line-height: 1.3;
-    white-space: nowrap;
-  }}
-  .badge-pill.tone-green {{
-    background: #ecfdf5;
-    color: #059669;
-    border: 1px solid #a7f3d0;
-  }}
-  .badge-pill.tone-amber {{
-    background: #fffbeb;
-    color: #d97706;
-    border: 1px solid #fde68a;
-  }}
-  .badge-pill.tone-blue {{
-    background: #f0f9ff;
-    color: #0284c7;
-    border: 1px solid #bae6fd;
-  }}
-  .badge-pill.tone-teal {{
-    background: #f0fdfa;
-    color: #0d9488;
-    border: 1px solid #99f6e4;
-  }}
-  .badge-pill.tone-indigo {{
-    background: #eef2ff;
-    color: #4f46e5;
-    border: 1px solid #c7d2fe;
-  }}
-  .badge-pill.tone-purple {{
-    background: #faf5ff;
-    color: #7c3aed;
-    border: 1px solid #e9d5ff;
-  }}
-  .badge-pill.tone-red {{
-    background: #fef2f2;
-    color: #dc2626;
-    border: 1px solid #fecaca;
-  }}
-  .badge-pill.tone-slate {{
-    background: #f1f5f9;
-    color: #475569;
-    border: 1px solid #cbd5e1;
-  }}
-  .answer-card {{
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 10px 12px;
-    margin: 8px 0;
-  }}
-  .answer-text {{
-    font-size: 10px;
-    line-height: 1.7;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    color: #1e293b;
-  }}
-  .benchmark-section {{
-    background: #fcfcfd;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-top: 14px;
-  }}
-  .benchmark-lead {{
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 9.5px;
-    font-weight: 600;
-    color: #0369a1;
-    margin-bottom: 4px;
-  }}
-  .boundary-card {{
-    margin-top: 18px;
-    border-top: 1.5px solid #cbd5e1;
-    padding-top: 10px;
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    color: #64748b;
-    font-size: 9px;
-    line-height: 1.6;
-    break-inside: avoid;
-  }}
-  .boundary-icon-box {{
-    color: #475569;
-    margin-top: 1px;
-    flex-shrink: 0;
-  }}
-  .boundary-icon-box .report-icon {{
-    width: 14px;
-    height: 14px;
-  }}
-  .boundary-text strong {{
-    display: block;
-    color: #334155;
-    font-weight: 600;
-    margin-bottom: 2px;
-  }}
-  .boundary-text p {{
-    margin: 0;
-  }}
-  .wm-strip {{
-    margin-top: 6px;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 4px 6px;
-    font-size: 8.5px;
-  }}
-  .wm-title {{
-    color: #94a3b8;
-  }}
-  .wm-chip {{
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    padding: 1px 5px;
-    border-radius: 3px;
-    color: #475569;
-  }}
-  .wm-chip strong {{
-    color: #1e293b;
-    font-weight: 600;
-  }}
-  .empty-hint {{
-    font-size: 9.5px;
-    color: #94a3b8;
-    padding: 6px 0;
-    margin: 4px 0;
-  }}
-  .meta {{
-    color: #64748b;
-    font-size: 9px;
-    margin-top: 6px;
-  }}
+  .source-note h2 {{ margin-top: 6pt; font-size: 10pt; }}
+  .source-note p {{ margin-bottom: 3pt; }}
+  .source-note p:last-child {{ margin-bottom: 0; }}
 </style>
 </head><body>
 <header class="report-header">
-  <div class="brand-bar">
-    <div class="brand-badge">{SVG_ICONS['brand']}</div>
-    <div class="brand-text">
-      <span class="brand-org">湖北机场集团 · 武汉天河国际机场 (WUH)</span>
-      <span class="brand-sub">A-CDM 运行协同决策系统 · 智能运营分析简报</span>
-    </div>
-    <div class="report-tag">官方运营简报</div>
-  </div>
-  <h1 class="report-title">{esc(display_title)}</h1>
-  <div class="meta-strip">
-    <span class="meta-item">{SVG_ICONS['calendar']} 生成时间：{esc(gen_display)}</span>
-    <span class="meta-divider">·</span>
-    <span class="meta-item">{SVG_ICONS['shield']} 本体版本：{short_ont}</span>
-    <span class="meta-divider">·</span>
-    <span class="meta-item">{SVG_ICONS['info']} 观测范围：{esc(report.get('boundary', '已同步数据窗口')[:30])}</span>
-  </div>
+  <p class="organization">湖北机场集团 · 武汉天河国际机场（WUH）</p>
+  <h1>{esc(display_title)}</h1>
+  <dl class="report-meta">
+    {period_html}
+    <div><dt>生成时间</dt><dd>{esc(gen_display)}</dd></div>
+  </dl>
 </header>
 {warning}
-{kpi_grid}
+{metric_table}
 {body}
-<div class="boundary-card">
-  <div class="boundary-icon-box">{SVG_ICONS['shield']}</div>
-  <div class="boundary-text">
-    <strong>数据同步范围与合规声明</strong>
-    <p>{boundary_notice}</p>
-    {watermark_html}
-  </div>
-</div>
+<section class="source-note">
+  <h2>数据范围与说明</h2>
+  <p>{boundary_notice}</p>
+  {version_html}
+  {watermark_html}
+</section>
 </body></html>'''
 
 
@@ -1374,9 +810,10 @@ def render_pdf(html):
             page.route('**/*', lambda route: route.abort())
             page.set_content(html, wait_until='load', timeout=30000)
             page.evaluate('document.fonts.ready')
-            return page.pdf(format='A4', print_background=True, display_header_footer=True,
-                            header_template='<span></span>', footer_template='<div style="width:100%;text-align:center;font-size:8px;color:#526874"><span class="pageNumber"></span> / <span class="totalPages"></span></div>',
-                            margin={'top': '18mm', 'bottom': '18mm', 'left': '14mm', 'right': '14mm'})
+            return page.pdf(format='A4', prefer_css_page_size=True, print_background=True, display_header_footer=True,
+                            header_template='<span></span>',
+                            footer_template='<div style="width:100%;text-align:center;font:9pt Microsoft YaHei,sans-serif;color:#44515f">第 <span class="pageNumber"></span> 页 / 共 <span class="totalPages"></span> 页</div>',
+                            margin={'top': '17mm', 'bottom': '18mm', 'left': '16mm', 'right': '16mm'})
         finally:
             browser.close()
 

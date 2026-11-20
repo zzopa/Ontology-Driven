@@ -42,7 +42,7 @@ type MetricData = {
 
 function parseMetricLine(line: string): MetricData | null {
   const m = line.match(
-    /^([^·•:：\n]+?)(?:\s*[·•]\s*([^:：\n]+?))?\s*[:：]\s*([+-]?[0-9.,]+|未能计算(?:[^。，,\n]+)?|-|—)(?:\s*([^\s（()）\n]+))?(?:\s*[（(]([^）)]+)[）)])?\.?$/
+    /^([^·•:：\n]+?)(?:\s*[·•]\s*([^:：\n]+?))?\s*[:：]\s*(\d{4}-\d{2}-\d{2}|[+-]?[0-9.,]+|未能计算(?:[^。，,\n]+)?|-|—)(?:\s*([^\s（()）。\n]+))?(?:\s*[（(]([^）)]+)[）)])?[。.]?$/
   );
   if (!m) return null;
   const name = m[1].trim();
@@ -123,6 +123,7 @@ function getMetricTone(name: string): "blue" | "green" | "purple" | "amber" | "n
 }
 
 function getMetricIcon(name: string) {
+  if (/业务日$/.test(name)) return Calendar;
   if (/计划/.test(name)) return CalendarClock;
   if (/实际|执行|执飞|起飞|到达/.test(name)) return Plane;
   if (/时长|时间|靠位|撤轮挡|周转/.test(name)) return Clock3;

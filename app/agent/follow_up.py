@@ -93,12 +93,14 @@ class FollowUpNormalizer:
             modified = True
 
         # 5. Delta check: Time period replacement
-        new_period = planner.period(question)
+        new_period = planner.period_bounds(question)
         time_table = plan.get('aggregate_target') or subject
         time_field = catalog.entities[time_table]['bindings'].get('time')
         if new_period and time_field:
             conditions = [c for c in plan.get('conditions', []) if c.get('col') != time_field]
-            conditions.append({'table': time_table, 'col': time_field, 'op': 'prefix', 'value': new_period})
+            kind, start, end = new_period
+            bounds = [('>=', start), ('<', end)] if kind == 'range' else [('prefix', start)]
+            conditions.extend({'table': time_table, 'col': time_field, 'op': op, 'value': value} for op, value in bounds)
             plan['conditions'] = conditions
             modified = True
 

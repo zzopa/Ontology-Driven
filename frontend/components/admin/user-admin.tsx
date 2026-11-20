@@ -27,7 +27,7 @@ import {
   type User,
 } from "@/lib/admin";
 import { request } from "@/lib/api";
-import { Badge, Button, Card, Modal } from "../ui";
+import { Badge, Button, Card, Modal, Notice } from "../ui";
 import { Empty, Loading, Pagination, useAction, useResource } from "./shared";
 
 const SCOPE_TYPE_OPTIONS = [
@@ -76,6 +76,14 @@ export function UserAdminPanel({ current }: { current: User }) {
 
   // Password reset state
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const passwordMismatch = Boolean(confirmPassword) && newPassword !== confirmPassword;
+  const canResetPassword = Boolean(newPassword) && newPassword === confirmPassword && !action.busy;
+  const closePasswordReset = useCallback(() => {
+    setPwdUser(null);
+    setNewPassword("");
+    setConfirmPassword("");
+  }, []);
 
   const roles = rolesRes.data?.items || [];
   const profiles = profilesRes.data?.items || [];
@@ -418,10 +426,8 @@ export function UserAdminPanel({ current }: { current: User }) {
                           <Button
                             variant="ghost"
                             aria-label={`重置密码 ${item.username}`}
-                            onClick={() => {
-                              setNewPassword("");
-                              setPwdUser(item);
-                            }}
+                            disabled={action.busy}
+                            onClick={() => setPwdUser(item)}
                           >
                             <KeyRound size={13} />
                           </Button>
@@ -880,17 +886,18 @@ export function UserAdminPanel({ current }: { current: User }) {
         <Modal
           title={`重置密码 · ${pwdUser.username}`}
           subtitle={`为用户「${pwdUser.display_name}」设置新的登录密码`}
-          onClose={() => setPwdUser(null)}
+          onClose={closePasswordReset}
         >
           <form
             onSubmit={e => {
               e.preventDefault();
+              if (!canResetPassword) return;
               action.run(async () => {
                 await request(`/api/admin/users/${pwdUser.id}/password`, {
                   method: "PUT",
                   body: JSON.stringify({ password: newPassword }),
                 });
-                setPwdUser(null);
+                closePasswordReset();
               }, `用户「${pwdUser.username}」密码已重置`);
             }}
           >
@@ -898,6 +905,7 @@ export function UserAdminPanel({ current }: { current: User }) {
               新密码 *
               <input
                 type="password"
+                autoComplete="new-password"
                 required
                 minLength={6}
                 maxLength={72}
@@ -906,10 +914,25 @@ export function UserAdminPanel({ current }: { current: User }) {
                 onChange={e => setNewPassword(e.target.value)}
               />
             </label>
+            <label className="form-field" style={{ marginBottom: "16px" }}>
+              确认新密码 *
+              <input
+                type="password"
+                autoComplete="new-password"
+                required
+                maxLength={72}
+                placeholder="再次输入新密码"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                aria-invalid={passwordMismatch || undefined}
+                aria-describedby={passwordMismatch ? "reset-password-mismatch" : undefined}
+              />
+            </label>
+            {passwordMismatch && <div id="reset-password-mismatch"><Notice error>两次输入的密码不一致。</Notice></div>}
             {action.feedback}
             <div className="modal-actions">
-              <Button onClick={() => setPwdUser(null)}>取消</Button>
-              <Button type="submit" variant="primary" disabled={action.busy}>
+              <Button onClick={closePasswordReset}>取消</Button>
+              <Button type="submit" variant="primary" disabled={!canResetPassword}>
                 <KeyRound size={13} /> 确认重置密码
               </Button>
             </div>

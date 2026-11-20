@@ -421,7 +421,7 @@ def fallback_claims(catalog, plan, evidence, main_total):
                     else:
                         parts_note.append(f'分子 {num_v}，分母 {den_v}')
                 if 'n' in values:
-                    parts_note.append(f'参与 {values["n"]} 条记录')
+                    parts_note.append(f'匹配 {values["n"]} 条记录')
                 note_str = f"（{'，'.join(parts_note)}）" if parts_note else ''
                 text = '%s%s为 %s%s%s。' % (
                     (group_text + '：') if group_text else '', m_name,

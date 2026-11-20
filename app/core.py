@@ -1405,7 +1405,7 @@ def do_ask(conn,text,on_event=None,use_model=True,use_cache=True,trace=None,acce
         if intent not in ('detail', 'acdm_report'):
             output['field_meta'].update(field_meta(catalog,[aggregate_table]))
             output['field_meta'][aggregate_table].update({
-                'n':{'label':'参与记录数'}, 'total':{'label':(metric or {}).get('name','合计'),
+                'n':{'label':'匹配记录数'}, 'total':{'label':(metric or {}).get('name','合计'),
                                                   'unit':(metric or {}).get('unit','')},
                 'mx':{'label':'单笔最大'}, 'missing':{'label':'金额为空记录数'},
                 'invalid':{'label':'无效金额记录数'}, '__period':{'label':'统计期间'}})

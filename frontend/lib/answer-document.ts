@@ -5,6 +5,12 @@ const TITLES: Record<AnswerKind, string> = {
   limitations: "证据边界", recommendations: "核对建议（非已证实事实）",
 };
 
+export function displayAnswer(result: Pick<QueryResult, "answer" | "intent" | "outcome">) {
+  return result.intent === "notice" && result.outcome === "unsupported"
+    ? result.answer.replace(/^当前输入问题未匹配到业务本体对照，回复回复不了。/, "当前数据查询暂不支持这个问题。")
+    : result.answer;
+}
+
 // A malformed or older snapshot must show its original answer, not a subset.
 export function answerSections(result: Pick<QueryResult, "claims" | "answer_document">) {
   const doc = result.answer_document, claims = result.claims || [];

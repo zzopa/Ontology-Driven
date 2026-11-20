@@ -37,6 +37,7 @@ import {
   type ClarificationRef,
 } from "@/lib/chat-thread";
 import { composeQuestion, type QueryForm } from "@/lib/query";
+import { displayAnswer } from "@/lib/answer-document";
 import type { Status } from "@/lib/types";
 import type { Auth, Conversation, ConversationDetail, Paged, User } from "@/lib/admin";
 import { ConversationsPanel } from "./admin/conversations";
@@ -162,16 +163,6 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
     return () => { active = false; clearInterval(timer); };
   }, [auth?.user?.can_manage, status?.data_source, reportCenter]);
 
-  useEffect(() => {
-    if (!activeTurnId) return;
-    const started = Date.now();
-    const timer = setInterval(() => {
-      const secs = (Date.now() - started) / 1000;
-      setTurns(prev => prev.map(t => t.id === activeTurnId ? { ...t, elapsed: secs } : t));
-    }, 250);
-    return () => clearInterval(timer);
-  }, [activeTurnId]);
-
   const latestTurn = turns.at(-1);
   useEffect(() => {
     const el = chatScrollRef.current;
@@ -195,20 +186,29 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
     setActiveTurnId(turnId);
     setInspectedTurnId(turnId);
     setSnapshot(false);
+    const started = performance.now();
+    const elapsedSeconds = () => (performance.now() - started) / 1000;
+    const timer = setInterval(() => {
+      const elapsed = elapsedSeconds();
+      setTurns(prev => prev.map(t => t.id === turnId && !t.result ? { ...t, elapsed } : t));
+    }, 250);
     try {
       await streamQuestion(value, abort.current.signal, event => {
         if (!mounted.current) return;
+        const elapsed = elapsedSeconds();
         if (event.conversation_id) setConversationId(event.conversation_id);
         if (event.type === "result" && event.data?.conversation_id) setConversationId(event.data.conversation_id);
-        setTurns(prev => prev.map(t => t.id === turnId ? applyTurnEvent(t, event) : t));
+        setTurns(prev => prev.map(t => t.id === turnId ? applyTurnEvent(t, event, elapsed) : t));
       }, conversationId, clarification, dayMode === "OPERATIONAL" ? "OPERATIONAL" : undefined);
     } catch (e) {
       if (mounted.current) {
         const interrupted = e instanceof Error && e.name === "AbortError";
         const message = interrupted ? "已停止等待，后台查询可能仍在完成。" : e instanceof Error ? e.message : "查询失败，请重试";
-        setTurns(prev => prev.map(t => t.id === turnId ? failChatTurn(t, message, interrupted) : t));
+        const elapsed = elapsedSeconds();
+        setTurns(prev => prev.map(t => t.id === turnId ? failChatTurn({ ...t, elapsed }, message, interrupted) : t));
       }
     } finally {
+      clearInterval(timer);
       if (mounted.current) {
         setActiveTurnId(null);
         refresh();
@@ -310,7 +310,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
   const turnaround = inspectedTurn?.result?.visual_meta?.kind === "turnaround_gantt" ? inspectedTurn.result.visual_meta : null;
   const inspectedTitle = inspectedTurn?.result?.visual_meta?.kind === "turnaround_gantt"
     ? `${inspectedTurn.result.visual_meta.flight_pair} · 过站保障 · ${inspectedTurn.result.visual_meta.flight_date}`
-    : "查询结果";
+    : inspectedTurn?.displayQuestion || "查询结果";
 
   const closeSystem = useCallback(() => setSystemModal(false), []);
   const closeHelp = useCallback(() => setHelpModal(false), []);
@@ -541,7 +541,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                                 && new Set(turn.result.sections.map(item => item.period.join(":"))).size === 1
                               ? <AirportBenchmark result={turn.result} compact />
                               : turn.result.sections?.length ? <AnalysisHighlights sections={turn.result.sections} compact />
-                              : <div className={s.botText}><BotMessageContent text={turn.result.answer} /></div>
+                              : <div className={s.botText}><BotMessageContent text={displayAnswer(turn.result)} /></div>
                           )}
 
                           {Boolean(turn.result?.clarification?.options.length) && (
@@ -585,7 +585,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                               {turn.result?.sections?.length ? `${turn.result.sections.length} 项结果`
                                 : typeof turn.result?.main_total === "number" && turn.result.main_total > 0
                                 ? `命中 ${turn.result.main_total.toLocaleString()} 条`
-                                : turn.result?.source || "实时库"}
+                                : null}
                             </span>
                             <button type="button" className={`${s.inspectTrigger} ${isInspected ? s.inspectTriggerActive : ""}`}
                               aria-current={isInspected ? "true" : undefined}
@@ -703,6 +703,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean }) {
                       busy: inspectedTurn.id === activeTurnId && busy,
                       steps: inspectedTurn.steps,
                       elapsed: inspectedTurn.elapsed,
+                      firstOutputElapsed: inspectedTurn.firstOutputElapsed,
                       progress: inspectedTurn.progress,
                       delta: inspectedTurn.delta,
                       error: inspectedTurn.error || "",

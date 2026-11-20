@@ -36,10 +36,10 @@
 .focused .row{min-height:44px}
 .focused .lane{min-height:44px;margin:0}
 .focused .gridLine{border-left-style:solid;opacity:.6}
-.focused .plannedBar{top:12px;height:22px;border:0;background:var(--line);border-radius:3px}
-.focused .actualBar{top:12px;height:22px;border:0;border-radius:3px;background:var(--row-color);display:flex;align-items:center;justify-content:center;overflow:hidden}
-.barLabel{font-size:12px;font-weight:500;white-space:nowrap;color:var(--on-accent);padding-inline:4px}
-.focused .startPoint,.focused .endPoint{top:18px}
+.focused .plannedBar{top:23px;height:14px;border:0;background:var(--line)}
+.focused .actualBar{top:23px;height:14px;border:0;background:var(--row-color)}
+.actualLabel{position:absolute;top:3px;z-index:2;width:max-content;padding-inline:4px;border-radius:3px;color:var(--text);background:var(--panel);font-size:12px;font-weight:600;line-height:18px;white-space:nowrap}
+.focused .startPoint,.focused .endPoint{top:25px}
 .focused .targetTag{font-size:10px}
 .focused .chartFootnote{font-size:11px;padding:8px 20px}
 .focused .explanation{margin:12px 20px;font-size:12px;background:var(--panel)}

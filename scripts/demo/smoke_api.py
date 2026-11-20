@@ -12,7 +12,7 @@ CLIENT = local()
 
 
 def request(path,body):
-    req=urllib.request.Request('http://127.0.0.1:8088'+path,
+    req=urllib.request.Request('http://127.0.0.1:5010'+path,
         data=json.dumps(body,ensure_ascii=False).encode(),headers={'Content-Type':'application/json','X-Hbask-Request':'1'})
     if not hasattr(CLIENT, 'opener'):
         CLIENT.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))

@@ -1,0 +1,3 @@
+# 纯运行环境镜像，只需要 requirements.txt，忽略其余目录以加速构建
+*
+!requirements.txt

@@ -66,6 +66,7 @@ app.include_router(report_router)
 # Next.js static export; business APIs stay same-origin on the existing FastAPI port.
 app.mount('/_next', StaticFiles(directory=settings.page_path.parent / '_next', check_dir=False), name='next-assets')
 app.mount('/brand', StaticFiles(directory=settings.page_path.parent / 'brand', check_dir=False), name='brand-assets')
+app.mount('/swarm', StaticFiles(directory=settings.page_path.parent / 'swarm', check_dir=False), name='swarm-assets')
 
 
 @app.exception_handler(HTTPException)

@@ -2,6 +2,8 @@
 from datetime import date, datetime, timedelta, timezone
 import re
 
+from app.agent.coordinator_lexicon import MONTH_YEAR_PERIOD, month_year_window
+
 
 def flight_sequence(question, catalog):
     if 'ops_ask_views.flight_execution' not in catalog.entities or '航班' not in question:
@@ -32,12 +34,15 @@ def parse_question(question, catalog):
         descending = any(word in alias for word in ('最后', '最晚', '最迟', '末班'))
         plan.update(order_by=[{'field': 'execution_time', 'direction': 'desc' if descending else 'asc'}],
                     limit=1, flight_sequence='last' if descending else 'first')
-    period = re.search(r'今天|昨天|前天|最近7天|\d{4}-\d{2}-\d{2}', text)
+    period = re.search(rf'今天|昨天|前天|最近7天|\d{{4}}-\d{{2}}-\d{{2}}|{MONTH_YEAR_PERIOD}', text)
     if period:
         value = period.group()
         text = text[:period.start()] + text[period.end():]
         today = datetime.now(timezone(timedelta(hours=8))).date()
-        if value == '最近7天':
+        month_year = month_year_window(value, today)
+        if month_year:
+            start, end = map(date.fromisoformat, month_year[0])
+        elif value == '最近7天':
             start, end = today - timedelta(days=6), today + timedelta(days=1)
         else:
             start = today - timedelta(days={'今天':0,'昨天':1,'前天':2}[value]) if value in {'今天','昨天','前天'} else date.fromisoformat(value)

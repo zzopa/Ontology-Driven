@@ -24,7 +24,7 @@ def preview_app():
 
     @app.get('/')
     def original_service():
-        return RedirectResponse('http://127.0.0.1:8088/')
+        return RedirectResponse('http://127.0.0.1:5010/')
 
     @app.get('/api/auth/status')
     def auth():

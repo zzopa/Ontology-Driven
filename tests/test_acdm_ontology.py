@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -5,6 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from app.acdm_ontology import parse_question
+from app.agent.coordinator_lexicon import BEIJING
 from app.config import load_settings, ROOT
 
 
@@ -46,6 +48,24 @@ class ACDMOntologyTests(unittest.TestCase):
         for question in ['2026-10-09国航计划航班量','2025-10-09计划航班量','计划航班量','2026-10-09进港和出港计划航班量']:
             with self.subTest(question=question), self.assertRaises(ValueError):
                 parse_question(question,self.catalog)
+
+    def test_month_and_year_bounds_in_fallback_planners(self):
+        from app.planner import Planner
+
+        anchor = datetime(2026, 11, 18, tzinfo=BEIJING)
+        planner = Planner.__new__(Planner)
+        catalog = SimpleNamespace(overrides={**self.catalog.overrides, 'coverage': {}}, entities=self.catalog.entities)
+        with patch('app.acdm_ontology.datetime', wraps=datetime) as offline_clock, \
+             patch('app.planner.datetime', wraps=datetime) as planner_clock:
+            offline_clock.now.return_value = planner_clock.now.return_value = anchor
+            for phrase, start in (('本月', '2026-11-01'), ('一个月', '2026-10-20'),
+                                  ('本年', '2026-01-01'), ('一年', '2025-11-19')):
+                with self.subTest(phrase=phrase):
+                    question = phrase + '执行航班量'
+                    self.assertEqual(planner.period_bounds(question), ('range', start, '2026-11-19'))
+                    plan = parse_question(question, catalog)
+                    self.assertEqual([(c['op'], c['value']) for c in plan['conditions']],
+                                     [('>=', start), ('<', '2026-11-19')])
 
     def test_model_calls_blocked_before_network(self):
         from app import llm

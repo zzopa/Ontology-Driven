@@ -32,6 +32,36 @@ class AnalysisTests(unittest.TestCase):
             self.assertTrue(any(c.get('value') in ('D', 'DEP') for c in q['plan']['conditions']))
             Compiler(self.catalog).validate(q['plan'])
 
+    def test_month_and_year_windows_in_analysis_and_followup(self):
+        with patch('app.agent.coordinator.datetime', wraps=datetime) as clock:
+            clock.now.return_value = datetime(2026, 11, 18, 16, tzinfo=BEIJING)
+            for phrase, start in (('本月', '2026-11-01'), ('一个月', '2026-10-20'),
+                                  ('本年', '2026-01-01'), ('一年', '2025-11-19')):
+                with self.subTest(phrase=phrase):
+                    plan = self.coordinator.plan(phrase + '计划航班量和实际执行航班量各是多少')
+                    self.assertEqual(plan.get('intent'), 'analysis', plan.get('answer'))
+                    self.assertEqual([q['period'] for q in plan['queries']], [[start, '2026-11-19']] * 2)
+            followup = self.coordinator.plan('那一个月呢？', previous_plan=plan)
+            self.assertEqual(followup.get('intent'), 'analysis', followup.get('answer'))
+            self.assertEqual([q['period'] for q in followup['queries']], [['2026-10-20', '2026-11-19']] * 2)
+            rolling = self.coordinator.plan('过去一年实际执行航班量环比')
+            self.assertEqual(rolling.get('comparison_mode'), 'mom', rolling.get('answer'))
+            self.assertEqual([q['period'] for q in rolling['queries']],
+                             [['2025-11-18', '2026-11-18'], ['2024-11-18', '2025-11-18']])
+            board = self.coordinator.plan('生成本年A-CDM通用报告')
+            self.assertEqual(board.get('intent'), 'acdm_report', board.get('answer'))
+            self.assertEqual((board['report_start'], board['report_end']), ('2026-01-01', '2026-11-18'))
+
+    def test_month_and_year_windows_across_leap_day(self):
+        anchor = datetime(2024, 2, 29, tzinfo=BEIJING)
+        self.assertEqual(windows('本月截至今天', anchor), ([('2024-02-01', '2024-03-01')], 'month'))
+        self.assertEqual(windows('一个月', anchor), ([('2024-01-31', '2024-03-01')], 'range'))
+        self.assertEqual(windows('本年', anchor), ([('2024-01-01', '2024-03-01')], 'year'))
+        self.assertEqual(windows('一年', anchor), ([('2023-03-02', '2024-03-01')], 'range'))
+        for text in ('一年后', '超过一年', '一年以上', '每年', '上一年'):
+            with self.subTest(text=text):
+                self.assertEqual(windows(text, anchor)[0], [])
+
     def test_unknown_filter_is_not_dropped(self):
         p = self.coordinator.plan('2026-11-10计划量和执行量排除神秘航班状态XYZ')
         self.assertEqual(p['outcome'], 'clarification_needed')

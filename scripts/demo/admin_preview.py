@@ -23,7 +23,7 @@ from app.metadata import save_snapshot
 
 
 def main():
-    # Cookies are scoped by host, not port: never overwrite the 8088 credential.
+    # Cookies are scoped by host, not port: never overwrite the 5010 credential.
     business_access.COOKIE = auth.COOKIE = api.COOKIE = 'hbask_preview_session'
     with TemporaryDirectory(prefix='hbask-admin-ui-') as directory:
         root = Path(directory)

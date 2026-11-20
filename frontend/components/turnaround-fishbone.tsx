@@ -43,7 +43,7 @@ export function TurnaroundFishbone({ data, operations }: { data: VisualTurnaroun
         })}
         {target !== null && <>
           <span className={s.targetLine} style={{ left: `${3 + target * .94}%` }} aria-hidden="true" />
-          <span className={s.targetLabel} style={{ left: `${Math.max(8, Math.min(92, 3 + target * .94))}%` }}>TOBT {data.milestones.tobt}<small>目标撤轮挡</small></span>
+          <span className={s.targetLabel} title="TOBT" style={{ left: `${Math.max(8, Math.min(92, 3 + target * .94))}%` }}>{data.milestones.tobt}<small>目标撤轮挡</small></span>
         </>}
         {observed !== null && <span className={s.observed} style={{ left: `${3 + observed * .94}%`, top: layout.axisY - 24 }}><small>观测 {data.milestones.current_time}</small></span>}
         {layout.positioned.map(node => <div key={node.operation.id}>

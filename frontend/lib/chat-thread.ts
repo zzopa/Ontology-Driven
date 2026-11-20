@@ -13,6 +13,7 @@ export type ChatTurn = {
   steps: ExecutionStep[];
   delta: string;
   elapsed: number;
+  firstOutputElapsed?: number;
   progress: { stage: string; percent: number; message: string };
   clarification?: ClarificationRef;
   createdAt?: string;
@@ -47,7 +48,7 @@ export function createChatTurn(
   };
 }
 
-export function applyTurnEvent(turn: ChatTurn, event: StreamEvent): ChatTurn {
+export function applyTurnEvent(turn: ChatTurn, event: StreamEvent, elapsed?: number): ChatTurn {
   if (event.type === "progress") {
     return {
       ...turn,
@@ -62,12 +63,21 @@ export function applyTurnEvent(turn: ChatTurn, event: StreamEvent): ChatTurn {
     return { ...turn, steps: updateStep(turn.steps, event.step) };
   }
   if (event.type === "answer_delta") {
-    return { ...turn, delta: turn.delta + (event.delta || "") };
+    const delta = event.delta || "";
+    return {
+      ...turn,
+      delta: turn.delta + delta,
+      firstOutputElapsed: turn.firstOutputElapsed ?? (delta.trim() ? elapsed : undefined),
+    };
   }
   if (event.type === "query_result" && event.section) {
     const item = event.section;
     const text = item.value == null ? item.result.answer : `${item.value} ${item.unit}`;
-    return { ...turn, delta: turn.delta + `${item.label}：${text}${item.is_simulated ? "（模拟测试数据）" : ""}\n` };
+    return {
+      ...turn,
+      delta: turn.delta + `${item.label}：${text}${item.is_simulated ? "（模拟测试数据）" : ""}\n`,
+      firstOutputElapsed: turn.firstOutputElapsed ?? elapsed,
+    };
   }
   if (event.type === "answer_error") {
     return {
@@ -80,7 +90,8 @@ export function applyTurnEvent(turn: ChatTurn, event: StreamEvent): ChatTurn {
       ...turn,
       result: event.data,
       steps: event.data.execution_trace || turn.steps,
-      elapsed: event.data.elapsed ?? turn.elapsed,
+      elapsed: elapsed ?? turn.elapsed,
+      firstOutputElapsed: turn.firstOutputElapsed ?? elapsed,
     };
   }
   return turn;
@@ -116,7 +127,7 @@ export function turnsFromMessages(messages: Message[]): ChatTurn[] {
     error: m.error || (m.status === "running" ? "此查询仍在后台执行，请稍后重新打开会话。" : ""),
     steps: m.execution_trace || m.result?.execution_trace || [],
     delta: "",
-    elapsed: m.result?.elapsed ?? 0,
+    elapsed: 0,
     progress: { stage: "done", percent: 100, message: m.result ? "查询已完成" : "查询未完成" },
     createdAt: m.created_at,
     isHistorical: true,

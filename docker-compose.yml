@@ -1,0 +1,50 @@
+services:
+  web:
+    image: ops-ask-runtime:1.0
+    container_name: ops-ask-web
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      TZ: Asia/Shanghai
+      HBASK_DATA_SOURCE: ops_ask
+      HBASK_HOST: 0.0.0.0
+      HBASK_PORT: "5010"
+    ports:
+      - "5010:5010"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./ask_web.py:/app/ask_web.py:ro
+      - ./app:/app/app:ro
+      - ./scripts:/app/scripts:ro
+      - ./frontend/out:/app/frontend/out:ro
+      - ./config.json:/app/config.json:ro
+      - ./config.local.json:/app/config.local.json:ro
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5010/api/status', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  report-worker:
+    image: ops-ask-runtime:1.0
+    container_name: ops-ask-report-worker
+    restart: unless-stopped
+    working_dir: /app
+    command: ["python", "-X", "utf8", "-m", "app.report_worker"]
+    environment:
+      TZ: Asia/Shanghai
+      HBASK_DATA_SOURCE: ops_ask
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./app:/app/app:ro
+      - ./scripts:/app/scripts:ro
+      - ./frontend/out:/app/frontend/out:ro
+      - ./config.json:/app/config.json:ro
+      - ./config.local.json:/app/config.local.json:ro
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts

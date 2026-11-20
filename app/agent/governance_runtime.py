@@ -270,7 +270,7 @@ def render_template_summary(catalog: Any, plan: dict[str, Any], evidence: dict[s
         if vars_map['unit'] and not rendered.endswith(vars_map['unit']) and '{unit}' not in raw_tpl and '{{unit}}' not in raw_tpl:
             rendered = f"{rendered} {vars_map['unit']}"
         if 'n' in values and '条' not in rendered:
-            rendered = f"{rendered}（参与 {values['n']} 条记录）。"
+            rendered = f"{rendered}（匹配 {values['n']} 条记录）。"
         elif not rendered.endswith('。'):
             rendered += '。'
         return rendered

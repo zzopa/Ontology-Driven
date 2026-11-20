@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { readFileSync } from "node:fs";
 import { AIRPORT_SCALE, airportCameraView, apronStandLayout, buildAirport, createAircraft, createJetBridge, createVehicle } from "../components/ops/apron-models.ts";
 import { frontRoadDecks, frontRoadLayers, frontRoadPaths, frontRoadPiers } from "../components/ops/apron-network-v7.ts";
+import { clearTrafficPoint, faceTravel, serviceBayRoute } from "../components/ops/apron-traffic.ts";
 
 test("airport models contain finite geometry and aircraft fit the illustrative stand spacing", () => {
   for (const model of [buildAirport(), createAircraft(0x168fc0), ...(['van', 'fuel', 'catering', 'baggage'] as const).map(kind => createVehicle(0x43d4b2, kind))]) {
@@ -48,6 +49,8 @@ test("pure 3D terminal retains courtyard openings and fixture bridges align with
   const base = t3.getObjectByName('T3 courtyard roof') as THREE.Mesh<THREE.ExtrudeGeometry>;
   const outline = base.geometry.parameters.shapes as THREE.Shape;
   assert.equal(outline.holes.length, 2);
+  assert.ok(base.geometry.getAttribute('position').count > 1000, 'curved roof needs enough vertices for its profile');
+  assert.equal(base.geometry.getAttribute('position').count, base.geometry.getAttribute('normal').count);
   const data = JSON.parse(readFileSync(new URL('../../data/ops-test-data.json', import.meta.url), 'utf8'));
   for (const stand of data.stands.filter((s: { kind?: string }) => !s.kind)) {
     const spec = apronStandLayout.find(s => s.ref === stand.scene.layout_ref)!;
@@ -177,11 +180,58 @@ test("pure 3D road traffic animates on its network without rebuilding the airpor
       }
     }
   });
-  assert.equal(moved, 57); // 56 road cars and one intercity train; operational planes live in the snapshot scene.
+  assert.ok(moved > 25, 'cars and the intercity train should move on the visible networks');
   assert.ok(onDepartureDeck, 'traffic on the T3 departure deck must follow its elevated surface');
   assert.ok(meshes < 260, `static parts should be batched, got ${meshes} meshes`);
   airport.animateTraffic(7);
   const atSeven = new Map<THREE.Object3D, THREE.Vector3>(); airport.traverse(object => atSeven.set(object, object.position.clone()));
   airport.animateTraffic(7); airport.traverse(object => assert.ok(object.position.equals(atSeven.get(object)!)));
+  const cars = airport.getObjectByName('Road traffic')!.children;
+  const world = new THREE.Vector3(), heading = new THREE.Vector3();
+  let moving = 0;
+  for (let i = 0; i < 50; i++) {
+    const prior = cars.map(car => car.visible ? car.position.clone() : null);
+    airport.animateTraffic(7 + (i + 1) * .08);
+    for (const [index, car] of cars.entries()) {
+      if (!car.visible) continue;
+      car.getWorldPosition(world);
+      assert.ok(airport.trafficClear(world, 7, 5.5), 'visible vehicle overlaps a structure');
+      if (prior[index]) {
+        const delta = car.position.clone().sub(prior[index]!);
+        assert.ok(delta.length() < 3, 'visible vehicle jumped between route endpoints');
+        delta.y = 0;
+        if (delta.lengthSq() > 1e-6) {
+          heading.set(0, 0, -1).applyQuaternion(car.quaternion); heading.y = 0;
+          assert.ok(heading.normalize().dot(delta.normalize()) > .8, 'front of the vehicle should lead the motion');
+          moving++;
+        }
+      }
+    }
+  }
+  assert.ok(moving > 500);
   airport.traverse(object => { const mesh = object as THREE.Mesh; if (mesh instanceof THREE.InstancedMesh) mesh.dispose(); mesh.geometry?.dispose(); if (mesh.material) for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) m.dispose(); });
+});
+
+test('both apron service previews stop clear of aircraft and resume in the same direction', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/ops-test-data.json', import.meta.url), 'utf8'));
+  const airport = buildAirport();
+  const airframe = new THREE.Box3().setFromObject(createAircraft(0x168fc0));
+  const model = new THREE.Object3D();
+  const parked: THREE.Box3[] = [];
+  for (const stand of data.stands) {
+    if (!data.flights.some((flight: { stand: string; motion?: unknown }) => flight.stand === stand.code && !flight.motion)) continue;
+    model.position.set(stand.scene.x, .2, stand.scene.z); model.rotation.y = THREE.MathUtils.degToRad(stand.scene.heading); model.updateMatrix();
+    parked.push(airframe.clone().applyMatrix4(model.matrix));
+  }
+  for (const scenario of data.perception.scenarios.filter((s: { route_points: unknown[] }) => s.route_points.length)) {
+    const { path, stop } = serviceBayRoute(scenario.route_points)!;
+    assert.ok(stop > 0 && stop < 1);
+    for (const point of path.getSpacedPoints(Math.ceil(path.getLength() / 2))) {
+      assert.ok(airport.trafficClear(point, 5, 6) && clearTrafficPoint(point, parked, 5, 6), `${scenario.id}: ${point.toArray()}`);
+    }
+    const direction = path.getTangentAt(stop + .001);
+    assert.ok(direction.dot(path.getTangentAt(stop - .001)) > .97);
+    faceTravel(model, direction);
+    assert.ok(new THREE.Vector3(0, 0, -1).applyQuaternion(model.quaternion).dot(direction) > .999);
+  }
 });

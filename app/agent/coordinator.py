@@ -10,7 +10,6 @@ from app.agent.coordinator_lexicon import (
     ACTUAL,
     BEIJING,
     CORE,
-    DATE_PAT,
     DATE_RANGE_STRIP_RE,
     DAY_MODE_STRIP_RE,
     FLIGHT_COUNT_METRICS,
@@ -50,6 +49,7 @@ from app.agent.coordinator_lexicon import (
     ground_briefing_display_residual,
     is_count,
     json_object,
+    month_year_window,
     strip_display_field_clauses,
 )
 from app.agent.governance_runtime import (
@@ -98,6 +98,9 @@ def period(question, anchor):
             raise ValueError('开始日期不能晚于结束日期')
         return [start.isoformat(), (end + timedelta(days=1)).isoformat()]
     today = anchor.date()
+    month_year = month_year_window(question, today)
+    if month_year:
+        return list(month_year[0])
     for words, days in get_relative_day_offsets():
         if any(word in question for word in words):
             start = today - timedelta(days=days)
@@ -106,10 +109,12 @@ def period(question, anchor):
     if match or re.search(r'最近一周|近一周', question):
         days = int(match[1]) if match else 7
         return [(today - timedelta(days=days - 1)).isoformat(), (today + timedelta(days=1)).isoformat()]
-    if re.search(r'最近一个月|近一个月|近一月', question):
-        return [(today - timedelta(days=29)).isoformat(), (today + timedelta(days=1)).isoformat()]
-    if '本月' in question:
-        return [today.replace(day=1).isoformat(), (today + timedelta(days=1)).isoformat()]
+    if re.search(r'本周', question):
+        monday = today - timedelta(days=today.weekday())
+        return [monday.isoformat(), (today + timedelta(days=1)).isoformat()]
+    if re.search(r'上周', question):
+        monday = today - timedelta(days=today.weekday() + 7)
+        return [monday.isoformat(), (monday + timedelta(days=7)).isoformat()]
     return None
 
 
@@ -409,12 +414,8 @@ class Coordinator:
             start_d = date.fromisoformat(delta['period'][0])
             end_d = date.fromisoformat(delta['period'][1]) - timedelta(days=1)
             rep_day = start_d.isoformat() if start_d == end_d else f'{start_d.isoformat()}至{end_d.isoformat()}'
-            date_expr = (
-                rf'{DATE_PAT}(?:\s*(?:到|至|-|~)\s*{DATE_PAT})?'
-                r'|(?:大前天|昨天|昨日|前一天|前天|今天|今日|最近一周|近一周|最近一个月|近一个月|近一月|本月|(?:最近|近)[1-9]\d?天)'
-            )
-            if re.search(date_expr, updated):
-                updated = re.sub(date_expr, rep_day, updated, count=1)
+            date_expr = rf'{FOLLOWUP_DATE_STRIP_RE.pattern}|大前天|昨天|昨日|前一天|前天|今天|今日'
+            updated = re.sub(date_expr, rep_day, updated, count=1)
         if delta.get('direction') and prior_slots.get('direction') != delta['direction']:
             dir_label = get_direction_label(delta['direction'])
             dir_pat = r'进出港|不分方向|全部方向|出港|离港|进港|到港'
@@ -883,19 +884,19 @@ class Coordinator:
         raw_input = unicodedata.normalize('NFKC', question).strip()
         original = raw_input
         self._raw_question = raw_input
-        self._normalized_question = raw_input
-        if clarification and not choice_id and self._should_break_clarification(raw_input, clarification, anchor):
+        self._normalized_question = original
+        if clarification and not choice_id and self._should_break_clarification(original, clarification, anchor):
             clarification = None
         if not _single and not clarification:
             from app.agent.analysis import plan as analysis_plan
             try:
-                expanded = analysis_plan(self, raw_input, anchor, previous_plan, day_mode)
+                expanded = analysis_plan(self, original, anchor, previous_plan, day_mode)
             except ValueError as exc:
                 return self.notice('clarification_needed', str(exc), raw_input, anchor, {})
             if expanded is not None:
                 return expanded
         if clarification:
-            original, anchor, confirmed, early = self._resolve_clarification_turn(raw_input, clarification, choice_id)
+            original, anchor, confirmed, early = self._resolve_clarification_turn(original, clarification, choice_id)
             if early is not None:
                 return early
         else:
@@ -1088,7 +1089,9 @@ class Coordinator:
         if metric in (None, *FLIGHT_COUNT_METRICS) and not is_list_ask and not non_flight_explicit:
             if '取消' in question and 'cancel_count' in catalog.metrics:
                 metric = 'cancel_count'
-            elif is_count(question) and ('延误' in question or '晚点' in question):
+            elif re.search(r'远机位.*外保障|外保障.*远机位|外保障.*(?:架次|航班)|远机位.*(?:架次|航班)', question) and 'remote_stand_flights' in catalog.metrics:
+                metric = 'remote_stand_flights'
+            elif (is_count(question) or '占比' in question or '比例' in question or '分布' in question or '排名' in question or '排行' in question) and ('延误' in question or '晚点' in question or '异常原因' in question or '不正常原因' in question):
                 if expected.get('direction') == 'ARR' and 'arr_delay_count' in catalog.metrics:
                     metric = 'arr_delay_count'
                 elif expected.get('direction') == 'DEP' and 'dep_delay_count' in catalog.metrics:
@@ -1113,13 +1116,29 @@ class Coordinator:
                     top_sc = (hints.get('scenarios') or [None])[0]
                     if top_sc and top_sc.get('metric_code') in catalog.metrics and top_sc.get('code') not in ('MetricQuery', 'FlightListQuery'):
                         metric = top_sc['metric_code']
-            if not metric and not non_flight_explicit and re.search(r'排名|排行|趋势|分布', question) and 'flight_count' in catalog.metrics:
+            if not metric and not non_flight_explicit:
                 cand_gb, _, _ = extract_acdm_dimensions_and_topn(question, catalog, target=CORE, allow_topn=True)
                 if cand_gb:
-                    metric = 'flight_count'
-            if not metric and re.search(r'存放多久|停放多久|停了多久|停留多久|在地上停|在地面停|地面存放|地面停放', question):
+                    if 'flight_delay_count' in catalog.metrics and ('延误' in question or '异常' in question):
+                        metric = 'flight_delay_count'
+                    elif 'operated_flight_count' in catalog.metrics and ('外保障' in question or '靠桥' in question or '机位' in question or '执行' in question or '实飞' in question):
+                        metric = 'operated_flight_count'
+                    elif 'flight_count' in catalog.metrics and re.search(r'排名|排行|趋势|分布|展示|占比|按天|按日|按月|按小时|按.*', question):
+                        metric = 'flight_count'
+            if not metric and re.search(r'存放多久|停放多久|停了多久|停留多久|在地上停|在地面停|地面存放|地面停放|过站.*保障.*时长|过站保障平均时长|过站平均保障时长', question):
                 if 'avg_turnaround_service_minutes' in catalog.metrics:
                     metric = 'avg_turnaround_service_minutes'
+            if not metric and re.search(r'登机桥.*使用.*次|登机桥保障总次|登机桥使用总次', question):
+                if 'air_bridge_usage_count' in catalog.metrics:
+                    metric = 'air_bridge_usage_count'
+            if not metric and re.search(r'国内|国际|港澳台', question) and re.search(r'实际执行|执行|实飞|执飞', question):
+                if 'operated_flight_count' in catalog.metrics:
+                    metric = 'operated_flight_count'
+        if metric in FLIGHT_COUNT_METRICS:
+            if 'remote_stand_flights' in catalog.metrics and re.search(r'远机位.*外保障|外保障.*远机位', question):
+                metric = 'remote_stand_flights'
+            elif 'operated_flight_count' in catalog.metrics and ('外保障' in question or '靠桥' in question or '机位' in question or '执行' in question or '实飞' in question or '航站楼' in question or '国内' in question or '国际' in question):
+                metric = 'operated_flight_count'
         if metric and expected.get('flight'):
             metric_filters = []
             apply_acdm_metric_slots(question, catalog, metric, metric_filters)
@@ -1186,7 +1205,7 @@ class Coordinator:
         )
         if report:
             return self.validate(report, question, expected, anchor)
-        safeguard_entry = r'保障节点(?:的)?(?:实测)?录入'
+        safeguard_entry = r'(?:保障节点.{0,6}(?:实测)?录入|(?:实测)?录入.{0,6}保障节点)'
         if re.search(safeguard_entry, question) and not re.search(r'原始记录|明细|清单', question):
             return self._plan_safeguard_entry(question, anchor, expected, safeguard_entry)
         candidates = catalog.retrieve(question)
@@ -1196,12 +1215,34 @@ class Coordinator:
             explicit = [t for t in explicit if t != 'dim_airline']
         if 'dim_aircraft' in explicit and flight_words and not expected.get('aircraft') and not re.search(r'机号|机龄|机型|注册号|尾号|飞机号|飞机基础|航空器', question):
             explicit = [t for t in explicit if t != 'dim_aircraft']
-        non_flight_explicit = [t for t in explicit if t not in (CORE, ACTUAL)]
+        if 'dim_airport' in explicit and '维表' not in question:
+            explicit = [t for t in explicit if t != 'dim_airport']
+        if 'dim_abnormal_reason' in explicit and '维表' not in question and (
+            flight_words or expected.get('period') or re.search(r'占比|分布|分类|展示|排名|排行|架次|延误|率', question)
+        ):
+            explicit = [t for t in explicit if t != 'dim_abnormal_reason']
+        if 'dim_stand' in explicit and '维表' not in question and (
+            flight_words or expected.get('period') or re.search(r'占比|靠桥|远机位|近机位|外保障|率|按天|架次|航班', question)
+        ):
+            explicit = [t for t in explicit if t != 'dim_stand']
+        if 'dim_air_bridge' in explicit and '维表' not in question and (
+            expected.get('period') or re.search(r'次|使用|保障|率', question)
+        ):
+            explicit = [t for t in explicit if t != 'dim_air_bridge']
+        flight_entities = {CORE, ACTUAL, 'mv_acdm_dyn_flight_detail', 'mv_acdm_turnaround_pair', 'mv_acdm_flight_calendar', 'std_flight_air_bridge', 'std_flight_safeguard_node'}
+        non_flight_explicit = [t for t in explicit if t not in flight_entities]
         hints = catalog.resolve_ontology_hints(question) if hasattr(catalog, 'resolve_ontology_hints') else {'synonyms': [], 'concepts': [], 'scenarios': []}
-        is_list_ask = bool(expected.get('intent') == 'detail' or re.search(r'有哪些|列表|清单|明细|哪几班|航班明细', question))
+        is_list_ask = bool(
+            expected.get('intent') == 'detail'
+            or re.search(r'有哪些|是哪些|哪些航班|哪几班|航班明细|明细|清单|列表|前\s*\d+\s*(?:个|班)?航班|\d+\s*个航班', question)
+        )
         metric = self._detect_metric(question, expected, non_flight_explicit, hints, is_list_ask)
 
         subject = expected.get('subject')
+        if not subject and is_list_ask and re.search(r'放行延误.*(?:最长|降序|排序)|(?:最长|降序).*放行延误', question):
+            if 'mv_acdm_dyn_flight_detail' in catalog.entities:
+                subject = 'mv_acdm_dyn_flight_detail'
+                expected['intent'] = 'detail'
         if not subject and metric:
             subject = catalog.metrics[metric].get('base_table')
         if not subject and explicit:
@@ -1289,6 +1330,20 @@ class Coordinator:
                         candidate['group_by'] = group_by
                     if top_opts:
                         candidate.update(top_opts)
+            if candidate.get('intent') == 'detail' and subject == 'mv_acdm_dyn_flight_detail':
+                if re.search(r'放行延误.*(?:最长|降序|排序|前\s*\d+|top)|(?:最长|降序|前\s*\d+|top).*放行延误', question, re.I):
+                    m_lim = re.search(r'(?:前|top\s*)?(\d{1,2})\s*(?:个|班|条)?(?:航班)?', question, re.I)
+                    lim = int(m_lim.group(1)) if (m_lim and m_lim.group(1)) else 10
+                    candidate['order_by'] = [{'field': 'clearance_delay_time', 'direction': 'desc'}]
+                    candidate['limit'] = lim
+                    self._turn_ignored_terms.extend([
+                        '放行延误', '放行延误时间', '延误时长', '延误时间', '最长', '时间最长', '最长的',
+                        '降序', '升序', '降序展示', '升序展示', '展示', '是哪些', '有哪些',
+                        f'前{lim}个航班', f'前{lim}个', f'前{lim}班', f'前{lim}', f'top{lim}', f'top {lim}',
+                        f'{lim}个航班', f'{lim}个', f'{lim}班', '10个航班', '10个', '航班',
+                    ])
+            if 'stand_type' in candidate.get('group_by', []) and '外保障' in question:
+                self._turn_ignored_terms.extend(['外保障', '外保障航班'])
             if expected.get('sequence'):
                 time_field = (
                     'scheduled_departure' if subject == CORE and expected.get('direction') == 'DEP'
@@ -1324,7 +1379,7 @@ class Coordinator:
             return self.notice('unsupported', '当前授权目录未开放所需的保障节点统计数据。', question, anchor, expected)
         rest = DAY_MODE_STRIP_RE.sub('', DATE_RANGE_STRIP_RE.sub('', question))
         rest = re.sub(
-            rf'{entry_pattern}(?:量|数(?!量))?|{breakdown}|记录(?:数|量)|条数|数量|多少条|几条|是多少|多少|总数'
+            rf'(?:{entry_pattern})(?:量|数(?!量))?|(?:实测)?录入(?:量|数(?!量))?|{breakdown}|记录(?:数|量)|条数|数量|多少条|几条|是多少|多少|总数|总量'
             r'|一共|共计|查询|统计|列出|给出|查看|分别|今天|今日|昨天|昨日|前天|大前天|本月|最近一周|近一周'
             r'|以及|和|与|及|有|的|了|请|呢|[\s，,。；;？?！!：:、]',
             '', rest,
@@ -1487,8 +1542,7 @@ class Coordinator:
             terms.append(origin_city)
         if dest_city:
             terms.append(dest_city)
-        if explicit_dir or origin_city or dest_city:
-            terms += home_terms
+        terms += home_terms
         terms += list(self._turn_ignored_terms or [])
         terms += [r['term'] for r in expected.get('references', [])]
         for term in sorted(set(terms), key=len, reverse=True):
@@ -1677,7 +1731,7 @@ class Coordinator:
         ground = plan.get('report_kind') == 'ground_briefing'
         if ground and end - start != timedelta(days=1):
             return self.notice('clarification_needed', '地服运行简报按单个业务日生成，请确认一个日期。', question, anchor, expected, 'period', self._period_choices(anchor))
-        rest = re.sub(rf'{DATE_PAT}(?:\s*(?:到|至|-|~)\s*{DATE_PAT})?|(?:最近|近)\d+天', '', question, flags=re.I)
+        rest = DATE_RANGE_STRIP_RE.sub('', question)
         if ground:
             from app.acdm_reports import GROUND_BRIEFING_CUTOFF
             rest = ground_briefing_display_residual(re.sub(GROUND_BRIEFING_NAME, '', rest), GROUND_BRIEFING_CUTOFF)
@@ -1844,18 +1898,19 @@ class Coordinator:
             raise ValueError('用户没有要求分组统计')
         if plan.get('time_bucket') and not re.search(r'按|每|逐|趋势|分布', question):
             raise ValueError('用户没有要求时间分组')
-        if plan.get('order_by') and not expected.get('sequence') and not re.search(r'排序|升序|降序|从大到小|从小到大|前\s*\d+|最高|最低|最多|最少', question):
+        if plan.get('order_by') and not expected.get('sequence') and not re.search(r'排序|升序|降序|从大到小|从小到大|前\s*\d+|最高|最低|最多|最少|最长|最短', question):
             raise ValueError('用户没有要求改变记录排序')
         target = plan.get('aggregate_target')
         if target and target != subject and not any(alias in question for alias in self.catalog.entities[target]['aliases']):
             raise ValueError('用户没有请求更换统计对象')
         if not expected.get('sequence') and plan.get('limit') is not None:
-            requested = re.search(r'(?:前|top)\s*([1-9]\d{0,2})', question, re.I)
+            requested = re.search(r'(?:前|top)\s*([1-9]\d{0,2})|([1-9]\d{0,2})\s*(?:个|班|条)(?:航班)?', question, re.I)
+            req_limit = int(requested.group(1) or requested.group(2)) if requested else None
             peak_one = plan['limit'] == 1 and re.search(
                 r'最高是哪|最多是哪|峰值|高峰小时是哪个|高峰时段是哪个|哪一小时最多|哪个小时最多|哪[个一]?(?:具体)?(?:日期|天|日|小时|时段|航司|航空公司|机型|航站楼|机位).{0,12}最[多高大少低]',
                 question,
             )
-            if not peak_one and (not requested or plan['limit'] != int(requested[1])):
+            if not peak_one and (not requested or plan['limit'] != req_limit):
                 raise ValueError('模型添加了用户未要求的记录条数限制')
         if not plan.get('metric') and expected.get('intent') != 'detail' and is_count(question) and plan.get('intent') != 'count':
             raise ValueError('数量问题必须保留计数意图')

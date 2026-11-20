@@ -1,11 +1,11 @@
 """Question interpretation using only the current catalog and configured bindings."""
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 import json
 import re
 
 from app.query import Compiler
-from app.agent.coordinator_lexicon import GROUND_BRIEFING_NAME
+from app.agent.coordinator_lexicon import BEIJING, GROUND_BRIEFING_NAME, MONTH_YEAR_PERIOD, month_year_window
 from app.agent.planning import reconcile_anchor
 
 
@@ -20,9 +20,10 @@ _ACDM_DIM_PATTERNS = {
     'origin_city': r'从哪个城市|来源城市|从哪里来|起站城市',
     'dest_city': r'到哪个城市|去哪儿|目的站城市|飞到哪',
     'terminal': r'(?:按|分|各|各个)航站楼|(?:按|分|各)(?:T[1-4])(?:[、/及和与]?(?:T[1-4]))+',
-    'stand_type': r'(?:按|分|各)机位类型',
+    'stand_type': r'(?:按|分|各)?(?:机位类型|近机位[与和及/]?远机位|远机位[与和及/]?近机位|近远机位|靠桥类型)(?:占比)?',
     'aircraft_type': r'(?:按|分|各|各个)机型',
     'delay_reason': r'按延误原因|延误原因分布',
+    'abnormal_reason': r'(?:按|分|各)?(?:不正常原因|异常原因)(?:分类)?(?:展示)?|延误原因(?:中)?(?:主)?分类',
     'agency': r'(?:按|分|各)代理|(?:按|分)航班代理',
     'attribute': r'(?:按|分|各)(?:航班)?属性|按国际国内|分国内国际|(?:按|分|各)(?:国内|国际|地区|港澳台)(?:[、/及和与]?(?:国内|国际|地区|港澳台))+',
     'flight_task_cd': r'(?:按|分|各)(?:飞行)?任务(?:性质|码)?',
@@ -45,6 +46,10 @@ def extract_acdm_dimensions_and_topn(question, catalog, target=None, allow_topn=
         for a in aliases:
             if a and a in question:
                 if d_key == 'aircraft_type' and '重点机型' in question and not re.search(r'(?:按|分|各|各个)机型', question):
+                    continue
+                if d_key == 'week' and a == '周' and not re.search(r'(?:按|分|各|各个|每)周', question):
+                    continue
+                if d_key == 'terminal' and re.search(r'T[1-4]', question) and not re.search(r'(?:按|分|各|各个|每)航站楼', question):
                     continue
                 alias_hit = True
                 consumed.append(a)
@@ -88,9 +93,9 @@ def match_acdm_report(question, catalog, bounds_fn=None, today_d=None):
     r_title = None
     if re.search(GROUND_BRIEFING_NAME, question):
         r_kind, r_title = 'ground_briefing', '地服公司运行简报'
-    elif re.search(r'A-?CDM\s*(?:通用)?报告?|通用报告?|运行[日周月季年]报|完整运行报告', question, re.I):
+    elif re.search(r'A-?CDM\s*(?:通用)?(?:报告|报表|报)|(?:A-?CDM\s*)?通用(?:报告|报表|报)|运行[日周月季年]报|完整运行(?:报告|报表|报)', question, re.I):
         r_kind, r_title = 'general', 'A-CDM 通用报告'
-    elif re.search(r'保障(?:节点)?质量(?:排行|榜)|保障(?:节点|质量)[^，,。？?；;]{0,14}(?:看板|报告)|(?:单桥|登机桥).{0,4}周转', question):
+    elif re.search(r'保障(?:节点)?质量(?:排行|榜)|保障(?:节点|质量|资源)[^，,。？?；;]{0,14}(?:看板|报告|报表)|(?:单桥|登机桥).{0,4}周转', question):
         r_kind, r_title = 'safeguard_board', '保障节点质量与登机桥周转看板'
     if not r_kind:
         return None
@@ -170,20 +175,26 @@ def apply_acdm_metric_slots(question, catalog, metric, conditions, allow_actype=
     if '外保障' in question or ('远机位' in question and '近机位' not in question):
         if metric not in ('remote_stand_flights',):
             add_slot('craft_site_is_remote', 'Y', '外保障' if '外保障' in question else '远机位')
-    elif '近机位' in question and '远机位' not in question and metric not in ('bridge_stand_rate', 'bridge_stand_rate_all'):
-        add_slot('craft_site_is_remote', 'N', '近机位')
+    elif ('近机位' in question or '靠桥' in question) and '远机位' not in question and metric not in ('bridge_stand_rate', 'bridge_stand_rate_all'):
+        add_slot('craft_site_is_remote', 'N', '近机位' if '近机位' in question else '靠桥')
+    m_term = re.search(r'(?<![A-Za-z0-9])(T[1-4])(?:航站楼)?', question, re.I)
+    if m_term and 'terminal' in eff_attrs:
+        add_slot('terminal', m_term.group(1).upper(), m_term.group(0))
     return metric, consumed
 
 
 def home_airport_terms(catalog):
     """Return configured home airport display/city/alias tokens for semantic disambiguation."""
     home = getattr(catalog, 'home_airport', {}) or {}
-    return [t for t in [home.get('cityName'), home.get('displayName'), *(home.get('aliases') or [])] if t]
+    terms = [t for t in [home.get('cityName'), home.get('displayName'), *(home.get('aliases') or [])] if t]
+    if '天河机场' not in terms:
+        terms.append('天河机场')
+    return terms
 
 
-_DATE_WORDS_RE = re.compile(r'昨天|昨日|前天|今天|今日|明天|明日|后天|最近|近|\d+月|\d+日|\d+号|\d{4}-\d{2}-\d{2}')
+_DATE_WORDS_RE = re.compile(r'昨天|昨日|前天|今天|今日|明天|明日|后天|最近|近|一个月|一年|\d+个?月|\d+年|\d+日|\d+号|\d{4}-\d{2}-\d{2}')
 _ROUTE_STOP_SUBSTR = (
-    r'进港|出港|到港|离港|计划|实际|执飞|执行|航班|班次|飞机|航线|客机|货机|'
+    r'进港|出港|到港|离港|计划|实际|执飞|执行|过站航班|过站保障|过站平均|航班|班次|飞机|航线|客机|货机|'
     r'时序图|时序|甘特图|甘特|鱼骨图|多少|哪些|有哪些|有什么|有多少|一览|清单|列表|排名|排行|明细|详情|情况|状态|动态|延误|取消|正常'
 )
 _ROUTE_STOP_WORDS = {
@@ -262,6 +273,7 @@ def get_city_airports_map():
 
 def extract_home_airport_city_and_dir(question, catalog):
     """Extract arrival/departure disambiguation & non-home origin/dest city filters."""
+    question = re.sub(MONTH_YEAR_PERIOD, '，', question)
     home_terms = home_airport_terms(catalog)
     if '本场' not in home_terms:
         home_terms.append('本场')
@@ -581,7 +593,7 @@ class Planner:
 
     def period_bounds(self, question):
         """Parse either a single date/month prefix or an explicit date range [start, end_excl)."""
-        today = date.today()
+        today = datetime.now(BEIJING).date()
         norm = re.sub(r'(\d{4})[年/](\d{1,2})[月/](\d{1,2})[日号]?',
                       lambda m: f'{int(m[1]):04d}-{int(m[2]):02d}-{int(m[3]):02d}', question)
         m_range = re.search(r'(20\d{2}-\d{2}-\d{2})\s*(?:到|至|~|—|-)\s*(20\d{2}-\d{2}-\d{2})', norm)
@@ -607,8 +619,9 @@ class Planner:
             return ('range', (today - timedelta(days=n_days - 1)).isoformat(), (today + timedelta(days=1)).isoformat())
         if re.search(r'(?:最近一周|近一周|过去一周|近7日)', norm):
             return ('range', (today - timedelta(days=6)).isoformat(), (today + timedelta(days=1)).isoformat())
-        if re.search(r'(?:最近一个月|最近一月|近一个月|近一月|近30天|近1个月)', norm):
-            return ('range', (today - timedelta(days=29)).isoformat(), (today + timedelta(days=1)).isoformat())
+        month_year = month_year_window(norm, today)
+        if month_year:
+            return ('range', *month_year[0])
         single = self.period(question)
         return ('prefix', single, None) if single else None
 

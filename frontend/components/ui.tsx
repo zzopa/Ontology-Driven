@@ -61,7 +61,10 @@ export function Modal({ title, subtitle, onClose, children, wide = false }: { ti
     const handleKey = (e: KeyboardEvent) => {
       const dialogs = document.querySelectorAll('[role="dialog"]');
       if (dialogs[dialogs.length - 1] !== ref.current) return;
-      if (e.key === "Escape") { e.stopPropagation(); onClose(); }
+      if (e.key === "Escape") {
+        if (CSS.supports("selector(:popover-open)") && ref.current?.querySelector(":popover-open")) return;
+        e.stopPropagation(); onClose();
+      }
       if (e.key === "Tab") {
         const items = ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input,select,textarea,[tabindex="0"]');
         if (!items?.length) return;

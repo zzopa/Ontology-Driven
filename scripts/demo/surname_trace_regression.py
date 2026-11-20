@@ -14,7 +14,7 @@ from app.query import Compiler, Statement, execute
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--base-url', default='http://127.0.0.1:8088')
+    parser.add_argument('--base-url', default='http://127.0.0.1:5010')
     args = parser.parse_args()
     catalog = Catalog(json.loads(settings.schema_path.read_text(encoding='utf-8')), core.STORE.load(), settings)
     company = catalog.overrides['enterprise_aliases']['信科公司']

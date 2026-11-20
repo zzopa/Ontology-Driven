@@ -58,6 +58,38 @@ test("multi-turn chat thread preserves earlier turns when follow-up turns arrive
   assert.equal(thread[1].result?.answer, "南航 98.1%、东航 97.5%。");
 });
 
+test("first response timing starts with the first visible answer text, and total stops at the final result", () => {
+  let turn = createChatTurn("t1", "Q", "Q");
+  turn = applyTurnEvent(turn, { type: "progress", message: "正在查询" }, 0.1);
+  turn = applyTurnEvent(turn, { type: "answer_delta", delta: "\n" }, 0.2);
+  assert.equal(turn.firstOutputElapsed, undefined);
+  turn = applyTurnEvent(turn, { type: "answer_delta", delta: "第一段" }, 0.8);
+  turn = applyTurnEvent(turn, { type: "answer_delta", delta: "第二段" }, 1.0);
+  turn = applyTurnEvent(turn, { type: "result", data: fakeResult({ elapsed: 1.1 }) }, 1.5);
+  assert.equal(turn.firstOutputElapsed, 0.8);
+  assert.equal(turn.elapsed, 1.5);
+});
+
+test("a directly returned notice first appears when the final result arrives", () => {
+  const turn = applyTurnEvent(createChatTurn("t1", "Q", "Q"), {
+    type: "result",
+    data: fakeResult({ intent: "notice", outcome: "out_of_coverage" }),
+  }, 1.5);
+  assert.equal(turn.firstOutputElapsed, 1.5);
+  assert.equal(turn.elapsed, 1.5);
+});
+
+test("an analysis section counts as the first visible response", () => {
+  const turn = applyTurnEvent(createChatTurn("t1", "Q", "Q"), {
+    type: "query_result",
+    section: {
+      id: "s1", label: "本月", metric_key: "rate", period_index: 0, object: "出港", period: [],
+      value: 95, unit: "%", is_simulated: false, result: fakeResult(),
+    },
+  }, 0.9);
+  assert.equal(turn.firstOutputElapsed, 0.9);
+});
+
 test("failed clarification continuation retains clarification reference for retry", () => {
   const clar = { clarification_of: "m1", choice_id: "1" };
   const turn = failChatTurn(
@@ -95,6 +127,8 @@ test("turnsFromMessages restores every historical turn in chronological order", 
   assert.equal(restored[1].result?.answer, "1 条航班记录。");
   assert.equal(restored[0].isHistorical, true);
   assert.equal(restored[1].isHistorical, true);
+  assert.equal(restored[1].elapsed, 0);
+  assert.equal(restored[1].firstOutputElapsed, undefined);
   assert.equal(resolvedChoiceId(restored, 0), undefined);
   restored[0].result!.clarification = {
     question: "计划还是实际？",

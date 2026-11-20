@@ -79,6 +79,22 @@ class ReportingTests(unittest.TestCase):
         wide = r.html_report({'main_rows': [{f'field{i}': f'value{i}' for i in range(15)}]}, '宽表')
         self.assertIn('value14', wide)
 
+    def test_pdf_report_prints_period_metrics_and_source_notes(self):
+        html = r.html_report({
+            'kind': 'general', 'start_date': '2026-11-10', 'end_date': '2026-11-12',
+            'generated_at': '2026-11-12T23:06:42+00:00',
+            'document': {'title': '《A-CDM 通用报告》· 2026-11-10 ~ 2026-11-12'},
+            'summary': {'operated_all': 1501}, 'answer': '**实际执行** `1,501` 架次。',
+            'boundary': '统计仅覆盖已同步记录。', 'ontology_version': 'fixture-version-1234',
+        }, '报告标题')
+        self.assertIn('<h1>A-CDM 通用报告</h1>', html)
+        self.assertIn('2026-11-10 至 2026-11-12', html)
+        self.assertIn('2026-11-13 07:06', html)
+        self.assertIn('1,501 架次', html)
+        self.assertIn('<strong>实际执行</strong> 1,501 架次。', html)
+        self.assertIn('统计仅覆盖已同步记录。', html)
+        self.assertIn('fixture-version-1234', html)
+
     def test_expired_claim_recovers_and_worker_start_does_not_interrupt_chat(self):
         cid, mid = self.store.begin_question('owner1', '查询', 'test')
         AdminStore(self.tmp.name, recover=False)

@@ -785,7 +785,7 @@ def build_visual_meta(
             })
             if row.get('n') is not None:
                 stats.append({
-                    'label': '统计样本数' if raw_val is not None else '扫描记录数',
+                    'label': '匹配记录数' if raw_val is not None else '扫描记录数',
                     'value': str(row['n']),
                     'unit': '条'
                 })

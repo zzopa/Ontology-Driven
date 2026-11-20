@@ -6,6 +6,7 @@ import type { OpsSnapshot, OpsPerceptionScenario } from "@/lib/ops";
 import { apronMapPosition, labelTop, perceptionStandTone } from "@/lib/ops-perception";
 import { airportCameraView, airportLandmarks, airportViews, buildAirport, createAircraft, createJetBridge, createVehicle } from "./apron-models";
 import { createApronControls, trackMapClick } from "./apron-controls";
+import { clearTrafficPoint, faceTravel, serviceBayRoute } from "./apron-traffic";
 import s from "./perception.module.css";
 
 export type CameraView = "overview" | "terminal" | "t3" | "map" | "macro" | "focus";
@@ -53,6 +54,7 @@ export default function ApronScene(props: Props) {
     const standObjects = new Map<string, { pad: THREE.MeshBasicMaterial; border: THREE.LineBasicMaterial; beacon: THREE.MeshBasicMaterial; halo: THREE.Mesh; position: THREE.Vector3; physical: boolean }>();
     const textures = new Set<THREE.Texture>(), aircraftModels = new Map<number, THREE.Group>(), vehicleModels = new Map<string, THREE.Group>();
     const traffic: { plane: THREE.Group; path: THREE.CurvePath<THREE.Vector3>; duration: number; code: string }[] = [];
+    const parkedAircraft: THREE.Box3[] = [];
     const serviceEffects: { marker: THREE.Mesh; kind: string }[] = [];
     for (const stand of latest.current.snapshot.stands) {
       if (!stand.scene) continue;
@@ -82,6 +84,7 @@ export default function ApronScene(props: Props) {
         if (stand.scene.dual) {
           const shift = new THREE.Vector3(-4, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), group.rotation.y);
           const second = new THREE.Vector3(-2.4, 0, -4).applyAxisAngle(new THREE.Vector3(0, 1, 0), group.rotation.y).add(group.position);
+          if (!occupied) second.lerp(origin.clone().add(shift), .72);
           scene.add(createJetBridge(origin.x + shift.x, origin.z + shift.z, second.x, second.z));
         }
       }
@@ -103,10 +106,12 @@ export default function ApronScene(props: Props) {
           traffic.push({ plane, path, duration: flight.motion.duration_ms / 1000, code: stand.code });
           line(points.map(p => [p.x, .5, p.z]), flight.aircraft_state?.code === 'taking_off' ? 0xc49cf8 : 0xe0b348, .45);
           group.visible = false;
+        } else {
+          group.updateMatrixWorld(true); parkedAircraft.push(new THREE.Box3().setFromObject(plane));
         }
         for (const [i, kind] of (stand.kind ? [] : ['fuel', 'catering', 'baggage'] as const).entries()) {
           if (!vehicleModels.has(kind)) vehicleModels.set(kind, createVehicle([0x39b9a0, 0x469ee4, 0xd5a044][i], kind));
-          const vehicle = vehicleModels.get(kind)!.clone(true); vehicle.position.set(i === 2 ? -10 : 10, 0, (i - 1) * 10); group.add(vehicle);
+          const vehicle = vehicleModels.get(kind)!.clone(true); vehicle.position.set([15, 12, -12][i], 0, [-8, -18, 15][i]); group.add(vehicle);
         }
       }
       const state = flight?.aircraft_state?.code;
@@ -120,7 +125,7 @@ export default function ApronScene(props: Props) {
     radar.rotation.x = -Math.PI / 2; radar.position.set(latest.current.snapshot.terminal === 'T2' ? -450 : 0, .5, latest.current.snapshot.terminal === 'T2' ? 430 : -280); scene.add(radar);
     const routeGroup = new THREE.Group(); scene.add(routeGroup);
     const truck = createVehicle(0x42daba); truck.scale.setScalar(1.2); scene.add(truck);
-    let routeId = '', firstLeg: THREE.CurvePath<THREE.Vector3> | undefined, nextLeg: THREE.CurvePath<THREE.Vector3> | undefined;
+    let routeId = '', serviceRoute: ReturnType<typeof serviceBayRoute> = null;
     let previousRevision = -1, tween = false, manualCamera = false;
     const destination = new THREE.Vector3(), target = new THREE.Vector3();
     let width = 1, height = 1;
@@ -158,7 +163,7 @@ export default function ApronScene(props: Props) {
       for (const item of traffic) {
         const fraction = (trafficTime % item.duration) / item.duration;
         item.plane.position.copy(item.path.getPointAt(fraction));
-        const direction = item.path.getTangentAt(fraction); item.plane.rotation.y = Math.atan2(-direction.x, -direction.z); item.plane.rotation.x = Math.asin(direction.y);
+        faceTravel(item.plane, item.path.getTangentAt(fraction));
         standObjects.get(item.code)?.position.copy(item.plane.position).add(new THREE.Vector3(0, 15, 0));
       }
       for (const item of serviceEffects) { const fraction = (trafficTime % 2.5) / 2.5; item.marker.position.set(item.kind === 'fueling' ? 10 - 7 * fraction : 0, item.kind === 'fueling' ? 3 : 7, item.kind === 'cleaning' ? -10 + fraction * 20 : 0); }
@@ -196,22 +201,21 @@ export default function ApronScene(props: Props) {
       if (routeId !== value.scenario.id) {
         routeId = value.scenario.id;
         for (const child of [...routeGroup.children]) { const item = child as THREE.Line; item.geometry.dispose(); (item.material as THREE.Material).dispose(); routeGroup.remove(child); }
-        const points = value.scenario.route_points.map(([x, z]) => new THREE.Vector3(x, 2, z));
-        const path = (list: THREE.Vector3[]) => { const result = new THREE.CurvePath<THREE.Vector3>(); for (let i = 1; i < list.length; i++) result.add(new THREE.LineCurve3(list[i - 1], list[i])); return result; };
-        firstLeg = points.length > 3 ? path(points.slice(0, 4)) : undefined;
-        nextLeg = points.length > 3 ? path(points.slice(3)) : undefined;
-        if (points.length > 1) {
-          const route = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineDashedMaterial({ color: 0x47e4ca, dashSize: 5, gapSize: 3 })); route.computeLineDistances(); routeGroup.add(route);
+        const planned = serviceBayRoute(value.scenario.route_points);
+        const points = planned?.path.getSpacedPoints(Math.ceil(planned.path.getLength() / 2)) ?? [];
+        serviceRoute = points.every(p => airport.trafficClear(p, 5, 6) && clearTrafficPoint(p, parkedAircraft, 5, 6)) ? planned : null;
+        if (serviceRoute) {
+          const route = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points.map(p => p.clone().setY(.4))), new THREE.LineDashedMaterial({ color: 0x47e4ca, dashSize: 5, gapSize: 3 })); route.computeLineDistances(); routeGroup.add(route);
         }
       }
       routeGroup.visible = value.recommended;
-      truck.visible = value.recommended && !!firstLeg && !!nextLeg;
-      if (truck.visible && firstLeg && nextLeg) {
+      truck.visible = value.recommended && !!serviceRoute;
+      if (truck.visible && serviceRoute) {
         const p = value.progress;
-        const curve = p < .55 ? firstLeg : nextLeg;
-        const fraction = p < .35 ? p / .35 : p < .55 ? 1 : (p - .55) / .45;
-        truck.position.copy(curve.getPointAt(Math.min(1, fraction)));
-        const direction = curve.getTangentAt(Math.min(1, fraction)); truck.rotation.y = Math.atan2(-direction.x, -direction.z);
+        const { path, stop } = serviceRoute;
+        const fraction = p < .35 ? p / .35 * stop : p < .55 ? stop : THREE.MathUtils.lerp(stop, 1, (p - .55) / .45);
+        path.getPointAt(Math.min(1, fraction), truck.position);
+        faceTravel(truck, path.getTangentAt(Math.min(1, fraction)));
       }
       if (vehicleLabel.current) {
         const point = truck.position.clone().add(new THREE.Vector3(0, 10, 0)).project(camera);

@@ -13,5 +13,12 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="zh-CN"><body><Providers>{children}</Providers></body></html>;
+  return (
+    <html lang="zh-CN">
+      <body>
+        <Providers>{children}</Providers>
+        <script src="/swarm/swarm-trigger.js" data-src="/swarm/swarm.js" defer />
+      </body>
+    </html>
+  );
 }

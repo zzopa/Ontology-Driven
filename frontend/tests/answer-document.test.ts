@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { answerCopyText, answerSections } from "../lib/answer-document.ts";
+import { answerCopyText, answerSections, displayAnswer } from "../lib/answer-document.ts";
 import type { AnswerDocument } from "../lib/types.ts";
 
 function result() {
@@ -48,4 +48,11 @@ test("legacy snapshots without a document still render the original answer", () 
 test("section titles come from the local fixed dictionary, not model text", () => {
   const value = result(); value.answer_document.sections[0].title = "伪造的付款状态";
   assert.equal(answerSections(value)![0].title, "查询事实");
+});
+
+test("unsupported notices use business language and preserve the suggested next question", () => {
+  const answer = "当前输入问题未匹配到业务本体对照，回复回复不了。请说明具体业务对象。";
+  assert.equal(displayAnswer({ answer, intent: "notice", outcome: "unsupported" }),
+    "当前数据查询暂不支持这个问题。请说明具体业务对象。");
+  assert.equal(displayAnswer({ answer, intent: "detail", outcome: "answered" }), answer);
 });

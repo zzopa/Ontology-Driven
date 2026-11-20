@@ -117,7 +117,7 @@ export function ForecastResults({ forecast }: { forecast: Forecast }) {
     </div>
     <div className={s.table}>
       <table aria-label="逐日预测与回测">
-        <thead><tr><th scope="col">日期</th><th scope="col">预测值</th><th scope="col">经验区间</th><th scope="col">回测 MAE</th></tr></thead>
+        <thead><tr><th scope="col">日期</th><th scope="col">预测值</th><th scope="col">经验区间</th><th scope="col" title="平均绝对误差（MAE）">回测平均绝对误差</th></tr></thead>
         <tbody>{forecast.points.map(point => <tr key={point.date}>
           <th scope="row">{point.date}</th>
           <td><strong>{point.value.toLocaleString("zh-CN")}</strong>
